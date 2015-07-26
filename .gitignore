@@ -22,6 +22,7 @@ x64/
 [Bb]uild[Ll]og.*
 UnitTestResults.html
 
+*.a
 *_i.c
 *_p.c
 *.ilk
