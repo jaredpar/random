@@ -65,9 +65,10 @@ namespace ApiFun
             string sha1 = null;
             string pullLink = null;
             int? pullId = null;
-            string authorEmail = null;
-
-            foreach (var pair in (JArray)container["parameters"])
+            string pullAuthorEmail = null;
+            string commitAuthorEmail = null;
+            var parameters = (JArray)container["parameters"];
+            foreach (var pair in parameters)
             {
                 switch (pair.Value<string>("name"))
                 {
@@ -78,7 +79,10 @@ namespace ApiFun
                         pullId = pair.Value<int>("value");
                         break;
                     case "ghprbPullAuthorEmail":
-                        authorEmail = pair.Value<string>("value");
+                        pullAuthorEmail = pair.Value<string>("value");
+                        break;
+                    case "ghprbActualCommitAuthorEmail":
+                        commitAuthorEmail = pair.Value<string>("value");
                         break;
                     case "ghprbPullLink":
                         pullLink = pair.Value<string>("value");
@@ -88,13 +92,21 @@ namespace ApiFun
                 }
             }
 
-            if (sha1 == null || pullLink == null || pullId == null || authorEmail == null)
+            // It's possible for the pull email to be blank if the Github settings for the user 
+            // account hides their public email address.  In that case fall back to the commit 
+            // author.  It's generally the same value and serves as a nice backup identifier.
+            if (string.IsNullOrEmpty(pullAuthorEmail))
+            {
+                pullAuthorEmail = commitAuthorEmail;
+            }
+
+            if (sha1 == null || pullLink == null || pullId == null || pullAuthorEmail == null)
             {
                 throw new Exception("Bad data");
             }
 
             return new PullRequestInfo(
-                authorEmail: authorEmail,
+                authorEmail: pullAuthorEmail,
                 id: pullId.Value,
                 pullUrl: pullLink,
                 sha1: sha1);

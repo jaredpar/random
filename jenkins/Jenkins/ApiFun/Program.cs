@@ -14,7 +14,7 @@ namespace ApiFun
         internal static void Main(string[] args)
         {
             var client = new JenkinsClient();
-            var builds = client.GetJobIds(Platform.Windows);
+            var builds = client.GetJobIds(Platform.Windows).Take(2);
             var jobInfoList = builds.Select(x => client.GetJobInfo(x)).ToList();
 
             var data = jobInfoList.GroupBy(x => $"{x.PullRequestInfo.Id} - {x.PullRequestInfo.Sha1}");
