@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace ApiFun
@@ -12,25 +13,22 @@ namespace ApiFun
     {
         internal static void Main(string[] args)
         {
-            GetWindowsPullJobs();
-        }
+            var client = new JenkinsClient();
+            var builds = client.GetWindowsPullJobs().Take(10);
+            var jobInfoList = builds.Select(x => client.GetJobInfo(x)).ToList();
 
-        private static List<Build> GetWindowsPullJobs()
-        {
-            var client = new RestClient("http://dotnet-ci.cloudapp.net");
-            var request = new RestRequest("job/dotnet_roslyn_prtest_win/api/json", Method.GET);
-            request.AddParameter("pretty", "true");
-            var content = client.Execute(request).Content;
-            var data = JObject.Parse(content);
-            var all = (JArray)data["builds"];
-
-            var list = new List<Build>();
-            foreach (var cur in all)
+            var data = jobInfoList.GroupBy(x => $"{x.PullRequestInfo.Id} - {x.PullRequestInfo.Sha1}");
+            foreach (var cur in data)
             {
-                list.Add(cur.ToObject<Build>());
-            }
+                var all = cur.ToList();
+                if (all.Count == 1)
+                {
+                    continue;
+                }
 
-            return list;
+                Console.WriteLine(cur.Key);
+            }
         }
     }
+
 }
