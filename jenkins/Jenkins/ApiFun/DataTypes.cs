@@ -8,18 +8,42 @@ namespace ApiFun
 {
     internal sealed class JobInfo
     {
-        public readonly Build Build;
+        public readonly JobId BuildId;
         public readonly PullRequestInfo PullRequestInfo;
 
-        internal JobInfo(Build build, PullRequestInfo pullRequestInfo)
+        internal JobInfo(JobId buildId, PullRequestInfo pullRequestInfo)
         {
-            Build = build;
+            BuildId = buildId;
             PullRequestInfo = pullRequestInfo;
         }
 
         public override string ToString()
         {
-            return $"{Build.Number} {PullRequestInfo.PullUrl}";
+            return $"{BuildId.Id} {PullRequestInfo.PullUrl}";
+        }
+    }
+
+    internal enum Platform
+    {
+        Windows,
+        Linux,
+        Mac,
+    }
+
+    internal struct JobId
+    {
+        internal readonly int Id;
+        internal readonly Platform Platform;
+
+        internal JobId(int id, Platform platform)
+        {
+            Id = id;
+            Platform = platform;
+        }
+
+        public override string ToString()
+        {
+            return $"{Id} - {Platform}";
         }
     }
 

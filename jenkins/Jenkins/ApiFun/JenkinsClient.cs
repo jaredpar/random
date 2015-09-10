@@ -13,39 +13,32 @@ namespace ApiFun
     {
         private readonly RestClient _restClient = new RestClient("http://dotnet-ci.cloudapp.net");
 
-        internal List<Build> GetWindowsPullJobs()
+        internal List<JobId> GetJobIds(Platform platform)
         {
-            var data = GetJson("job/dotnet_roslyn_prtest_win");
+            var platformId = JenkinsUtil.GetPlatformPathId(platform); 
+            var data = GetJson($"job/dotnet_roslyn_prtest_{platformId}");
             var all = (JArray)data["builds"];
 
-            var list = new List<Build>();
+            var list = new List<JobId>();
             foreach (var cur in all)
             {
-                list.Add(cur.ToObject<Build>());
+                var build = cur.ToObject<Json.Build>();
+                list.Add(new JobId(build.Number, Platform.Windows));
             }
 
             return list;
         }
 
-        internal JobInfo GetJobInfo(Build build)
+        internal JobInfo GetJobInfo(JobId id)
         {
-            var pr = GetPullRequestInfo(build);
-            return new JobInfo(build, pr);
+            var pr = GetPullRequestInfo(id);
+            return new JobInfo(id, pr);
         }
 
-        private JObject GetJson(string urlPath)
+        internal PullRequestInfo GetPullRequestInfo(JobId id)
         {
-            urlPath = urlPath.TrimEnd('/');
-            var request = new RestRequest($"{urlPath}/api/json", Method.GET);
-            request.AddParameter("pretty", "true");
-            var content = _restClient.Execute(request).Content;
-            return JObject.Parse(content);
-        }
-
-        private PullRequestInfo GetPullRequestInfo(Build build)
-        { 
-            var uri = new Uri(build.Url);
-            var data = GetJson(uri.PathAndQuery);
+            var path = JenkinsUtil.GetUrlPath(id);
+            var data = GetJson(path);
             var actions = (JArray)data["actions"];
 
             string baseUrl;
@@ -57,6 +50,15 @@ namespace ApiFun
 
             // If it's not a child then it is the parent.
             return JenkinsUtil.ParseParentJobPullRequestInfo(actions);
+        }
+
+        private JObject GetJson(string urlPath)
+        {
+            urlPath = urlPath.TrimEnd('/');
+            var request = new RestRequest($"{urlPath}/api/json", Method.GET);
+            request.AddParameter("pretty", "true");
+            var content = _restClient.Execute(request).Content;
+            return JObject.Parse(content);
         }
 
         private PullRequestInfo GetParentJobPullRequestInfo(string baseUrl, int parentBuildId)

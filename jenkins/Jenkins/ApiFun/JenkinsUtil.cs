@@ -11,6 +11,27 @@ namespace ApiFun
 {
     internal static class JenkinsUtil
     {
+        internal static string GetPlatformPathId(Platform platform)
+        {
+            switch (platform)
+            {
+                case Platform.Windows:
+                    return "win";
+                case Platform.Linux:
+                    return "lin";
+                case Platform.Mac:
+                    return "mac";
+                default:
+                    throw new Exception($"Invalid platform: {platform}");
+            }
+        }
+
+        internal static string GetUrlPath(JobId id)
+        {
+            var platform = GetPlatformPathId(id.Platform);
+            return $"job/dotnet_roslyn_prtest_{platform}/{id.Id}/";
+        }
+
         /// <summary>
         /// Is this a child build job.  If so return the ID of the parent job and base url
         /// </summary>
