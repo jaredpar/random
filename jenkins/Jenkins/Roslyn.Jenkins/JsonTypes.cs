@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ApiFun.Json
+namespace Roslyn.Jenkins.Json
 {
     public class Build
     {

@@ -7,13 +7,13 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace ApiFun
+namespace Roslyn.Jenkins
 {
-    internal sealed class JenkinsClient
+    public sealed class JenkinsClient
     {
         private readonly RestClient _restClient = new RestClient("http://dotnet-ci.cloudapp.net");
 
-        internal List<JobId> GetJobIds(Platform platform)
+        public List<JobId> GetJobIds(Platform platform)
         {
             var platformId = JenkinsUtil.GetPlatformPathId(platform); 
             var data = GetJson($"job/dotnet_roslyn_prtest_{platformId}");
@@ -29,13 +29,13 @@ namespace ApiFun
             return list;
         }
 
-        internal JobInfo GetJobInfo(JobId id)
+        public JobInfo GetJobInfo(JobId id)
         {
             var pr = GetPullRequestInfo(id);
             return new JobInfo(id, pr);
         }
 
-        internal PullRequestInfo GetPullRequestInfo(JobId id)
+        public PullRequestInfo GetPullRequestInfo(JobId id)
         {
             var path = JenkinsUtil.GetUrlPath(id);
             var data = GetJson(path);

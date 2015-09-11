@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Roslyn.Jenkins;
 
 namespace ApiFun
 {
@@ -40,6 +41,11 @@ namespace ApiFun
                 }
 
                 Console.WriteLine(cur.Key);
+
+                foreach (var job in cur)
+                {
+                    Console.WriteLine($"\t{job.BuildId}");
+                }
             }
         }
     }
