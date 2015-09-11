@@ -88,4 +88,64 @@ namespace Roslyn.Jenkins
             return $"{PullId} - {Sha1}";
         }
     }
+
+    public sealed class JobResult
+    {
+        private readonly JobFailureInfo _failureInfo;
+
+        public readonly JobId Id;
+        public bool Succeeded;
+
+        public JobFailureInfo FailureInfo
+        {
+            get
+            {
+                if (Succeeded)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                return _failureInfo;
+            }
+        }
+
+        public JobResult(JobId id)
+        {
+            Id = id;
+            Succeeded = true;
+        }
+
+        public JobResult(JobId id, JobFailureInfo failureInfo)
+        {
+            Id = id;
+            Succeeded = false;
+            _failureInfo = failureInfo;
+        }
+    }
+
+    public enum JobFailureReason
+    {
+        Unknown,
+        TestCase,
+        Build,
+    }
+
+    public sealed class JobFailureInfo
+    {
+        public static readonly JobFailureInfo Unknown = new JobFailureInfo(JobFailureReason.Unknown);
+
+        public JobFailureReason Reason;
+        public List<string> FailedTestList;
+
+        private JobFailureInfo(JobFailureReason reason, List<string> failedTestList = null)
+        {
+            Reason = reason;
+            FailedTestList = failedTestList ?? new List<string>();
+        }
+
+        public static JobFailureInfo TestFailed(List<string> failedTestList)
+        {
+            return new JobFailureInfo(JobFailureReason.TestCase, failedTestList);
+        }
+    }
 }

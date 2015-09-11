@@ -26,7 +26,7 @@ namespace Roslyn.Jenkins
             }
         }
 
-        internal static string GetUrlPath(JobId id)
+        internal static string GetJobPath(JobId id)
         {
             var platform = GetPlatformPathId(id.Platform);
             return $"job/dotnet_roslyn_prtest_{platform}/{id.Id}/";

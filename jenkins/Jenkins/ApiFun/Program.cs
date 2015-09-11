@@ -7,12 +7,48 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Roslyn.Jenkins;
+using System.Diagnostics;
 
 namespace ApiFun
 {
     internal static class Program
     {
         internal static void Main(string[] args)
+        {
+            var client = new JenkinsClient();
+            var jobIdList = client.GetJobIds(Platform.Windows).Take(25);
+
+            foreach (var cur in jobIdList)
+            {
+                var jobResult = client.GetJobResult(cur);
+                if (jobResult.Succeeded)
+                {
+                    continue;
+                }
+
+                Console.WriteLine($"{cur.Id} {jobResult.FailureInfo.Reason}");
+                switch (jobResult.FailureInfo.Reason)
+                {
+                    case JobFailureReason.TestCase:
+                        Debug.Assert(jobResult.FailureInfo.FailedTestList.Count > 0);
+                        foreach (var item in jobResult.FailureInfo.FailedTestList)
+                        {
+                            Console.WriteLine($"\t{item}");
+                        }
+                        break;
+                    case JobFailureReason.Build:
+                        Console.WriteLine("\tBuild");
+                        break;
+                    case JobFailureReason.Unknown:
+                        Console.WriteLine("\tUnknown");
+                        break;
+                    default:
+                        throw new Exception();
+                }
+            }
+        }
+
+        internal static void FindReTest()
         {
             var client = new JenkinsClient();
             var jobIdList = client.GetJobIds(Platform.Windows).Take(25);
