@@ -9,18 +9,18 @@ namespace Roslyn.Jenkins
 {
     public sealed class JobInfo
     {
-        public readonly JobId BuildId;
+        public readonly UniqueJobId JobId;
         public readonly PullRequestInfo PullRequestInfo;
 
-        public JobInfo(JobId buildId, PullRequestInfo pullRequestInfo)
+        public JobInfo(UniqueJobId jobId, PullRequestInfo pullRequestInfo)
         {
-            BuildId = buildId;
+            JobId = jobId;
             PullRequestInfo = pullRequestInfo;
         }
 
         public override string ToString()
         {
-            return $"{BuildId.Id} {PullRequestInfo.PullUrl}";
+            return $"{JobId.Id} {PullRequestInfo.PullUrl}";
         }
     }
 
@@ -45,6 +45,30 @@ namespace Roslyn.Jenkins
         public override string ToString()
         {
             return $"{Id} - {Platform}";
+        }
+    }
+
+    /// <summary>
+    /// A <see cref="JobId"/> is a non-unique structure since Jenkins recycles ids on a 
+    /// periodic basis.  This structure represents a globally unique job id by appending
+    /// a <see cref="DateTime"/> value. 
+    /// </summary>
+    public struct UniqueJobId
+    {
+        public JobId JobId {get; }
+        public DateTime Date { get; }
+        public int Id => JobId.Id;
+        public Platform Platform => JobId.Platform;
+
+        public UniqueJobId(JobId jobId, DateTime date)
+        {
+            JobId = jobId;
+            Date = date.Date;
+        }
+
+        public override string ToString()
+        {
+            return $"{JobId} - {Date}";
         }
     }
 

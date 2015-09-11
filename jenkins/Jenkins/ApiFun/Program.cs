@@ -15,9 +15,9 @@ namespace ApiFun
     {
         internal static void Main(string[] args)
         {
-            // FindRetest();
+            FindRetest();
             // PrintFailedJobs();
-            InspectReason(5567);
+            // InspectReason(5567);
             // ScanAllFailedJobs();
         }
 
@@ -81,7 +81,7 @@ namespace ApiFun
         private static void FindRetest()
         {
             var client = new JenkinsClient();
-            var jobIdList = client.GetJobIds(Platform.Windows).Take(25);
+            var jobIdList = client.GetJobIds(Platform.Windows);
             var jobInfoList = new List<JobInfo>();
 
             foreach (var current in jobIdList)
@@ -110,7 +110,7 @@ namespace ApiFun
 
                 foreach (var job in cur)
                 {
-                    Console.WriteLine($"\t{job.BuildId}");
+                    Console.WriteLine($"\t{job.JobId}");
                 }
             }
         }

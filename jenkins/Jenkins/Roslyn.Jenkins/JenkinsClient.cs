@@ -36,8 +36,11 @@ namespace Roslyn.Jenkins
 
         public JobInfo GetJobInfo(JobId id)
         {
-            var pr = GetPullRequestInfo(id);
-            return new JobInfo(id, pr);
+            var path = JenkinsUtil.GetJobPath(id);
+            var data = GetJson(path);
+            var pr = GetPullRequestInfoCore(id, data);
+            var uniqueJobId = GetUniqueJobId(id, data);
+            return new JobInfo(uniqueJobId, pr);
         }
 
         public JobResult GetJobResult(JobId id)
@@ -83,6 +86,11 @@ namespace Roslyn.Jenkins
         {
             var path = JenkinsUtil.GetJobPath(id);
             var data = GetJson(path);
+            return GetPullRequestInfoCore(id, data);
+        }
+
+        private PullRequestInfo GetPullRequestInfoCore(JobId id, JObject data)
+        {
             var actions = (JArray)data["actions"];
 
             string baseUrl;
@@ -94,6 +102,14 @@ namespace Roslyn.Jenkins
 
             // If it's not a child then it is the parent.
             return JenkinsUtil.ParseParentJobPullRequestInfo(actions);
+        }
+
+        private UniqueJobId GetUniqueJobId(JobId id, JObject data)
+        {
+            var seconds = data.Value<long>("timestamp");
+            var epoch = new DateTime(year: 1970, month: 1, day: 1, hour: 0, minute: 0, second: 0, kind: DateTimeKind.Utc);
+            var date = epoch.AddMilliseconds(seconds);
+            return new UniqueJobId(id, date);
         }
 
         public string GetConsoleText(JobId id)
