@@ -15,7 +15,46 @@ namespace ApiFun
     {
         internal static void Main(string[] args)
         {
-            FindRetest();
+            // FindRetest();
+            // PrintFailedJobs();
+            // InspectReason(5644);
+            ScanAllFailedJobs();
+        }
+
+        private static void ScanAllFailedJobs()
+        {
+            var client = new JenkinsClient();
+            foreach (var jobId in client.GetJobIds(Platform.Windows))
+            {
+                Console.Write($"{jobId} ");
+                try
+                {
+                    var jobResult = client.GetJobResult(jobId);
+                    Console.WriteLine(jobResult.State);
+
+                    if (jobResult.Failed)
+                    {
+                        if (jobResult.FailureInfo.Reason != JobFailureReason.Unknown)
+                        {
+                            Console.WriteLine(jobResult.FailureInfo.Reason);
+                            continue;
+                        }
+
+                        Console.WriteLine("Ooops");
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("more json to figure out");
+                }
+            }
+        }
+
+        private static void InspectReason(int id)
+        {
+            var client = new JenkinsClient();
+            var jobResult = client.GetJobResult(new JobId(id, Platform.Windows));
+            Console.WriteLine(jobResult.FailureInfo.Reason);
         }
 
         private static void PrintFailedJobs()
@@ -32,23 +71,9 @@ namespace ApiFun
                 }
 
                 Console.WriteLine($"{cur.Id} {jobResult.FailureInfo.Reason}");
-                switch (jobResult.FailureInfo.Reason)
+                foreach (var item in jobResult.FailureInfo.Messages)
                 {
-                    case JobFailureReason.TestCase:
-                        Debug.Assert(jobResult.FailureInfo.FailedTestList.Count > 0);
-                        foreach (var item in jobResult.FailureInfo.FailedTestList)
-                        {
-                            Console.WriteLine($"\t{item}");
-                        }
-                        break;
-                    case JobFailureReason.Build:
-                        Console.WriteLine("\tBuild");
-                        break;
-                    case JobFailureReason.Unknown:
-                        Console.WriteLine("\tUnknown");
-                        break;
-                    default:
-                        throw new Exception();
+                    Console.WriteLine($"\t{item}");
                 }
             }
         }

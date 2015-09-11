@@ -3,7 +3,9 @@ using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -12,7 +14,9 @@ namespace Roslyn.Jenkins
 {
     public sealed class JenkinsClient
     {
-        private readonly RestClient _restClient = new RestClient("http://dotnet-ci.cloudapp.net");
+        private static readonly Uri JenkinsHost = new Uri("http://dotnet-ci.cloudapp.net");
+
+        private readonly RestClient _restClient = new RestClient(JenkinsHost.ToString());
 
         public List<JobId> GetJobIds(Platform platform)
         {
@@ -41,29 +45,38 @@ namespace Roslyn.Jenkins
             var path = JenkinsUtil.GetJobPath(id);
             var data = GetJson(path);
 
-            bool? succeded = null;
-            switch (data.Value<string>("result"))
+            var result = data.Property("result");
+            if (result == null)
+            {
+                throw new Exception("Could not find the result property");
+            }
+
+            JobState? state = null;
+            switch (result.Value.Value<string>())
             {
                 case "SUCCESS":
-                    succeded = true;
+                    state = JobState.Succeeded;
                     break;
                 case "FAILURE":
-                    succeded = false;
+                    state = JobState.Failed;
+                    break;
+                case null:
+                    state = JobState.Running;
                     break;
             }
 
-            if (succeded == null)
+            if (state == null)
             {
                 throw new Exception("Unable to determine the success / failure of the job");
             }
 
-            if (!succeded.Value)
+            if (state.Value == JobState.Failed)
             {
                 var failureInfo = GetJobFailureInfo(id, data);
                 return new JobResult(id, failureInfo);
             }
 
-            return new JobResult(id);
+            return new JobResult(id, state.Value);
         }
 
         public PullRequestInfo GetPullRequestInfo(JobId id)
@@ -81,6 +94,17 @@ namespace Roslyn.Jenkins
 
             // If it's not a child then it is the parent.
             return JenkinsUtil.ParseParentJobPullRequestInfo(actions);
+        }
+
+        public string GetConsoleText(JobId id)
+        {
+            var builder = new UriBuilder(JenkinsHost);
+            builder.Path = $"{JenkinsUtil.GetJobPath(id)}consoleText";
+            var request = WebRequest.Create(builder.Uri);
+            using (var reader = new StreamReader(request.GetResponse().GetResponseStream()))
+            {
+                return reader.ReadToEnd();
+            }
         }
 
         private JObject GetJson(string urlPath)
@@ -105,16 +129,26 @@ namespace Roslyn.Jenkins
         /// </summary>
         private JobFailureInfo GetJobFailureInfo(JobId jobId, JObject data)
         {
+            // First look for the test failure information.  
             List<string> failedTestList;
             if (TryGetTestFailureReason(jobId, data, out failedTestList))
             {
                 Debug.Assert(failedTestList.Count > 0);
-                return JobFailureInfo.TestFailed(failedTestList);
+                return new JobFailureInfo(JobFailureReason.TestCase, failedTestList);
+            }
+
+            // Now look at the console text.
+            var consoleText = GetConsoleText(jobId);
+            JobFailureInfo failureInfo;
+            if (ConsoleTextUtil.TryGetFailureInfo(consoleText, out failureInfo))
+            {
+                return failureInfo;
             }
 
             return JobFailureInfo.Unknown;
         }
 
+        // TODO: This should be in JenkinsUtil
         private bool TryGetTestFailureReason(JobId jobId, JObject data, out List<string> failedTestList)
         {
             var actions = (JArray)data["actions"];

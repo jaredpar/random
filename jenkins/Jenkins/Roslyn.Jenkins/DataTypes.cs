@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -89,12 +90,23 @@ namespace Roslyn.Jenkins
         }
     }
 
+    public enum JobState
+    {
+        Succeeded,
+        Failed,
+        Running,
+    }
+
     public sealed class JobResult
     {
         private readonly JobFailureInfo _failureInfo;
 
         public readonly JobId Id;
-        public bool Succeeded;
+        public readonly JobState State;
+
+        public bool Succeeded => State == JobState.Succeeded;
+        public bool Failed => State == JobState.Failed;
+        public bool Running => State == JobState.Running;
 
         public JobFailureInfo FailureInfo
         {
@@ -109,16 +121,17 @@ namespace Roslyn.Jenkins
             }
         }
 
-        public JobResult(JobId id)
+        public JobResult(JobId id, JobState state)
         {
+            Debug.Assert(state != JobState.Failed);
             Id = id;
-            Succeeded = true;
+            State = state;
         }
 
         public JobResult(JobId id, JobFailureInfo failureInfo)
         {
             Id = id;
-            Succeeded = false;
+            State = JobState.Failed;
             _failureInfo = failureInfo;
         }
     }
@@ -128,6 +141,7 @@ namespace Roslyn.Jenkins
         Unknown,
         TestCase,
         Build,
+        Infrastructure,
     }
 
     public sealed class JobFailureInfo
@@ -135,17 +149,12 @@ namespace Roslyn.Jenkins
         public static readonly JobFailureInfo Unknown = new JobFailureInfo(JobFailureReason.Unknown);
 
         public JobFailureReason Reason;
-        public List<string> FailedTestList;
+        public List<string> Messages;
 
-        private JobFailureInfo(JobFailureReason reason, List<string> failedTestList = null)
+        public JobFailureInfo(JobFailureReason reason, List<string> messages = null)
         {
             Reason = reason;
-            FailedTestList = failedTestList ?? new List<string>();
-        }
-
-        public static JobFailureInfo TestFailed(List<string> failedTestList)
-        {
-            return new JobFailureInfo(JobFailureReason.TestCase, failedTestList);
+            Messages = messages ?? new List<string>();
         }
     }
 }
