@@ -15,6 +15,11 @@ namespace ApiFun
     {
         internal static void Main(string[] args)
         {
+            FindRetest();
+        }
+
+        private static void PrintFailedJobs()
+        { 
             var client = new JenkinsClient();
             var jobIdList = client.GetJobIds(Platform.Windows).Take(25);
 
@@ -48,7 +53,7 @@ namespace ApiFun
             }
         }
 
-        internal static void FindReTest()
+        private static void FindRetest()
         {
             var client = new JenkinsClient();
             var jobIdList = client.GetJobIds(Platform.Windows).Take(25);
@@ -76,7 +81,7 @@ namespace ApiFun
                     continue;
                 }
 
-                Console.WriteLine(cur.Key);
+                Console.WriteLine($"Pull Request {cur.Key.PullId} SHA {cur.Key.Sha1}");
 
                 foreach (var job in cur)
                 {
