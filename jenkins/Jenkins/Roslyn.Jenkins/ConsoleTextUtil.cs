@@ -7,11 +7,25 @@ using System.Threading.Tasks;
 
 namespace Roslyn.Jenkins
 {
-    internal sealed class ConsoleTextUtil
+    internal static class ConsoleTextUtil
     {
         private static readonly Regex s_csharpError = new Regex(@".*error CS\d+.*", RegexOptions.Compiled);
         private static readonly Regex s_basicError = new Regex(@".*error BC\d+.*", RegexOptions.Compiled);
         private static readonly Regex s_githubTimeout = new Regex(@"ERROR: Timeout after (\d)+ minutes", RegexOptions.Compiled);
+
+        /// <summary>
+        /// This happens if a developer merges a PR before Jenkins job runs.  This deletes the PR 
+        /// branch in the repo and Jenkins simply can't find anything to build. 
+        /// </summary>
+        private static readonly Regex s_prMerged = new Regex(@"ERROR: Couldn't find any revision to build", RegexOptions.Compiled);
+
+        private static readonly Tuple<Regex, JobFailureReason>[] s_allChecks = new[]
+        {
+            Tuple.Create(s_csharpError, JobFailureReason.Build),
+            Tuple.Create(s_basicError, JobFailureReason.Build),
+            Tuple.Create(s_githubTimeout, JobFailureReason.Infrastructure),
+            Tuple.Create(s_prMerged, JobFailureReason.Infrastructure)
+        };
 
         internal static bool TryGetFailureInfo(string consoleText, out JobFailureInfo failureInfo)
         {
@@ -26,25 +40,14 @@ namespace Roslyn.Jenkins
 
             foreach (var line in consoleTextLines)
             {
-                var match = s_csharpError.Match(line);
-                if (match.Success)
+                foreach (var tuple in s_allChecks)
                 {
-                    reason = reason ?? JobFailureReason.Build;
-                    list.Add(line);
-                }
-
-                match = s_basicError.Match(line);
-                if (match.Success)
-                {
-                    reason = reason ?? JobFailureReason.Build;
-                    list.Add(line);
-                }
-
-                match = s_githubTimeout.Match(line);
-                if (match.Success)
-                {
-                    reason = JobFailureReason.Infrastructure;
-                    list.Add(line);
+                    if (tuple.Item1.IsMatch(line))
+                    {
+                        reason = reason ?? tuple.Item2;
+                        list.Add(line);
+                        break;
+                    }
                 }
             }
 
