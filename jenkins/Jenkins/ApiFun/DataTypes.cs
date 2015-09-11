@@ -67,4 +67,25 @@ namespace ApiFun
             return $"{PullUrl} - {AuthorEmail}";
         }
     }
+
+    /// <summary>
+    /// The key which uniquely identifies a test asset.  Anytime this appears more than once
+    /// in the set of job infos then the same set of changes were run twice through Jenkins
+    /// </summary>
+    internal struct BuildKey
+    {
+        internal readonly int PullId;
+        internal readonly string Sha1;
+
+        internal BuildKey(int pullId, string sha1)
+        {
+            PullId = pullId;
+            Sha1 = sha1;
+        }
+
+        public override string ToString()
+        {
+            return $"{PullId} - {Sha1}";
+        }
+    }
 }
