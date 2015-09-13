@@ -11,16 +11,18 @@ namespace Roslyn.Jenkins
     {
         public readonly UniqueJobId JobId;
         public readonly PullRequestInfo PullRequestInfo;
+        public readonly JobState State;
 
-        public JobInfo(UniqueJobId jobId, PullRequestInfo pullRequestInfo)
+        public JobInfo(UniqueJobId jobId, PullRequestInfo pullRequestInfo, JobState state)
         {
             JobId = jobId;
             PullRequestInfo = pullRequestInfo;
+            State = state;
         }
 
         public override string ToString()
         {
-            return $"{JobId.Id} {PullRequestInfo.PullUrl}";
+            return $"{JobId.Id} {PullRequestInfo.PullUrl} {State}";
         }
     }
 

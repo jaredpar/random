@@ -36,18 +36,35 @@ namespace Roslyn.Jenkins
 
         public JobInfo GetJobInfo(JobId id)
         {
-            var path = JenkinsUtil.GetJobPath(id);
-            var data = GetJson(path);
+            var data = GetJson(id);
             var pr = GetPullRequestInfoCore(id, data);
-            var uniqueJobId = GetUniqueJobId(id, data);
-            return new JobInfo(uniqueJobId, pr);
+            var uniqueJobId = GetUniqueJobIdCore(id, data);
+            var state = GetJobState(id);
+            return new JobInfo(uniqueJobId, pr, state);
         }
 
         public JobResult GetJobResult(JobId id)
         {
-            var path = JenkinsUtil.GetJobPath(id);
-            var data = GetJson(path);
+            var data = GetJson(id);
+            var state = GetJobStateCore(data);
 
+            if (state == JobState.Failed)
+            {
+                var failureInfo = GetJobFailureInfo(id, data);
+                return new JobResult(id, failureInfo);
+            }
+
+            return new JobResult(id, state);
+        }
+
+        public JobState GetJobState(JobId id)
+        {
+            var data = GetJson(id);
+            return GetJobStateCore(data);
+        }
+
+        private JobState GetJobStateCore(JObject data)
+        {
             var result = data.Property("result");
             if (result == null)
             {
@@ -73,19 +90,12 @@ namespace Roslyn.Jenkins
                 throw new Exception("Unable to determine the success / failure of the job");
             }
 
-            if (state.Value == JobState.Failed)
-            {
-                var failureInfo = GetJobFailureInfo(id, data);
-                return new JobResult(id, failureInfo);
-            }
-
-            return new JobResult(id, state.Value);
+            return state.Value;
         }
 
         public PullRequestInfo GetPullRequestInfo(JobId id)
         {
-            var path = JenkinsUtil.GetJobPath(id);
-            var data = GetJson(path);
+            var data = GetJson(id);
             return GetPullRequestInfoCore(id, data);
         }
 
@@ -104,7 +114,13 @@ namespace Roslyn.Jenkins
             return JenkinsUtil.ParseParentJobPullRequestInfo(actions);
         }
 
-        private UniqueJobId GetUniqueJobId(JobId id, JObject data)
+        public UniqueJobId GetUniqueJobId(JobId id)
+        {
+            var data = GetJson(id);
+            return GetUniqueJobIdCore(id, data);
+        }
+
+        private UniqueJobId GetUniqueJobIdCore(JobId id, JObject data)
         {
             var seconds = data.Value<long>("timestamp");
             var epoch = new DateTime(year: 1970, month: 1, day: 1, hour: 0, minute: 0, second: 0, kind: DateTimeKind.Utc);
@@ -121,6 +137,12 @@ namespace Roslyn.Jenkins
             {
                 return reader.ReadToEnd();
             }
+        }
+
+        private JObject GetJson(JobId jobId)
+        {
+            var path = JenkinsUtil.GetJobPath(jobId);
+            return GetJson(path);
         }
 
         private JObject GetJson(string urlPath)
