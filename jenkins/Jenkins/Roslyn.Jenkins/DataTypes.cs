@@ -63,10 +63,37 @@ namespace Roslyn.Jenkins
         public Platform Platform => JobId.Platform;
         public string Key => $"{Date}_{Id}_{Platform}";
 
-        public UniqueJobId(JobId jobId, DateTime date)
+        public UniqueJobId(int id, Platform platform, DateTime date)
         {
-            JobId = jobId;
+            JobId = new JobId(id, platform);
             Date = date.Date;
+        }
+
+        public UniqueJobId(JobId jobId, DateTime date)
+            : this(jobId.Id, jobId.Platform, date)
+        {
+
+        }
+
+        public static UniqueJobId? TryParse(string key)
+        {
+            var items = key.Split('_');
+            if (items.Length != 3)
+            {
+                return null;
+            }
+
+            DateTime date = DateTime.Now;
+            Platform platform = Platform.Windows;
+            int id = 0;
+            if (!DateTime.TryParse(items[0], out date) ||
+                !int.TryParse(items[1], out id) ||
+                !Enum.TryParse<Platform>(items[2], out platform))
+            {
+                return null;
+            }
+
+            return new UniqueJobId(id, platform, date);
         }
 
         public override string ToString()
