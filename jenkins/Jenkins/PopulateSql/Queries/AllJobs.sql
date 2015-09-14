@@ -1,1 +1,1 @@
-﻿SELECT * FROM dbo.Jobs
+﻿SELECT * FROM dbo.Jobs ORDER BY Sha

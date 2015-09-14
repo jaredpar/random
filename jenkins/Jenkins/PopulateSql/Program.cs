@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,20 +20,33 @@ namespace PopulateSql
             {
                 connection.Open();
 
-                foreach (var jobId in client.GetJobIds(Platform.Windows))
+                foreach (var jobId in client.GetJobIds(Platform.Mac))
                 {
-                    var jobInfo = client.GetJobInfo(jobId);
-                    if (jobInfo.State == JobState.Running)
+                    try
                     {
-                        continue;
-                    }
+                        var jobInfo = client.GetJobInfo(jobId);
+                        if (jobInfo.State == JobState.Running)
+                        {
+                            continue;
+                        }
 
-                    Insert(connection, jobInfo);
+                        InsertJobInfo(connection, jobInfo);
+
+                        if (jobInfo.State == JobState.Failed)
+                        {
+                            var result = client.GetJobResult(jobId);
+                            InsertFailure(connection, jobInfo, result.FailureInfo);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
                 }
             }
         }
 
-        internal static void Insert(SqlConnection connection, JobInfo jobInfo)
+        internal static void InsertJobInfo(SqlConnection connection, JobInfo jobInfo)
         {
             var id = jobInfo.JobId;
             var commandText = @"
@@ -41,7 +55,7 @@ namespace PopulateSql
             using (var command = new SqlCommand(commandText, connection))
             {
                 var p = command.Parameters;
-                p.AddWithValue("@Id", $"{id.Date}_{id.Id}_{id.Platform}");
+                p.AddWithValue("@Id", id.Key);
                 p.AddWithValue("@JobId", jobInfo.JobId.Id);
                 p.AddWithValue("@Platform", id.Platform.ToString());
                 p.AddWithValue("@Date", id.Date);
@@ -58,7 +72,31 @@ namespace PopulateSql
                     Console.WriteLine($"Could not insert {jobInfo.JobId.Id}");
                     Console.WriteLine(ex.Message);
                 }
+            }
+        }
 
+        internal static void InsertFailure(SqlConnection connection, JobInfo info, JobFailureInfo failureInfo)
+        {
+            var commandText = @"
+                INSERT INTO dbo.Failures (Id, Sha, Reason, Messages)
+                VALUES (@Id, @Sha, @Reason, @Messages)";
+            using (var command = new SqlCommand(commandText, connection))
+            {
+                var p = command.Parameters;
+                p.AddWithValue("@Id", info.JobId.Key);
+                p.AddWithValue("@Sha", info.PullRequestInfo.Sha1);
+                p.AddWithValue("@Reason", failureInfo.Reason);
+                p.AddWithValue("@Messages", string.Join(";", failureInfo.Messages));
+
+                try
+                {
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Could not insert failure {info.JobId}");
+                    Console.WriteLine(ex.Message);
+                }
             }
         }
     }

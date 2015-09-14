@@ -61,6 +61,7 @@ namespace Roslyn.Jenkins
         public DateTime Date { get; }
         public int Id => JobId.Id;
         public Platform Platform => JobId.Platform;
+        public string Key => $"{Date}_{Id}_{Platform}";
 
         public UniqueJobId(JobId jobId, DateTime date)
         {
@@ -138,7 +139,7 @@ namespace Roslyn.Jenkins
         {
             get
             {
-                if (Succeeded)
+                if (!Failed)
                 {
                     throw new InvalidOperationException();
                 }

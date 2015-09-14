@@ -18,6 +18,16 @@ namespace Roslyn.Jenkins
 
         private readonly RestClient _restClient = new RestClient(JenkinsHost.ToString());
 
+        public List<JobId> GetJobIds()
+        {
+            var list = new List<JobId>();
+            foreach (var cur in Enum.GetValues(typeof(Platform)).Cast<Platform>())
+            {
+                list.AddRange(GetJobIds(cur));
+            }
+            return list;
+        }
+
         public List<JobId> GetJobIds(Platform platform)
         {
             var platformId = JenkinsUtil.GetPlatformPathId(platform); 
@@ -28,7 +38,7 @@ namespace Roslyn.Jenkins
             foreach (var cur in all)
             {
                 var build = cur.ToObject<Json.Build>();
-                list.Add(new JobId(build.Number, Platform.Windows));
+                list.Add(new JobId(build.Number, platform));
             }
 
             return list;
