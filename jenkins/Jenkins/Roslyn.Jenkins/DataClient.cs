@@ -1,21 +1,17 @@
-﻿using Roslyn.Jenkins;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PopulateSql
+namespace Roslyn.Jenkins
 {
-    internal sealed class DataClient : IDisposable
+    public sealed class DataClient : IDisposable
     {
-        private readonly JenkinsClient _client = new JenkinsClient();
         private SqlConnection _connection;
 
-        internal JenkinsClient Client => _client;
-
-        internal DataClient(string connectionString)
+        public DataClient(string connectionString)
         {
             _connection = new SqlConnection(connectionString);
             _connection.Open();
@@ -30,7 +26,7 @@ namespace PopulateSql
             }
         }
 
-        internal bool HasSucceeded(Platform platform, string sha)
+        public bool HasSucceeded(Platform platform, string sha)
         {
             var commandText = @"
                 SELECT Count(*)
@@ -47,7 +43,7 @@ namespace PopulateSql
             }
         }
 
-        internal List<Tuple<UniqueJobId, string>> GetFailures()
+        public List<Tuple<UniqueJobId, string>> GetFailures()
         {
             var commandText = @"
                 SELECT Id,Sha 
@@ -70,7 +66,7 @@ namespace PopulateSql
             }
         }
 
-        internal void InsertJobInfo(JobInfo jobInfo)
+        public void InsertJobInfo(JobInfo jobInfo)
         {
             var id = jobInfo.JobId;
             var commandText = @"
@@ -99,7 +95,7 @@ namespace PopulateSql
             }
         }
 
-        internal void InsertFailure(JobInfo info, JobFailureInfo failureInfo)
+        public void InsertFailure(JobInfo info, JobFailureInfo failureInfo)
         {
             var commandText = @"
                 INSERT INTO dbo.Failures (Id, Sha, Reason, Messages)
@@ -124,7 +120,7 @@ namespace PopulateSql
             }
         }
 
-        internal void InsertRetest(UniqueJobId jobId, string sha)
+        public void InsertRetest(UniqueJobId jobId, string sha)
         {
             var commandText = @"
                 INSERT INTO dbo.Retest (Id, Sha, Handled)

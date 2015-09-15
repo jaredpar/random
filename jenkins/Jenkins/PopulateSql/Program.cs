@@ -21,15 +21,16 @@ namespace PopulateSql
             PopulateAllRetest(client);
         }
 
-        private static void PopulateAllJobInfos(DataClient client)
+        private static void PopulateAllJobInfos(DataClient dataClient)
         {
-            foreach (var id in client.Client.GetJobIds())
+            var client = new JenkinsClient();
+            foreach (var id in client.GetJobIds())
             {
                 try
                 {
                     Console.Write($"Processing {id.Id} {id.Platform} ... ");
-                    var info = client.Client.GetJobInfo(id);
-                    client.InsertJobInfo(info);
+                    var info = client.GetJobInfo(id);
+                    dataClient.InsertJobInfo(info);
                     Console.WriteLine("Done");
                 }
                 catch (Exception ex)
@@ -40,21 +41,22 @@ namespace PopulateSql
             }
         }
 
-        private static void PopulateAllFailures(DataClient client)
+        private static void PopulateAllFailures(DataClient dataClient)
         {
-            foreach (var id in client.Client.GetJobIds())
+            var client = new JenkinsClient();
+            foreach (var id in client.GetJobIds())
             {
                 try
                 {
                     Console.Write($"Processing {id.Id} {id.Platform} ... ");
-                    var jobResult = client.Client.GetJobResult(id);
+                    var jobResult = client.GetJobResult(id);
                     if (!jobResult.Failed)
                     {
                         Console.WriteLine("Succeeded");
                         continue;
                     }
 
-                    client.InsertFailure(jobResult.JobInfo, jobResult.FailureInfo);
+                    dataClient.InsertFailure(jobResult.JobInfo, jobResult.FailureInfo);
 
                     Console.WriteLine("Done");
                 }
@@ -68,17 +70,17 @@ namespace PopulateSql
             }
         }
 
-        private static void PopulateAllRetest(DataClient client)
+        private static void PopulateAllRetest(DataClient dataClient)
         {
-            var list = client.GetFailures();
+            var list = dataClient.GetFailures();
             foreach (var tuple in list)
             {
                 var id = tuple.Item1;
                 var sha = tuple.Item2;
-                if (client.HasSucceeded(id.Platform, sha))
+                if (dataClient.HasSucceeded(id.Platform, sha))
                 {
                     Console.WriteLine(id);
-                    client.InsertRetest(id, sha);
+                    dataClient.InsertRetest(id, sha);
                 }
             }
         }
