@@ -215,4 +215,20 @@ namespace Roslyn.Jenkins
             Messages = messages ?? new List<string>();
         }
     }
+
+    public sealed class RetestInfo
+    {
+        public UniqueJobId JobId { get; }
+        public string Sha { get; }
+        public bool Handled { get; }
+        public string Note { get; }
+
+        public RetestInfo(UniqueJobId id, string sha, bool handled, string note = null)
+        {
+            JobId = id;
+            Sha = sha;
+            Handled = handled;
+            Note = note ?? string.Empty;
+        }
+    }
 }

@@ -66,6 +66,37 @@ namespace Roslyn.Jenkins
             }
         }
 
+        public List<RetestInfo> GetRetestInfo()
+        {
+            var commandText = @"
+                SELECT Id,Sha,Handled,Note
+                FROM Retest";
+            using (var command = new SqlCommand(commandText, _connection))
+            {
+                var list = new List<RetestInfo>();
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var key = reader.GetString(0);
+                        var sha = reader.GetString(1);
+                        var handled = reader.GetBoolean(2);
+                        var note = reader.IsDBNull(3)
+                            ? null
+                            : reader.GetString(3);
+                        var info = new RetestInfo(
+                            UniqueJobId.TryParse(key).Value,
+                            sha,
+                            handled,
+                            note);
+                        list.Add(info);
+                    }
+                }
+
+                return list;
+            }
+        }
+
         public void InsertJobInfo(JobInfo jobInfo)
         {
             var id = jobInfo.JobId;

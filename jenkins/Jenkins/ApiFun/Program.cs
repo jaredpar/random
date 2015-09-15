@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Roslyn.Jenkins;
 using System.Diagnostics;
+using System.IO;
 
 namespace ApiFun
 {
@@ -16,9 +17,20 @@ namespace ApiFun
         internal static void Main(string[] args)
         {
             // FindRetest();
-            PrintFailedJobs();
+            PrintRetestInfo();
+            // PrintFailedJobs();
             // InspectReason(5567);
             // ScanAllFailedJobs();
+        }
+
+        private static void PrintRetestInfo()
+        {
+            var connectionString = File.ReadAllText(@"c:\users\jaredpar\connection.txt");
+            var dataClient = new DataClient(connectionString);
+            foreach (var info in dataClient.GetRetestInfo())
+            {
+                Console.WriteLine(info.JobId);
+            }
         }
 
         private static void ScanAllFailedJobs()
