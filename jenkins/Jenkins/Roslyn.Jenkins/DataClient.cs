@@ -43,6 +43,56 @@ namespace Roslyn.Jenkins
             }
         }
 
+        public int GetPullRequestId(UniqueJobId id)
+        {
+            var commandText = @"
+                SELECT PullRequestId
+                FROM Jobs
+                WHERE Id=@Id";
+            using (var command = new SqlCommand(commandText, _connection))
+            {
+                command.Parameters.AddWithValue("@Id", id.Key);
+
+                var list = new List<Tuple<UniqueJobId, string>>();
+                using (var reader = command.ExecuteReader())
+                {
+                    if (!reader.Read())
+                    {
+                        throw new Exception("Missing data");
+                    }
+
+                    return reader.GetInt32(0);
+                }
+            }
+        }
+
+        public JobFailureInfo GetFailureInfo(UniqueJobId id)
+        {
+            var commandText = @"
+                SELECT Reason,Messages 
+                FROM Failures
+                WHERE Id=@Id";
+            using (var command = new SqlCommand(commandText, _connection))
+            {
+                command.Parameters.AddWithValue("@Id", id.Key);
+
+                var list = new List<Tuple<UniqueJobId, string>>();
+                using (var reader = command.ExecuteReader())
+                {
+                    if (!reader.Read())
+                    {
+                        throw new Exception("Missing data");
+                    }
+
+                    var reason = reader.GetString(0);
+                    var messages = reader.GetString(1).Split(';').ToList();
+                    return new JobFailureInfo(
+                        (JobFailureReason)(Enum.Parse(typeof(JobFailureReason), reason)),
+                        messages);
+                }
+            }
+        }
+
         public List<Tuple<UniqueJobId, string>> GetFailures()
         {
             var commandText = @"
