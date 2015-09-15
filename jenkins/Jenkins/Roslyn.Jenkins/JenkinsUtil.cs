@@ -1,16 +1,22 @@
-﻿using Newtonsoft.Json.Linq;
-using RestSharp;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Roslyn.Jenkins
 {
-    internal static class JenkinsUtil
+    public static class JenkinsUtil
     {
+        public static readonly Uri JenkinsHost = new Uri("http://dotnet-ci.cloudapp.net");
+
+        private static Uri GetUri(string path)
+        {
+            var builder = new UriBuilder(JenkinsHost);
+            builder.Path = path;
+            return builder.Uri;
+        }
+
         internal static string GetPlatformPathId(Platform platform)
         {
             switch (platform)
@@ -26,90 +32,25 @@ namespace Roslyn.Jenkins
             }
         }
 
-        internal static string GetJobPath(JobId id)
+        public static string GetJobPath(JobId id)
         {
             var platform = GetPlatformPathId(id.Platform);
             return $"job/dotnet_roslyn_prtest_{platform}/{id.Id}/";
         }
 
-        /// <summary>
-        /// Is this a child build job.  If so return the ID of the parent job and base url
-        /// </summary>
-        internal static bool IsChildJob(JArray actions, out string baseUrl, out int parentBuildId)
+        public static Uri GetJobUri(JobId id)
         {
-            baseUrl = null;
-            parentBuildId = 0;
-
-            var obj = actions.FirstOrDefault(x => x["causes"] != null);
-            if (obj == null)
-            {
-                return false;
-            }
-
-            var array = (JArray)obj["causes"];
-            if (array.Count == 0)
-            {
-                return false;
-            }
-
-            var data = array[0];
-            baseUrl = data.Value<string>("upstreamUrl");
-            parentBuildId = data.Value<int>("upstreamBuild");
-            return baseUrl != null && parentBuildId != 0;
+            return GetUri(GetJobPath(id));
         }
 
-        internal static PullRequestInfo ParseParentJobPullRequestInfo(JArray actions)
+        public static string GetConsoleTextPath(JobId id)
         {
-            var container = actions.First(x => x["parameters"] != null);
+            return $"{GetJobPath(id)}consoleText";
+        }
 
-            string sha1 = null;
-            string pullLink = null;
-            int? pullId = null;
-            string pullAuthorEmail = null;
-            string commitAuthorEmail = null;
-            var parameters = (JArray)container["parameters"];
-            foreach (var pair in parameters)
-            {
-                switch (pair.Value<string>("name"))
-                {
-                    case "ghprbActualCommit":
-                        sha1 = pair.Value<string>("value");
-                        break;
-                    case "ghprbPullId":
-                        pullId = pair.Value<int>("value");
-                        break;
-                    case "ghprbPullAuthorEmail":
-                        pullAuthorEmail = pair.Value<string>("value");
-                        break;
-                    case "ghprbActualCommitAuthorEmail":
-                        commitAuthorEmail = pair.Value<string>("value");
-                        break;
-                    case "ghprbPullLink":
-                        pullLink = pair.Value<string>("value");
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            // It's possible for the pull email to be blank if the Github settings for the user 
-            // account hides their public email address.  In that case fall back to the commit 
-            // author.  It's generally the same value and serves as a nice backup identifier.
-            if (string.IsNullOrEmpty(pullAuthorEmail))
-            {
-                pullAuthorEmail = commitAuthorEmail;
-            }
-
-            if (sha1 == null || pullLink == null || pullId == null || pullAuthorEmail == null)
-            {
-                throw new Exception("Bad data");
-            }
-
-            return new PullRequestInfo(
-                authorEmail: pullAuthorEmail,
-                id: pullId.Value,
-                pullUrl: pullLink,
-                sha1: sha1);
+        public static Uri GetConsoleTextUri(JobId id)
+        {
+            return GetUri(GetConsoleTextPath(id));
         }
     }
 }

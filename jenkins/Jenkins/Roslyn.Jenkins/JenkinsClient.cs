@@ -14,9 +14,7 @@ namespace Roslyn.Jenkins
 {
     public sealed class JenkinsClient
     {
-        private static readonly Uri JenkinsHost = new Uri("http://dotnet-ci.cloudapp.net");
-
-        private readonly RestClient _restClient = new RestClient(JenkinsHost.ToString());
+        private readonly RestClient _restClient = new RestClient(JenkinsUtil.JenkinsHost.ToString());
 
         public List<JobId> GetJobIds()
         {
@@ -122,13 +120,13 @@ namespace Roslyn.Jenkins
 
             string baseUrl;
             int parentBuildId;
-            if (JenkinsUtil.IsChildJob(actions, out baseUrl, out parentBuildId))
+            if (JsonUtil.IsChildJob(actions, out baseUrl, out parentBuildId))
             {
                 return GetParentJobPullRequestInfo(baseUrl, parentBuildId);
             }
 
             // If it's not a child then it is the parent.
-            return JenkinsUtil.ParseParentJobPullRequestInfo(actions);
+            return JsonUtil.ParseParentJobPullRequestInfo(actions);
         }
 
         public UniqueJobId GetUniqueJobId(JobId id)
@@ -147,9 +145,8 @@ namespace Roslyn.Jenkins
 
         public string GetConsoleText(JobId id)
         {
-            var builder = new UriBuilder(JenkinsHost);
-            builder.Path = $"{JenkinsUtil.GetJobPath(id)}consoleText";
-            var request = WebRequest.Create(builder.Uri);
+            var uri = JenkinsUtil.GetConsoleTextUri(id);
+            var request = WebRequest.Create(uri);
             using (var reader = new StreamReader(request.GetResponse().GetResponseStream()))
             {
                 return reader.ReadToEnd();
@@ -175,7 +172,7 @@ namespace Roslyn.Jenkins
         {
             var data = GetJson($"{baseUrl}{parentBuildId}");
             var actions = (JArray)data["actions"];
-            return JenkinsUtil.ParseParentJobPullRequestInfo(actions);
+            return JsonUtil.ParseParentJobPullRequestInfo(actions);
         }
 
         /// <summary>
