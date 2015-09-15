@@ -6,6 +6,12 @@
 *.user
 *.sln.docstates
 
+# May contain passwords
+*.pubxml
+Web.Debug.config
+Web.Release.config
+Dashboard
+
 # Build results
 [Bb]inaries/
 [Dd]ebug/
@@ -13,6 +19,7 @@
 x64/
 [Bb]in/
 [Oo]bj/
+.vs/
 
 # Enable "build/" folder in the NuGet Packages folder since NuGet packages use it for MSBuild targets
 !packages/*/build/
