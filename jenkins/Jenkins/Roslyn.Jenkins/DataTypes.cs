@@ -98,7 +98,7 @@ namespace Roslyn.Jenkins
 
         public override string ToString()
         {
-            return $"{JobId} - {Date}";
+            return $"{Id} - {Platform} - {Date}";
         }
     }
 

@@ -30,6 +30,46 @@ namespace PopulateSql
             }
         }
 
+        internal bool HasSucceeded(Platform platform, string sha)
+        {
+            var commandText = @"
+                SELECT Count(*)
+                FROM Jobs
+                WHERE Succeeded=1 AND Sha=@SHA AND Platform=@Platform";
+            using (var command = new SqlCommand(commandText, _connection))
+            {
+                var p = command.Parameters;
+                p.AddWithValue("@SHA", sha);
+                p.AddWithValue("@Platform", platform.ToString());
+
+                var count = (int)command.ExecuteScalar();
+                return count > 0;
+            }
+        }
+
+        internal List<Tuple<UniqueJobId, string>> GetFailures()
+        {
+            var commandText = @"
+                SELECT Id,Sha 
+                FROM Failures";
+            using (var command = new SqlCommand(commandText, _connection))
+            {
+                var list = new List<Tuple<UniqueJobId, string>>();
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var key = reader.GetString(0);
+                        var id = UniqueJobId.TryParse(key).Value;
+                        var sha = reader.GetString(1);
+                        list.Add(Tuple.Create(id, sha));
+                    }
+                }
+
+                return list;
+            }
+        }
+
         internal void InsertJobInfo(JobInfo jobInfo)
         {
             var id = jobInfo.JobId;
@@ -79,6 +119,30 @@ namespace PopulateSql
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Could not insert failure {info.JobId}");
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+
+        internal void InsertRetest(UniqueJobId jobId, string sha)
+        {
+            var commandText = @"
+                INSERT INTO dbo.Retest (Id, Sha, Handled)
+                VALUES (@Id, @Sha, @Handled)";
+            using (var command = new SqlCommand(commandText, _connection))
+            {
+                var p = command.Parameters;
+                p.AddWithValue("@Id", jobId.Key);
+                p.AddWithValue("@Sha", sha);
+                p.AddWithValue("@Handled", 0);
+
+                try
+                {
+                    command.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Could not insert retest {jobId}");
                     Console.WriteLine(ex.Message);
                 }
             }

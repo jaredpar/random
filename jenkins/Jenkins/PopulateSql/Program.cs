@@ -18,6 +18,7 @@ namespace PopulateSql
             var client = new DataClient(connectionString);
             // PopulateAllJobInfos(client);
             // PopulateAllFailures(client);
+            PopulateAllRetest(client);
         }
 
         private static void PopulateAllJobInfos(DataClient client)
@@ -69,7 +70,17 @@ namespace PopulateSql
 
         private static void PopulateAllRetest(DataClient client)
         {
-
+            var list = client.GetFailures();
+            foreach (var tuple in list)
+            {
+                var id = tuple.Item1;
+                var sha = tuple.Item2;
+                if (client.HasSucceeded(id.Platform, sha))
+                {
+                    Console.WriteLine(id);
+                    client.InsertRetest(id, sha);
+                }
+            }
         }
     }
 }
