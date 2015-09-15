@@ -14,90 +14,62 @@ namespace PopulateSql
     {
         internal static void Main(string[] args)
         {
-            var client = new JenkinsClient();
             var connectionString = File.ReadAllText(@"c:\users\jaredpar\connection.txt");
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-
-                foreach (var jobId in client.GetJobIds())
-                {
-                    try
-                    {
-                        var jobInfo = client.GetJobInfo(jobId);
-                        if (jobInfo.State == JobState.Running)
-                        {
-                            continue;
-                        }
-
-                        InsertJobInfo(connection, jobInfo);
-
-                        if (jobInfo.State == JobState.Failed)
-                        {
-                            var result = client.GetJobResult(jobId);
-                            InsertFailure(connection, jobInfo, result.FailureInfo);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
-                }
-            }
+            var client = new DataClient(connectionString);
+            // PopulateAllJobInfos(client);
+            // PopulateAllFailures(client);
         }
 
-        internal static void InsertJobInfo(SqlConnection connection, JobInfo jobInfo)
+        private static void PopulateAllJobInfos(DataClient client)
         {
-            var id = jobInfo.JobId;
-            var commandText = @"
-                INSERT INTO dbo.Jobs (Id, JobId, Platform, Date, Sha, PullRequestId, Succeeded)
-                VALUES (@Id, @JobId, @Platform, @Date, @Sha, @PullRequestId, @Succeeded)";
-            using (var command = new SqlCommand(commandText, connection))
+            foreach (var id in client.Client.GetJobIds())
             {
-                var p = command.Parameters;
-                p.AddWithValue("@Id", id.Key);
-                p.AddWithValue("@JobId", jobInfo.JobId.Id);
-                p.AddWithValue("@Platform", id.Platform.ToString());
-                p.AddWithValue("@Date", id.Date);
-                p.AddWithValue("@Sha", jobInfo.PullRequestInfo.Sha1);
-                p.AddWithValue("@PullRequestId", jobInfo.PullRequestInfo.Id);
-                p.AddWithValue("@Succeeded", jobInfo.State == JobState.Succeeded);
-
                 try
                 {
-                    command.ExecuteNonQuery();
+                    Console.Write($"Processing {id.Id} {id.Platform} ... ");
+                    var info = client.Client.GetJobInfo(id);
+                    client.InsertJobInfo(info);
+                    Console.WriteLine("Done");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Could not insert {jobInfo.JobId.Id}");
+                    Console.WriteLine("ERROR!!!");
                     Console.WriteLine(ex.Message);
                 }
             }
         }
 
-        internal static void InsertFailure(SqlConnection connection, JobInfo info, JobFailureInfo failureInfo)
+        private static void PopulateAllFailures(DataClient client)
         {
-            var commandText = @"
-                INSERT INTO dbo.Failures (Id, Sha, Reason, Messages)
-                VALUES (@Id, @Sha, @Reason, @Messages)";
-            using (var command = new SqlCommand(commandText, connection))
+            foreach (var id in client.Client.GetJobIds())
             {
-                var p = command.Parameters;
-                p.AddWithValue("@Id", info.JobId.Key);
-                p.AddWithValue("@Sha", info.PullRequestInfo.Sha1);
-                p.AddWithValue("@Reason", failureInfo.Reason);
-                p.AddWithValue("@Messages", string.Join(";", failureInfo.Messages));
-
                 try
                 {
-                    command.ExecuteNonQuery();
+                    Console.Write($"Processing {id.Id} {id.Platform} ... ");
+                    var jobResult = client.Client.GetJobResult(id);
+                    if (!jobResult.Failed)
+                    {
+                        Console.WriteLine("Succeeded");
+                        continue;
+                    }
+
+                    client.InsertFailure(jobResult.JobInfo, jobResult.FailureInfo);
+
+                    Console.WriteLine("Done");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Could not insert failure {info.JobId}");
+                    Console.WriteLine("ERROR!!!");
                     Console.WriteLine(ex.Message);
                 }
+
+
             }
+        }
+
+        private static void PopulateAllRetest(DataClient client)
+        {
+
         }
     }
 }

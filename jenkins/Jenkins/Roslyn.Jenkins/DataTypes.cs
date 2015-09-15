@@ -154,11 +154,14 @@ namespace Roslyn.Jenkins
 
     public sealed class JobResult
     {
+        private readonly JobInfo _jobInfo;
         private readonly JobFailureInfo _failureInfo;
 
-        public readonly JobId Id;
-        public readonly JobState State;
-
+        public int Id => _jobInfo.JobId.Id;
+        public JobId JobId => _jobInfo.JobId.JobId;
+        public UniqueJobId UniqueJobId => _jobInfo.JobId;
+        public JobInfo JobInfo => _jobInfo;
+        public JobState State => _jobInfo.State;
         public bool Succeeded => State == JobState.Succeeded;
         public bool Failed => State == JobState.Failed;
         public bool Running => State == JobState.Running;
@@ -177,17 +180,15 @@ namespace Roslyn.Jenkins
             }
         }
 
-        public JobResult(JobId id, JobState state)
+        public JobResult(JobInfo jobInfo)
         {
-            Debug.Assert(state != JobState.Failed);
-            Id = id;
-            State = state;
+            Debug.Assert(jobInfo.State != JobState.Failed);
+            _jobInfo = jobInfo;
         }
 
-        public JobResult(JobId id, JobFailureInfo failureInfo)
+        public JobResult(JobInfo jobInfo, JobFailureInfo failureInfo)
         {
-            Id = id;
-            State = JobState.Failed;
+            _jobInfo = jobInfo;
             _failureInfo = failureInfo;
         }
     }

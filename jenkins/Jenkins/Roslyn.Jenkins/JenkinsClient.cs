@@ -57,14 +57,18 @@ namespace Roslyn.Jenkins
         {
             var data = GetJson(id);
             var state = GetJobStateCore(data);
+            var jobInfo = new JobInfo(
+                GetUniqueJobIdCore(id, data),
+                GetPullRequestInfoCore(id, data),
+                state);
 
             if (state == JobState.Failed)
             {
                 var failureInfo = GetJobFailureInfo(id, data);
-                return new JobResult(id, failureInfo);
+                return new JobResult(jobInfo, failureInfo);
             }
 
-            return new JobResult(id, state);
+            return new JobResult(jobInfo);
         }
 
         public JobState GetJobState(JobId id)
