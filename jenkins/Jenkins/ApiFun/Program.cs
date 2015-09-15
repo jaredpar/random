@@ -15,8 +15,8 @@ namespace ApiFun
     {
         internal static void Main(string[] args)
         {
-            FindRetest();
-            // PrintFailedJobs();
+            // FindRetest();
+            PrintFailedJobs();
             // InspectReason(5567);
             // ScanAllFailedJobs();
         }
@@ -60,17 +60,22 @@ namespace ApiFun
         private static void PrintFailedJobs()
         { 
             var client = new JenkinsClient();
-            var jobIdList = client.GetJobIds(Platform.Windows).Take(25);
+            var jobIdList = client.GetJobIds(Platform.Mac);
 
             foreach (var cur in jobIdList)
             {
                 var jobResult = client.GetJobResult(cur);
-                if (jobResult.Succeeded)
+                if (!jobResult.Failed)
                 {
                     continue;
                 }
 
                 Console.WriteLine($"{cur.Id} {jobResult.FailureInfo.Reason}");
+                if (jobResult.Failed && jobResult.FailureInfo.Reason == JobFailureReason.Unknown)
+                {
+
+                }
+
                 foreach (var item in jobResult.FailureInfo.Messages)
                 {
                     Console.WriteLine($"\t{item}");

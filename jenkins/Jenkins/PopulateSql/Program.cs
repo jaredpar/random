@@ -20,7 +20,7 @@ namespace PopulateSql
             {
                 connection.Open();
 
-                foreach (var jobId in client.GetJobIds(Platform.Mac))
+                foreach (var jobId in client.GetJobIds())
                 {
                     try
                     {

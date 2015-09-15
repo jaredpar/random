@@ -148,6 +148,7 @@ namespace Roslyn.Jenkins
     {
         Succeeded,
         Failed,
+        Aborted,
         Running,
     }
 
@@ -161,6 +162,7 @@ namespace Roslyn.Jenkins
         public bool Succeeded => State == JobState.Succeeded;
         public bool Failed => State == JobState.Failed;
         public bool Running => State == JobState.Running;
+        public bool Aborted => State == JobState.Aborted;
 
         public JobFailureInfo FailureInfo
         {
@@ -195,6 +197,7 @@ namespace Roslyn.Jenkins
         Unknown,
         TestCase,
         Build,
+        NuGet,
         Infrastructure,
     }
 

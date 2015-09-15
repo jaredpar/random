@@ -90,6 +90,9 @@ namespace Roslyn.Jenkins
                 case "FAILURE":
                     state = JobState.Failed;
                     break;
+                case "ABORTED":
+                    state = JobState.Aborted;
+                    break;
                 case null:
                     state = JobState.Running;
                     break;
