@@ -17,7 +17,7 @@ namespace PopulateSql
             var connectionString = File.ReadAllText(@"c:\users\jaredpar\connection.txt");
             var client = new DataClient(connectionString);
             // PopulateAllJobInfos(client);
-            // PopulateAllFailures(client);
+            PopulateAllFailures(client);
             PopulateAllRetest(client);
         }
 

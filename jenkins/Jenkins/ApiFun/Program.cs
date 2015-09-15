@@ -16,11 +16,18 @@ namespace ApiFun
     {
         internal static void Main(string[] args)
         {
+            Random();
             // FindRetest();
-            PrintRetestInfo();
+            // PrintRetestInfo();
             // PrintFailedJobs();
             // InspectReason(5567);
             // ScanAllFailedJobs();
+        }
+
+        private static void Random()
+        {
+            var client = new JenkinsClient();
+            var result = client.GetJobResult(new JobId(5692, Platform.Windows));
         }
 
         private static void PrintRetestInfo()

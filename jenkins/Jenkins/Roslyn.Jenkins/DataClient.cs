@@ -120,7 +120,7 @@ namespace Roslyn.Jenkins
         {
             var commandText = @"
                 SELECT Id,Sha,Handled,Note
-                FROM Retest";
+                FROM Retests";
             using (var command = new SqlCommand(commandText, _connection))
             {
                 var list = new List<RetestInfo>();
@@ -204,7 +204,7 @@ namespace Roslyn.Jenkins
         public void InsertRetest(UniqueJobId jobId, string sha)
         {
             var commandText = @"
-                INSERT INTO dbo.Retest (Id, Sha, Handled)
+                INSERT INTO dbo.Retests (Id, Sha, Handled)
                 VALUES (@Id, @Sha, @Handled)";
             using (var command = new SqlCommand(commandText, _connection))
             {

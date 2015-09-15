@@ -207,7 +207,7 @@ namespace Roslyn.Jenkins
             foreach (var cur in actions)
             {
                 var failCount = cur.Value<int?>("failCount");
-                if (failCount != null)
+                if (failCount != null && failCount.Value != 0)
                 {
                     var testReportUrl = cur.Value<string>("urlName");
                     var path = $"{JenkinsUtil.GetJobPath(jobId)}{testReportUrl}/";
@@ -236,7 +236,7 @@ namespace Roslyn.Jenkins
                 foreach (var cur in cases)
                 {
                     var status = cur.Value<string>("status");
-                    if (status == "PASSED" || status == "SKIPPED")
+                    if (status == "PASSED" || status == "SKIPPED" || status == "FIXED")
                     {
                         continue;
                     }
