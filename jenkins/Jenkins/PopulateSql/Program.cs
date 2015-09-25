@@ -29,7 +29,7 @@ namespace PopulateSql
             {
                 try
                 {
-                    Console.Write($"Processing {id.Id} {id.Platform} ... ");
+                    Console.Write($"Processing {id.Id} {id.Kind} ... ");
                     var info = client.GetJobInfo(id);
                     dataClient.InsertJobInfo(info);
                     Console.WriteLine("Done");
@@ -49,7 +49,7 @@ namespace PopulateSql
             {
                 try
                 {
-                    Console.Write($"Processing {id.Id} {id.Platform} ... ");
+                    Console.Write($"Processing {id.Id} {id.Kind} ... ");
                     var jobResult = client.GetJobResult(id);
                     if (!jobResult.Failed)
                     {
@@ -78,7 +78,7 @@ namespace PopulateSql
             {
                 var id = tuple.Item1;
                 var sha = tuple.Item2;
-                if (dataClient.HasSucceeded(id.Platform, sha))
+                if (dataClient.HasSucceeded(id.Kind, sha))
                 {
                     Console.WriteLine(id);
                     dataClient.InsertRetest(id, sha);

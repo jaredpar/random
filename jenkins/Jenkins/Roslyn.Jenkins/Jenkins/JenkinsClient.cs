@@ -18,25 +18,32 @@ namespace Roslyn.Jenkins
 
         public List<JobId> GetJobIds()
         {
-            var list = new List<JobId>();
-            foreach (var cur in Enum.GetValues(typeof(Platform)).Cast<Platform>())
-            {
-                list.AddRange(GetJobIds(cur));
-            }
-            return list;
+            var all = JenkinsUtil.GetAllJobKinds().ToArray();
+            return GetJobIds(all);
         }
 
-        public List<JobId> GetJobIds(Platform platform)
+        public List<JobId> GetJobIds(JobKind kind)
         {
-            var platformId = JenkinsUtil.GetPlatformPathId(platform); 
-            var data = GetJson($"job/dotnet_roslyn_prtest_{platformId}");
+            var name = JenkinsUtil.GetJobName(kind);
+            var data = GetJson($"job/{name}/");
             var all = (JArray)data["builds"];
-
             var list = new List<JobId>();
+
             foreach (var cur in all)
             {
                 var build = cur.ToObject<Json.Build>();
-                list.Add(new JobId(build.Number, platform));
+                list.Add(new JobId(build.Number, kind));
+            }
+
+            return list;
+        }
+
+        public List<JobId> GetJobIds(params JobKind[] kinds)
+        {
+            var list = new List<JobId>();
+            foreach (var kind in kinds)
+            {
+                list.AddRange(GetJobIds(kind));
             }
 
             return list;
@@ -46,9 +53,8 @@ namespace Roslyn.Jenkins
         {
             var data = GetJson(id);
             var pr = GetPullRequestInfoCore(id, data);
-            var uniqueJobId = GetUniqueJobIdCore(id, data);
             var state = GetJobState(id);
-            return new JobInfo(uniqueJobId, pr, state);
+            return new JobInfo(id, pr, state);
         }
 
         public JobResult GetJobResult(JobId id)
@@ -56,7 +62,7 @@ namespace Roslyn.Jenkins
             var data = GetJson(id);
             var state = GetJobStateCore(data);
             var jobInfo = new JobInfo(
-                GetUniqueJobIdCore(id, data),
+                id,
                 GetPullRequestInfoCore(id, data),
                 state);
 
@@ -127,20 +133,6 @@ namespace Roslyn.Jenkins
 
             // If it's not a child then it is the parent.
             return JsonUtil.ParseParentJobPullRequestInfo(actions);
-        }
-
-        public UniqueJobId GetUniqueJobId(JobId id)
-        {
-            var data = GetJson(id);
-            return GetUniqueJobIdCore(id, data);
-        }
-
-        private UniqueJobId GetUniqueJobIdCore(JobId id, JObject data)
-        {
-            var seconds = data.Value<long>("timestamp");
-            var epoch = new DateTime(year: 1970, month: 1, day: 1, hour: 0, minute: 0, second: 0, kind: DateTimeKind.Utc);
-            var date = epoch.AddMilliseconds(seconds);
-            return new UniqueJobId(id, date);
         }
 
         public string GetConsoleText(JobId id)

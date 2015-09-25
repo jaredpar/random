@@ -9,96 +9,52 @@ namespace Roslyn.Jenkins
 {
     public sealed class JobInfo
     {
-        public readonly UniqueJobId JobId;
+        public readonly JobId Id;
         public readonly PullRequestInfo PullRequestInfo;
         public readonly JobState State;
 
-        public JobInfo(UniqueJobId jobId, PullRequestInfo pullRequestInfo, JobState state)
+        public JobInfo(JobId id, PullRequestInfo pullRequestInfo, JobState state)
         {
-            JobId = jobId;
+            Id = id;
             PullRequestInfo = pullRequestInfo;
             State = state;
         }
 
         public override string ToString()
         {
-            return $"{JobId.Id} {PullRequestInfo.PullUrl} {State}";
+            return $"{Id} {PullRequestInfo.PullUrl} {State}";
         }
     }
 
-    public enum Platform
+    public enum JobKind
     {
-        Windows,
+        WindowsDebug32,
+        WindowsDebug64,
+        WindowsDebugEta,
+        WindowsRelease32,
+        WindowsRelease64,
+        EtaDebug32,
         Linux,
         Mac,
+
+        // Legacy jobs
+        LegacyWindows
     }
 
     public struct JobId
     {
-        public readonly int Id;
-        public readonly Platform Platform;
+        public int Id { get; }
+        public JobKind Kind { get; }
 
-        public JobId(int id, Platform platform)
+        public JobId(int id, JobKind kind)
         {
             Id = id;
-            Platform = platform;
+            Kind = kind;
         }
 
         public override string ToString()
         {
-            return $"{Id} - {Platform}";
-        }
-    }
-
-    /// <summary>
-    /// A <see cref="JobId"/> is a non-unique structure since Jenkins recycles ids on a 
-    /// periodic basis.  This structure represents a globally unique job id by appending
-    /// a <see cref="DateTime"/> value. 
-    /// </summary>
-    public struct UniqueJobId
-    {
-        public JobId JobId {get; }
-        public DateTime Date { get; }
-        public int Id => JobId.Id;
-        public Platform Platform => JobId.Platform;
-        public string Key => $"{Date}_{Id}_{Platform}";
-
-        public UniqueJobId(int id, Platform platform, DateTime date)
-        {
-            JobId = new JobId(id, platform);
-            Date = date.Date;
-        }
-
-        public UniqueJobId(JobId jobId, DateTime date)
-            : this(jobId.Id, jobId.Platform, date)
-        {
-
-        }
-
-        public static UniqueJobId? TryParse(string key)
-        {
-            var items = key.Split('_');
-            if (items.Length != 3)
-            {
-                return null;
-            }
-
-            DateTime date = DateTime.Now;
-            Platform platform = Platform.Windows;
-            int id = 0;
-            if (!DateTime.TryParse(items[0], out date) ||
-                !int.TryParse(items[1], out id) ||
-                !Enum.TryParse<Platform>(items[2], out platform))
-            {
-                return null;
-            }
-
-            return new UniqueJobId(id, platform, date);
-        }
-
-        public override string ToString()
-        {
-            return $"{Id} - {Platform} - {Date}";
+            return $"{Id} - {Kind}";
         }
     }
 
@@ -157,9 +113,8 @@ namespace Roslyn.Jenkins
         private readonly JobInfo _jobInfo;
         private readonly JobFailureInfo _failureInfo;
 
-        public int Id => _jobInfo.JobId.Id;
-        public JobId JobId => _jobInfo.JobId.JobId;
-        public UniqueJobId UniqueJobId => _jobInfo.JobId;
+        public int Id => _jobInfo.Id.Id;
+        public JobId JobId => _jobInfo.Id;
         public JobInfo JobInfo => _jobInfo;
         public JobState State => _jobInfo.State;
         public bool Succeeded => State == JobState.Succeeded;
@@ -218,14 +173,14 @@ namespace Roslyn.Jenkins
 
     public sealed class RetestInfo
     {
-        public UniqueJobId JobId { get; }
+        public JobId JobId { get; }
         public string Sha { get; }
         public bool Handled { get; }
         public string Note { get; }
 
-        public RetestInfo(UniqueJobId id, string sha, bool handled, string note = null)
+        public RetestInfo(JobId jobId, string sha, bool handled, string note = null)
         {
-            JobId = id;
+            JobId = jobId;
             Sha = sha;
             Handled = handled;
             Note = note ?? string.Empty;

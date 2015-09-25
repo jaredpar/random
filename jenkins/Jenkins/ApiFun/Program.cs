@@ -17,10 +17,10 @@ namespace ApiFun
     {
         internal static void Main(string[] args)
         {
-            Random();
+            // Random();
             // FindRetest();
             // PrintRetestInfo();
-            // PrintFailedJobs();
+            PrintFailedJobs();
             // InspectReason(5567);
             // ScanAllFailedJobs();
         }
@@ -28,7 +28,7 @@ namespace ApiFun
         private static void Random()
         {
             var client = new JenkinsClient();
-            var result = client.GetJobResult(new JobId(5692, Platform.Windows));
+            var result = client.GetJobResult(new JobId(5692, JobKind.LegacyWindows));
         }
 
         private static void PrintRetestInfo()
@@ -44,7 +44,7 @@ namespace ApiFun
         private static void ScanAllFailedJobs()
         {
             var client = new JenkinsClient();
-            foreach (var jobId in client.GetJobIds(Platform.Windows))
+            foreach (var jobId in client.GetJobIds(JobKind.WindowsDebug32))
             {
                 Console.Write($"{jobId} ");
                 try
@@ -73,14 +73,14 @@ namespace ApiFun
         private static void InspectReason(int id)
         {
             var client = new JenkinsClient();
-            var jobResult = client.GetJobResult(new JobId(id, Platform.Windows));
+            var jobResult = client.GetJobResult(new JobId(id, JobKind.WindowsDebug32));
             Console.WriteLine(jobResult.FailureInfo.Reason);
         }
 
         private static void PrintFailedJobs()
         { 
             var client = new JenkinsClient();
-            var jobIdList = client.GetJobIds(Platform.Mac);
+            var jobIdList = client.GetJobIds(JobKind.WindowsDebug32, JobKind.WindowsDebug64);
 
             foreach (var cur in jobIdList)
             {
@@ -106,7 +106,7 @@ namespace ApiFun
         private static void FindRetest()
         {
             var client = new JenkinsClient();
-            var jobIdList = client.GetJobIds(Platform.Windows);
+            var jobIdList = client.GetJobIds(JobKind.WindowsDebug32);
             var jobInfoList = new List<JobInfo>();
 
             foreach (var current in jobIdList)
@@ -135,7 +135,7 @@ namespace ApiFun
 
                 foreach (var job in cur)
                 {
-                    Console.WriteLine($"\t{job.JobId}");
+                    Console.WriteLine($"\t{job.Id}");
                 }
             }
         }
