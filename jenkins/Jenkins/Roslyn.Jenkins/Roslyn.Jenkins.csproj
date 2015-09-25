@@ -49,14 +49,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ConsoleTextUtil.cs" />
-    <Compile Include="DataTypes.cs" />
-    <Compile Include="JenkinsClient.cs" />
-    <Compile Include="DataClient.cs" />
-    <Compile Include="JsonUtil.cs" />
-    <Compile Include="JsonTypes.cs" />
+    <Compile Include="Jenkins\ConsoleTextUtil.cs" />
+    <Compile Include="Jenkins\DataTypes.cs" />
+    <Compile Include="Jenkins\JenkinsClient.cs" />
+    <Compile Include="Sql\DataClient.cs" />
+    <Compile Include="Jenkins\JsonUtil.cs" />
+    <Compile Include="Jenkins\JsonTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="JenkinsUtil.cs" />
+    <Compile Include="Jenkins\JenkinsUtil.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
