@@ -90,7 +90,7 @@ namespace ApiFun
                     continue;
                 }
 
-                Console.WriteLine($"{cur.Id} {jobResult.FailureInfo.Reason}");
+                Console.WriteLine($"{cur.Kind} {cur.Id} {jobResult.FailureInfo.Reason}");
                 if (jobResult.Failed && jobResult.FailureInfo.Reason == JobFailureReason.Unknown)
                 {
 
@@ -100,6 +100,8 @@ namespace ApiFun
                 {
                     Console.WriteLine($"\t{item}");
                 }
+
+                Console.WriteLine();
             }
         }
 
