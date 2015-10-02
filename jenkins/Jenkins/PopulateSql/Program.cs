@@ -25,16 +25,21 @@ namespace PopulateSql
         private static void PopulateAllJobInfos(DataClient dataClient)
         {
             var client = new JenkinsClient();
-            foreach (var kind in JenkinsUtil.GetAllJobKinds())
+            foreach (var name in client.GetJobNames())
             {
+                if (!name.Contains("roslyn"))
+                {
+                    continue;
+                }
+
                 List<JobId> jobs;
                 try
                 {
-                    jobs = client.GetJobIds(kind);
+                    jobs = client.GetJobIds(name);
                 }
                 catch
                 {
-                    Console.WriteLine($"Can't get jobs for {kind}");
+                    Console.WriteLine($"Can't get jobs for {name}");
                     continue;
                 }
 
@@ -42,7 +47,7 @@ namespace PopulateSql
                 {
                     try
                     {
-                        Console.Write($"Processing {id.Id} {id.Kind} ... ");
+                        Console.Write($"Processing {id.Id} {id.Name} ... ");
                         var info = client.GetJobInfo(id);
                         dataClient.InsertJobInfo(info);
                         Console.WriteLine("Done");
@@ -58,6 +63,7 @@ namespace PopulateSql
 
         private static void PopulateAllFailures(DataClient dataClient)
         {
+            /*
             var client = new JenkinsClient();
             foreach (var id in client.GetJobIds())
             {
@@ -83,10 +89,12 @@ namespace PopulateSql
 
 
             }
+            */
         }
 
         private static void PopulateAllRetest(DataClient dataClient)
         {
+            /*
             var list = dataClient.GetFailures();
             foreach (var tuple in list)
             {
@@ -98,6 +106,7 @@ namespace PopulateSql
                     dataClient.InsertRetest(id, sha);
                 }
             }
+            */
         }
     }
 }

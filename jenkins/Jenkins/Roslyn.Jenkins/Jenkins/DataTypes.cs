@@ -28,35 +28,20 @@ namespace Roslyn.Jenkins
         }
     }
 
-    public enum JobKind
-    {
-        WindowsDebug32,
-        WindowsDebug64,
-        WindowsDebugEta,
-        WindowsRelease32,
-        WindowsRelease64,
-        EtaDebug32,
-        Linux,
-        Mac,
-
-        // Legacy jobs
-        LegacyWindows
-    }
-
     public struct JobId
     {
         public int Id { get; }
-        public JobKind Kind { get; }
+        public string Name { get; }
 
-        public JobId(int id, JobKind kind)
+        public JobId(int id, string name)
         {
             Id = id;
-            Kind = kind;
+            Name = name;
         }
 
         public override string ToString()
         {
-            return $"{Id} - {Kind}";
+            return $"{Id} - {Name}";
         }
     }
 

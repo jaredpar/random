@@ -20,29 +20,44 @@ namespace ApiFun
             // Random();
             // FindRetest();
             // PrintRetestInfo();
-            PrintFailedJobs();
+            // PrintFailedJobs();
             // InspectReason(5567);
             // ScanAllFailedJobs();
+            PrintJobNames();
+        }
+
+        private static void PrintJobNames()
+        {
+            var client = new JenkinsClient();
+            foreach (var name in client.GetJobNames())
+            {
+                Console.WriteLine(name);
+            }
         }
 
         private static void Random()
         {
+            /*
             var client = new JenkinsClient();
             var result = client.GetJobResult(new JobId(5692, JobKind.LegacyWindows));
+            */
         }
 
         private static void PrintRetestInfo()
         {
+            /*
             var connectionString = File.ReadAllText(@"c:\users\jaredpar\connection.txt");
             var dataClient = new DataClient(connectionString);
             foreach (var info in dataClient.GetRetestInfo())
             {
                 Console.WriteLine(info.JobId);
             }
+            */
         }
 
         private static void ScanAllFailedJobs()
         {
+            /*
             var client = new JenkinsClient();
             foreach (var jobId in client.GetJobIds(JobKind.WindowsDebug32))
             {
@@ -68,17 +83,21 @@ namespace ApiFun
                     Console.WriteLine("more json to figure out");
                 }
             }
+            */
         }
 
         private static void InspectReason(int id)
         {
+            /*
             var client = new JenkinsClient();
             var jobResult = client.GetJobResult(new JobId(id, JobKind.WindowsDebug32));
             Console.WriteLine(jobResult.FailureInfo.Reason);
+            */
         }
 
         private static void PrintFailedJobs()
         { 
+            /*
             var client = new JenkinsClient();
             var jobIdList = client.GetJobIds(JobKind.WindowsDebug32, JobKind.WindowsDebug64);
 
@@ -103,10 +122,12 @@ namespace ApiFun
 
                 Console.WriteLine();
             }
+            */
         }
 
         private static void FindRetest()
         {
+            /*
             var client = new JenkinsClient();
             var jobIdList = client.GetJobIds(JobKind.WindowsDebug32);
             var jobInfoList = new List<JobInfo>();
@@ -140,6 +161,7 @@ namespace ApiFun
                     Console.WriteLine($"\t{job.Id}");
                 }
             }
+            */
         }
     }
 

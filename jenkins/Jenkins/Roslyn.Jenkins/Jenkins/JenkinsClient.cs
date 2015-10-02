@@ -16,15 +16,32 @@ namespace Roslyn.Jenkins
     {
         private readonly RestClient _restClient = new RestClient(JenkinsUtil.JenkinsHost.ToString());
 
+        /// <summary>
+        /// Get all of the available job names
+        /// </summary>
+        /// <returns></returns>
+        public List<string> GetJobNames()
+        {
+            var data = GetJson("");
+            var jobs = (JArray)data["jobs"];
+            var list = new List<string>();
+            foreach (var cur in jobs)
+            {
+                var name = cur.Value<string>("name");
+                list.Add(name);
+            }
+
+            return list;
+        }
+
         public List<JobId> GetJobIds()
         {
-            var all = JenkinsUtil.GetAllJobKinds().ToArray();
+            var all = GetJobNames().ToArray();
             return GetJobIds(all);
         }
 
-        public List<JobId> GetJobIds(JobKind kind)
+        public List<JobId> GetJobIds(string name)
         {
-            var name = JenkinsUtil.GetJobName(kind);
             var data = GetJson($"job/{name}/");
             var all = (JArray)data["builds"];
             var list = new List<JobId>();
@@ -32,18 +49,18 @@ namespace Roslyn.Jenkins
             foreach (var cur in all)
             {
                 var build = cur.ToObject<Json.Build>();
-                list.Add(new JobId(build.Number, kind));
+                list.Add(new JobId(build.Number, name));
             }
 
             return list;
         }
 
-        public List<JobId> GetJobIds(params JobKind[] kinds)
+        public List<JobId> GetJobIds(params string[] names)
         {
             var list = new List<JobId>();
-            foreach (var kind in kinds)
+            foreach (var name in names)
             {
-                list.AddRange(GetJobIds(kind));
+                list.AddRange(GetJobIds(name));
             }
 
             return list;

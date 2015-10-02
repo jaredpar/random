@@ -39,8 +39,9 @@ namespace Roslyn.Sql
             throw new NotImplementedException();
         }
 
-        public bool HasSucceeded(JobKind kind, string sha)
+        public bool HasSucceeded(string name, string sha)
         {
+            /*
             var commandText = @"
                 SELECT Count(*)
                 FROM Jobs
@@ -54,6 +55,8 @@ namespace Roslyn.Sql
                 var count = (int)command.ExecuteScalar();
                 return count > 0;
             }
+            */
+            throw new NotImplementedException();
         }
 
         public int GetPullRequestId(JobId id)
@@ -163,13 +166,13 @@ namespace Roslyn.Sql
         {
             var id = jobInfo.Id;
             var commandText = @"
-                INSERT INTO dbo.Jobs (Id, Kind, Sha, State, Date)
-                VALUES (@Id, @Kind, @Sha, @State, @Date)";
+                INSERT INTO dbo.Jobs (Id, Name, Sha, State, Date)
+                VALUES (@Id, @Name, @Sha, @State, @Date)";
             using (var command = new SqlCommand(commandText, _connection))
             {
                 var p = command.Parameters;
                 p.AddWithValue("@Id", id.Id);
-                p.AddWithValue("@Kind", id.Kind.ToString());
+                p.AddWithValue("@Name", id.Name);
                 p.AddWithValue("@Sha", jobInfo.PullRequestInfo.Sha1);
                 p.AddWithValue("@State", (int)jobInfo.State);
                 p.AddWithValue("@Date", jobInfo.PullRequestInfo.Id);
