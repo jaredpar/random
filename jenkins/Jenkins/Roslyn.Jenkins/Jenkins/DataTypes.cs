@@ -12,12 +12,14 @@ namespace Roslyn.Jenkins
         public readonly JobId Id;
         public readonly PullRequestInfo PullRequestInfo;
         public readonly JobState State;
+        public readonly DateTime Date;
 
-        public JobInfo(JobId id, PullRequestInfo pullRequestInfo, JobState state)
+        public JobInfo(JobId id, PullRequestInfo pullRequestInfo, JobState state, DateTime date)
         {
             Id = id;
             PullRequestInfo = pullRequestInfo;
             State = state;
+            Date = date;
         }
 
         public override string ToString()

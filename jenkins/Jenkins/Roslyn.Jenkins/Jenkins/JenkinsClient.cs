@@ -53,18 +53,21 @@ namespace Roslyn.Jenkins
         {
             var data = GetJson(id);
             var pr = GetPullRequestInfoCore(id, data);
-            var state = GetJobState(id);
-            return new JobInfo(id, pr, state);
+            var state = GetJobStateCore(data);
+            var date = GetJobDateCore(data);
+            return new JobInfo(id, pr, state, date);
         }
 
         public JobResult GetJobResult(JobId id)
         {
             var data = GetJson(id);
             var state = GetJobStateCore(data);
+            var date = GetJobDateCore(data);
             var jobInfo = new JobInfo(
                 id,
                 GetPullRequestInfoCore(id, data),
-                state);
+                state,
+                date);
 
             if (state == JobState.Failed)
             {
@@ -79,6 +82,13 @@ namespace Roslyn.Jenkins
         {
             var data = GetJson(id);
             return GetJobStateCore(data);
+        }
+
+        private DateTime GetJobDateCore(JObject data)
+        {
+            var seconds = data.Value<long>("timestamp");
+            var epoch = new DateTime(year: 1970, month: 1, day: 1);
+            return epoch.AddMilliseconds(seconds);
         }
 
         private JobState GetJobStateCore(JObject data)

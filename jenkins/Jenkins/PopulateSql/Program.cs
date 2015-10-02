@@ -17,27 +17,41 @@ namespace PopulateSql
         {
             var connectionString = File.ReadAllText(@"c:\users\jaredpar\connection.txt");
             var client = new DataClient(connectionString);
-            // PopulateAllJobInfos(client);
-            PopulateAllFailures(client);
-            PopulateAllRetest(client);
+            PopulateAllJobInfos(client);
+            // PopulateAllFailures(client);
+            // PopulateAllRetest(client);
         }
 
         private static void PopulateAllJobInfos(DataClient dataClient)
         {
             var client = new JenkinsClient();
-            foreach (var id in client.GetJobIds())
+            foreach (var kind in JenkinsUtil.GetAllJobKinds())
             {
+                List<JobId> jobs;
                 try
                 {
-                    Console.Write($"Processing {id.Id} {id.Kind} ... ");
-                    var info = client.GetJobInfo(id);
-                    dataClient.InsertJobInfo(info);
-                    Console.WriteLine("Done");
+                    jobs = client.GetJobIds(kind);
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.WriteLine("ERROR!!!");
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine($"Can't get jobs for {kind}");
+                    continue;
+                }
+
+                foreach (var id in jobs)
+                {
+                    try
+                    {
+                        Console.Write($"Processing {id.Id} {id.Kind} ... ");
+                        var info = client.GetJobInfo(id);
+                        dataClient.InsertJobInfo(info);
+                        Console.WriteLine("Done");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("ERROR!!!");
+                        Console.WriteLine(ex.Message);
+                    }
                 }
             }
         }

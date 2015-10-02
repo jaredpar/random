@@ -27,7 +27,7 @@ namespace Roslyn.Sql
             }
         }
 
-        public string GetKey(JobId id)
+        private static string GetKey(JobId id)
         {
             // TODO: implement
             throw new NotImplementedException();
@@ -163,17 +163,16 @@ namespace Roslyn.Sql
         {
             var id = jobInfo.Id;
             var commandText = @"
-                INSERT INTO dbo.Jobs (Id, JobId, JobKind, Sha, PullRequestId, Succeeded)
-                VALUES (@Id, @JobId, @JobKind, @Sha, @PullRequestId, @Succeeded)";
+                INSERT INTO dbo.Jobs (Id, Kind, Sha, State, Date)
+                VALUES (@Id, @Kind, @Sha, @State, @Date)";
             using (var command = new SqlCommand(commandText, _connection))
             {
                 var p = command.Parameters;
-                p.AddWithValue("@Id", GetKey(id));
-                p.AddWithValue("@JobId", jobInfo.Id);
-                p.AddWithValue("@JobKind", id.Kind.ToString());
+                p.AddWithValue("@Id", id.Id);
+                p.AddWithValue("@Kind", id.Kind.ToString());
                 p.AddWithValue("@Sha", jobInfo.PullRequestInfo.Sha1);
-                p.AddWithValue("@PullRequestId", jobInfo.PullRequestInfo.Id);
-                p.AddWithValue("@Succeeded", jobInfo.State == JobState.Succeeded);
+                p.AddWithValue("@State", (int)jobInfo.State);
+                p.AddWithValue("@Date", jobInfo.PullRequestInfo.Id);
 
                 try
                 {

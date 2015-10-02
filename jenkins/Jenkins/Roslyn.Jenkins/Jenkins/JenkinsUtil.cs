@@ -16,14 +16,14 @@ namespace Roslyn.Jenkins
         static JenkinsUtil()
         {
             s_kindToNameMap = new Dictionary<JobKind, string>();
-            s_kindToNameMap[JobKind.WindowsDebug32] = "dotnet_roslyn_prtest_win_dbg_32";
-            s_kindToNameMap[JobKind.WindowsDebug64] = "dotnet_roslyn_prtest_win_dbg_64";
-            s_kindToNameMap[JobKind.WindowsRelease32] = "dotnet_roslyn_prtest_win_rel_32";
-            s_kindToNameMap[JobKind.WindowsRelease64] = "dotnet_roslyn_prtest_win_rel_64";
+            s_kindToNameMap[JobKind.WindowsDebug32] = "roslyn_prtest_win_dbg_unit32";
+            s_kindToNameMap[JobKind.WindowsDebug64] = "roslyn_prtest_win_dbg_unit64";
+            s_kindToNameMap[JobKind.WindowsRelease32] = "roslyn_prtest_win_rel_32";
+            s_kindToNameMap[JobKind.WindowsRelease64] = "roslyn_prtest_win_rel_64";
             s_kindToNameMap[JobKind.WindowsDebugEta] = "dotnet_roslyn_prtest_win_dbg_eta";
-            s_kindToNameMap[JobKind.Linux] = "dotnet_roslyn_prtest_lin";
-            s_kindToNameMap[JobKind.Mac] = "dotnet_roslyn_prtest_mac";
-            s_kindToNameMap[JobKind.LegacyWindows] = "dotnet_roslyn_prtest_win";
+            s_kindToNameMap[JobKind.Linux] = "roslyn_prtest_lin";
+            s_kindToNameMap[JobKind.Mac] = "roslyn_prtest_mac";
+            s_kindToNameMap[JobKind.LegacyWindows] = "roslyn_prtest_win";
 
             s_nameToKindMap = new Dictionary<string, JobKind>(StringComparer.Ordinal);
             foreach (var pair in s_kindToNameMap)
