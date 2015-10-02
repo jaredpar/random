@@ -52,7 +52,7 @@
     <Compile Include="Jenkins\ConsoleTextUtil.cs" />
     <Compile Include="Jenkins\DataTypes.cs" />
     <Compile Include="Jenkins\JenkinsClient.cs" />
-    <Compile Include="Sql\DataClient.cs" />
+    <Compile Include="Data\DataClient.cs" />
     <Compile Include="Jenkins\JsonUtil.cs" />
     <Compile Include="Jenkins\JsonTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
