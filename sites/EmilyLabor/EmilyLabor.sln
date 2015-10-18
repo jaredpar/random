@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmilyLabor", "EmilyLabor\EmilyLabor.csproj", "{3A7A1713-02A4-4A2B-AB19-6E0512D1F67D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PublishScripts", "PublishScripts", "{02CA1239-DA80-4140-9C1A-111FE2B7103C}"
+	ProjectSection(SolutionItems) = preProject
+		PublishScripts\AzureVMPublishModule.psm1 = PublishScripts\AzureVMPublishModule.psm1
+		PublishScripts\Publish-WebApplicationVM.ps1 = PublishScripts\Publish-WebApplicationVM.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configurations", "Configurations", "{97B4AFAB-0A48-497A-BF25-6B970C3A47EA}"
+	ProjectSection(SolutionItems) = preProject
+		PublishScripts\Configurations\EmilyLabor-WAWS-dev.json = PublishScripts\Configurations\EmilyLabor-WAWS-dev.json
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3A7A1713-02A4-4A2B-AB19-6E0512D1F67D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A7A1713-02A4-4A2B-AB19-6E0512D1F67D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A7A1713-02A4-4A2B-AB19-6E0512D1F67D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A7A1713-02A4-4A2B-AB19-6E0512D1F67D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{97B4AFAB-0A48-497A-BF25-6B970C3A47EA} = {02CA1239-DA80-4140-9C1A-111FE2B7103C}
+	EndGlobalSection
+EndGlobal
