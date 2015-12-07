@@ -7,10 +7,10 @@ namespace Dashboard.Models
 {
     public class IssuesViewModel
     {
-        public List<Issue> Issues { get; } = new List<Issue>();
+        public List<IssueData> Issues { get; } = new List<IssueData>();
     }
 
-    public sealed class Issue
+    public sealed class IssueData
     {
         public int Id { get; set; }
         public string Url { get; set; }
