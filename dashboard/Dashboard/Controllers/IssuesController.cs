@@ -13,6 +13,7 @@ namespace Dashboard.Controllers
     {
         public async Task<ActionResult> Index()
         {
+            /*
             var client = new GitHubClient(new ProductHeaderValue("jbug-dash-app"));
 
             var request = new RepositoryIssueRequest();
@@ -27,6 +28,12 @@ namespace Dashboard.Controllers
                 var name = issue.User.Name ?? "unassigned";
                 model.Issues.Add(new IssueData() { Id = issue.Number, User = name });
             }
+            */
+
+            var model = new IssuesViewModel();
+            model.Issues.Add(new IssueData() { Id = 42, User = "jaredpar"});
+            model.Issues.Add(new IssueData() { Id = 13, User = "jaredpar"});
+            model.Issues.Add(new IssueData() { Id = 13, User = "gafter"});
 
             return View(model);
         }
