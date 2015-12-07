@@ -13,6 +13,7 @@ namespace Dashboard.Models
     public sealed class IssueData
     {
         public int Id { get; set; }
+        public string User { get; set; }
         public string Url { get; set; }
     }
 }

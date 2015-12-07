@@ -24,7 +24,8 @@ namespace Dashboard.Controllers
             var model = new IssuesViewModel();
             foreach (var issue in issues)
             {
-                model.Issues.Add(new IssueData() { Id = issue.Number });
+                var name = issue.User.Name ?? "unassigned";
+                model.Issues.Add(new IssueData() { Id = issue.Number, User = name });
             }
 
             return View(model);

@@ -1,7 +1,21 @@
-﻿@model Dashboard.Models.IssuesViewModel
+﻿@using System.Text;
+@model Dashboard.Models.IssuesViewModel
 
 @{
     ViewBag.Title = "Issues";
+
+    var builder = new StringBuilder();
+    foreach (var group in Model.Issues.GroupBy(x => x.User))
+    {
+        var pair = $"{group.Key}-{group.Count()}";
+        if (builder.Length != 0)
+        { 
+            builder.Append(';');
+        }
+        builder.Append(pair);
+    }
+
+    var dataStr = builder.ToString();
 }
 
 <div class="jumbotron">
@@ -11,12 +25,10 @@
 </div>
 
 <div class="row">
-    <div class="col-md-4">
-        <ul>
-            @foreach (var cur in Model.Issues)
-            {
-                <li>@cur.Id</li>
-            }
-        </ul>
-    </div>
+    <div id="issuechart" data-values="@dataStr" style="width: 900px; height: 500px;"></div>
 </div>
+
+@section scripts {
+    <script type="text/javascript" src="@Url.Content("/Scripts/issue-chart.js")"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+}
