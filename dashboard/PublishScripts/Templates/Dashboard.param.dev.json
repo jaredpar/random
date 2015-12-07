@@ -1,0 +1,29 @@
+{
+  "siteName": {
+    "value": "jbugdash"
+  },
+  "hostingPlanName": {
+    "value": "funsite"
+  },
+  "siteLocation": {
+    "value": "West US"
+  },
+  "sku": {
+    "value": "Free"
+  },
+  "workerSize": {
+    "value": "0"
+  },
+  "siteMode": {
+    "value": "Limited"
+  },
+  "computeMode": {
+    "value": "0"
+  },
+  "subscriptionId": {
+    "value": "77d7020c-2fcf-4871-baec-a27d40dfbbaa"
+  },
+  "resourceGroup": {
+    "value": "Default-SQL-WestUS"
+  }
+}
