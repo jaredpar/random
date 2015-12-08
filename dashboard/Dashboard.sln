@@ -18,6 +18,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Templates", "Templates", "{
 		PublishScripts\Templates\Dashboard.param.dev.json = PublishScripts\Templates\Dashboard.param.dev.json
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiTest", "ApiTest\ApiTest.csproj", "{12C598F9-42E5-442B-8720-80DDA180C30C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,6 +30,10 @@ Global
 		{FBCAAFD5-6E97-4E04-B8D2-4672A1B05AAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBCAAFD5-6E97-4E04-B8D2-4672A1B05AAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FBCAAFD5-6E97-4E04-B8D2-4672A1B05AAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12C598F9-42E5-442B-8720-80DDA180C30C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12C598F9-42E5-442B-8720-80DDA180C30C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12C598F9-42E5-442B-8720-80DDA180C30C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12C598F9-42E5-442B-8720-80DDA180C30C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
