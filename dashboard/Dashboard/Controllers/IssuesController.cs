@@ -20,11 +20,16 @@ namespace Dashboard.Controllers
             return client;
         }
 
-        public async Task<ActionResult> Index()
+        public Task<ActionResult> Index()
         {
+            return Area("Area-Compilers");
+        }
+
+        public async Task<ActionResult> Area(string areaLabel = "")
+        { 
             var client = CreateClient();
             var request = new RepositoryIssueRequest();
-            request.Labels.Add("Area-Compilers");
+            request.Labels.Add(areaLabel);
             request.State = ItemState.Open;
             request.Milestone = "4";
 
