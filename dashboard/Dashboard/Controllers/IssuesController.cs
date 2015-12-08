@@ -2,6 +2,7 @@
 using Octokit;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
@@ -11,14 +12,17 @@ namespace Dashboard.Controllers
 {
     public class IssuesController : Controller
     {
-        public async Task<ActionResult> Index()
+        private static GitHubClient CreateClient()
         {
-            var items = System.IO.File.ReadAllText(@"c:\users\jaredpar\jenkins.txt").Trim().Split(':');
-            var token = items[1];
-
+            var token = ConfigurationManager.AppSettings["github-token"];
             var client = new GitHubClient(new ProductHeaderValue("jbug-dash-app"));
             client.Credentials = new Credentials(token);
+            return client;
+        }
 
+        public async Task<ActionResult> Index()
+        {
+            var client = CreateClient();
             var request = new RepositoryIssueRequest();
             request.Labels.Add("Area-Compilers");
             request.State = ItemState.Open;
