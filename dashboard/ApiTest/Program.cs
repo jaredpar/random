@@ -22,10 +22,16 @@ namespace ApiTest
             var client = new GitHubClient(new ProductHeaderValue("jaredpar-api-test"));
             client.Connection.Credentials = credentials;
 
-            var all = await client.Issue.Milestone.GetAllForRepository("dotnet", "roslyn");
-            foreach (var cur in all)
+            var request = new RepositoryIssueRequest();
+            request.Labels.Add("Area-Compilers");
+            request.State = ItemState.Open;
+            request.Milestone = "4";
+
+            var issues = await client.Issue.GetAllForRepository("dotnet", "roslyn", request);
+            foreach (var issue in issues)
             {
-                Console.WriteLine(cur.Title);
+                var name = issue.User.Name ?? "unassigned";
+                Console.WriteLine(issue.Url);
             }
         }
     }
