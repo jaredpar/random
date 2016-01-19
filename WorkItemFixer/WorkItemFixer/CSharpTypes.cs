@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace WorkItemFixer
 {
-    internal sealed class CSharpWorkItemRewriter : CSharpSyntaxRewriter
+    internal sealed class CSharpWorkItemRewriter : CSharpSyntaxRewriter, IRewriter
     {
         private readonly WorkItemUtil _workItemUtil;
         private readonly string _filePath;
@@ -36,6 +37,16 @@ namespace WorkItemFixer
             }
 
             return node;
+        }
+
+        public SourceText TryUpdate(SourceText text)
+        {
+            var syntaxTree = CSharpSyntaxTree.ParseText(text);
+            var node = syntaxTree.GetRoot();
+            var newNode = Visit(node);
+            return node != newNode
+                ? syntaxTree.WithRootAndOptions(newNode, syntaxTree.Options).GetText()
+                : null;
         }
     }
 

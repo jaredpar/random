@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.TeamFoundation.Client;
@@ -20,9 +21,16 @@ namespace WorkItemFixer
             var teamFoundationServer = new TfsTeamProjectCollection(new Uri("http://vstfdevdiv:8080/DevDiv2"));
             var tfsWorkItemStore = new WorkItemStore(new TfsTeamProjectCollection(new Uri("http://vstfdevdiv:8080/DevDiv2")));
             var roslynWorkItemStore = new WorkItemStore(new TfsTeamProjectCollection(new Uri("http://vstfdevdiv:8080/DevDiv_Projects")));
-            var workItemInfo = new WorkItemData(tfsWorkItemStore, roslynWorkItemStore);
-            var files = Directory.EnumerateFiles(@"e:\dd\roslyn\src", "*.cs", SearchOption.AllDirectories);
+            var workItemData = new WorkItemData(tfsWorkItemStore, roslynWorkItemStore);
             var unknownList = new List<string>();
+            var workItemUtil = new WorkItemUtil(workItemData, unknownList);
+
+            var dataFile = @"c:\users\jaredpar\data.txt";
+            var root = @"e:\dd\roslyn\src";
+            var files =
+                Directory.EnumerateFiles(root, "*.vb", SearchOption.AllDirectories)
+                .Concat(Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories));
+
             foreach (var filePath in files)
             {
                 Console.WriteLine($"{filePath}");
@@ -32,24 +40,33 @@ namespace WorkItemFixer
                     text = SourceText.From(stream);
                 }
 
-                var fixer = new WorkItemRewriter(workItemInfo, filePath, unknownList);
-                var syntaxTree = CSharpSyntaxTree.ParseText(text);
-                var node = syntaxTree.GetRoot();
-                var newNode = fixer.Visit(node);
-                if (node != newNode)
+                var rewriter = Path.GetExtension(filePath) == ".cs"
+                    ? (IRewriter)new CSharpWorkItemRewriter(workItemUtil, filePath)
+                    : (IRewriter)new BasicWorkItemRewriter(workItemUtil, filePath);
+
+                var newText = rewriter.TryUpdate(text);
+                if (newText != null)
                 {
-                    /* 
-                    var newSyntaxTree = syntaxTree.WithRootAndOptions(newNode, syntaxTree.Options);
                     using (var writer = new StreamWriter(filePath, append: false, encoding: text.Encoding))
                     {
-                        newSyntaxTree.GetText().Write(writer);
+                        newText.Write(writer);
                     }
-                    */
+                }
+
+                if (unknownList.Count > 20)
+                {
+                    File.AppendAllLines(dataFile, unknownList);
+                    unknownList.Clear();
                 }
             }
 
-            File.WriteAllLines(@"c:\users\jaredpar\data.txt", unknownList.ToArray());
+            File.AppendAllLines(dataFile, unknownList.ToArray());
         }
+    }
+
+    interface IRewriter
+    {
+        SourceText TryUpdate(SourceText text);
     }
 
     internal struct WorkItemInfo
@@ -146,23 +163,23 @@ namespace WorkItemFixer
             return false;
         }
 
-        internal bool IsDevDivTfsBug(int id)
+        internal bool IsDevDivTfsBug(int id, bool checkAreaPath = true)
         {
             try
             {
                 var workItem = _tfsWorkItemStore.GetWorkItem(id);
                 var areaPath = workItem.AreaPath;
-                if (areaPath.StartsWith(@"DevDiv\Cloud Platform\Managed Languages"))
+                if (checkAreaPath)
                 {
-                    return true;
+                    return areaPath.StartsWith(@"DevDiv\Cloud Platform\Managed Languages");
                 }
+
+                return true;
             }
             catch (Exception)
             {
-
+                return false;
             }
-
-            return false;
         }
 
         private int? GetMigratedInfoCore(int id)
@@ -230,6 +247,11 @@ namespace WorkItemFixer
                 if (!_workItemData.IsGithubBug(id) && _workItemData.IsRoslynBug(id))
                 {
                     return new WorkItemInfo(id, string.Format(UrlRoslyn, id));
+                }
+
+                if (id > 100000 && _workItemData.IsDevDivTfsBug(id, checkAreaPath: false))
+                {
+                    return new WorkItemInfo(id, string.Format(UrlDevDiv, id));
                 }
 
                 _unknownList.Add($"{filePath} line {loc.StartLinePosition.Line} id {id}");
