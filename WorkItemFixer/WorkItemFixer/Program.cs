@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace WorkItemFixer
@@ -208,9 +209,9 @@ namespace WorkItemFixer
 
     internal sealed class WorkItemUtil
     {
-        private const string UrlVso = "https://devdiv.visualstudio.com/defaultcollection/DevDiv/_workitems#_a=edit&id={0}";
-        private const string UrlRoslyn = "http://vstfdevdiv:8080/DevDiv_Projects/Roslyn/_workitems#id={0}&_a=edit";
-        private const string UrlDevDiv = "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems#id={0}&_a=edit";
+        private const string UrlVso = "https://devdiv.visualstudio.com/defaultcollection/DevDiv/_workitems/edit/{0}";
+        private const string UrlRoslyn = "http://vstfdevdiv:8080/DevDiv_Projects/Roslyn/_workitems/edit/{0}";
+        private const string UrlDevDiv = "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/{0}";
         private const string UrlGithub = "https://github.com/dotnet/roslyn/issues/{0}";
 
         private readonly WorkItemData _workItemData;
@@ -257,7 +258,33 @@ namespace WorkItemFixer
                 _unknownList.Add($"{filePath} line {loc.StartLinePosition.Line} id {id}");
             }
 
+            if (RewriteUrl(id, ref description))
+            {
+                return new WorkItemInfo(id, description);
+            }
+
+            Uri uri;
+            if (!Uri.TryCreate(description, UriKind.Absolute, out uri))
+            {
+                _unknownList.Add($"Bad Url {filePath} {loc.StartLinePosition.Line}");
+            }
+
             return null;
+        }
+
+        internal static bool RewriteUrl(int id, ref string description)
+        {
+            Uri uri;
+            if (!Uri.TryCreate(description, UriKind.Absolute, out uri) || string.IsNullOrEmpty(uri.Fragment))
+            {
+                return false;
+            }
+
+            var builder = new UriBuilder(uri);
+            builder.Fragment = null;
+            builder.Path = $"{uri.PathAndQuery}/edit/{id}";
+            description = builder.ToString();
+            return true;
         }
     }
 }
