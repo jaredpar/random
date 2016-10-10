@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GetTempPath", "GetTempPath\GetTempPath.csproj", "{9991AF09-9F39-4934-A9E2-A921D2D7A613}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9991AF09-9F39-4934-A9E2-A921D2D7A613}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9991AF09-9F39-4934-A9E2-A921D2D7A613}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9991AF09-9F39-4934-A9E2-A921D2D7A613}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9991AF09-9F39-4934-A9E2-A921D2D7A613}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
