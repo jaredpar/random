@@ -20,22 +20,18 @@ namespace PrintImportTree
         internal static void Main(string[] args)
         {
             var file = @"e:\temp\scratch.xml";
-            var indent = 0;
-            var indentString = "";
+            var printer = new TreePrinter();
+
             foreach (var line in File.ReadAllLines(file))
             {
                 var (kind, name) = ClassifyLine(line);
                 switch (kind)
                 {
                     case Kind.ImportStart:
-                        Console.WriteLine($"{indentString}{name}");
-                        indent++;
-                        indentString = new string(' ', indent * 2);
+                        printer.PrintStart(name);
                         break;
                     case Kind.ImportEnd:
-                        indent--;
-                        indentString = new string(' ', indent * 2);
-                        Console.WriteLine($"{indentString}{name}");
+                        printer.PrintEnd(name);
                         break;
                     default:
                         break;
