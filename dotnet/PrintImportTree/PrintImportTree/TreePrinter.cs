@@ -9,37 +9,27 @@ namespace PrintImportTree
 {
     sealed class TreePrinter
     {
-        private int _indent;
-        private string _indentString;
-        private string _currentFilePath;
-        private StringComparer _comparer = StringComparer.OrdinalIgnoreCase;
+        private bool _isTopStart = false;
+        private Stack<string> _filePathStack = new Stack<string>();
 
         internal void PrintStart(string filePath)
         {
-            if (_currentFilePath != null)
+            if (_isTopStart)
             {
-                Console.WriteLine($"{_indentString}+ {_currentFilePath}");
-                _indent++;
-                _indentString = new string(' ', _indent * 2);
+                Console.WriteLine($"{CreateIndentString()}+ {_filePathStack.Peek()}");
             }
 
-            _currentFilePath = filePath;
+            _filePathStack.Push(filePath);
+            _isTopStart = true;
         }
 
-        internal void PrintEnd(string filePath)
+        internal void PrintEnd()
         {
-            if (_comparer.Equals(filePath, _currentFilePath))
-            {
-                Console.WriteLine($"{_indentString}+- {_currentFilePath}");
-                _currentFilePath = null;
-            }
-            else
-            {
-                Debug.Assert(_currentFilePath == null);
-                _indent--;
-                _indentString = new string(' ', _indent * 2);
-                Console.WriteLine($"{_indentString}- {filePath}");
-            }
+            var prefix = _isTopStart ? "+-" : "-";
+            Console.WriteLine($"{CreateIndentString()}{prefix} {_filePathStack.Pop()}");
+            _isTopStart = false;
         }
+
+        private string CreateIndentString() => new string(' ', (_filePathStack.Count - 1) * 2);
     }
 }
