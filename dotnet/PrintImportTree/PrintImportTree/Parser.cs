@@ -14,7 +14,6 @@ namespace PrintImportTree
         ImportStart,
         ImportEnd,
         Header,
-        Footer,
     }
 
     internal struct Import
@@ -23,7 +22,6 @@ namespace PrintImportTree
         internal string FilePath { get; }
 
         internal static Import ImportEnd { get; } = new Import(Kind.ImportEnd, null);
-        internal static Import Footer { get; } = new Import(Kind.Footer, null);
 
         private Import(Kind kind, string filePath)
         {
@@ -95,7 +93,7 @@ namespace PrintImportTree
             }
 
             var importLine = _lines[_index + 2];
-            if (Regex.IsMatch(importLine, @"^\s*<Import Project=""Sdk.props"""))
+            if (Regex.IsMatch(importLine, @"^\s*<Import Project=""Sdk.(props|targets)"""))
             {
                 var filePath = _lines[_index + 5].Trim();
                 if (!Path.IsPathRooted(filePath))
@@ -118,10 +116,7 @@ namespace PrintImportTree
 
             if (Regex.IsMatch(importLine, @"^\s*</Import"))
             {
-                var footerLine = _lines[_index + 4].Trim();
-                return StringComparer.OrdinalIgnoreCase.Equals(_headerFilePath, footerLine)
-                    ? Import.Footer
-                    : Import.ImportEnd;
+                return Import.ImportEnd;
             }
 
             return null;

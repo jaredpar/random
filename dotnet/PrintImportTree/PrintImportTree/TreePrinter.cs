@@ -7,10 +7,12 @@ using System.Threading.Tasks;
 
 namespace PrintImportTree
 {
-    sealed class TreePrinter
+    internal sealed class TreePrinter
     {
         private bool _isTopStart = false;
         private Stack<string> _filePathStack = new Stack<string>();
+
+        internal bool IsEmpty => _filePathStack.Count == 0;
 
         internal void PrintStart(string filePath)
         {

@@ -36,6 +36,11 @@ namespace PrintImportTree
                     break;
                 }
             } while (true);
+
+            if (!printer.IsEmpty)
+            {
+                throw new Exception("Stack not empty which indicates a parse error");
+            }
         }
     }
 }
