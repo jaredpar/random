@@ -12,7 +12,9 @@ namespace PrintImportTree
     internal enum Kind
     {
         ImportStart,
-        ImportEnd
+        ImportEnd,
+        Header,
+        Footer,
     }
 
     internal struct Import
@@ -20,7 +22,8 @@ namespace PrintImportTree
         internal Kind Kind { get; }
         internal string FilePath { get; }
 
-        internal static Import End { get; } = new Import(Kind.ImportEnd, null);
+        internal static Import ImportEnd { get; } = new Import(Kind.ImportEnd, null);
+        internal static Import Footer { get; } = new Import(Kind.Footer, null);
 
         private Import(Kind kind, string filePath)
         {
@@ -29,12 +32,14 @@ namespace PrintImportTree
         }
 
         internal static Import CreateStart(string filePath) => new Import(Kind.ImportStart, filePath);
+        internal static Import CreateHeader(string filePath) => new Import(Kind.Header, filePath);
     }
 
     internal sealed class Parser
     {
         private string[] _lines;
         private int _index;
+        private string _headerFilePath;
         private readonly RegexOptions _options = RegexOptions.Compiled | RegexOptions.IgnoreCase;
 
         internal Parser(string filePath)
@@ -44,13 +49,12 @@ namespace PrintImportTree
 
         internal Import? ParseNext()
         {
-            const int headerLength = 5;
+            const int headerLength = 6;
             while (_index + headerLength < _lines.Length)
             {
-                var import = TryParse();
-                if (import != null)
+                if (TryParse() is Import import)
                 {
-                    _index += headerLength;
+                    _index += import.Kind == Kind.ImportStart ? headerLength : 1;
                     return import;
                 }
                 else
@@ -78,8 +82,30 @@ namespace PrintImportTree
                 return null;
             }
 
+            if (_headerFilePath == null)
+            {
+                var line = _lines[_index + 2].Trim();
+                if (!Path.IsPathRooted(line))
+                {
+                    return null;
+                }
+
+                _headerFilePath = line;
+                return Import.CreateHeader(line);
+            }
+
             var importLine = _lines[_index + 2];
-            if (Regex.IsMatch(importLine, @"^\s*<Import Project"))
+            if (Regex.IsMatch(importLine, @"^\s*<Import Project=""Sdk.props"""))
+            {
+                var filePath = _lines[_index + 5].Trim();
+                if (!Path.IsPathRooted(filePath))
+                {
+                    return null;
+                }
+
+                return Import.CreateStart(filePath);
+            }
+            else if (Regex.IsMatch(importLine, @"^\s*<Import Project"))
             {
                 var filePath = _lines[_index + 4].Trim();
                 if (!Path.IsPathRooted(filePath))
@@ -92,7 +118,10 @@ namespace PrintImportTree
 
             if (Regex.IsMatch(importLine, @"^\s*</Import"))
             {
-                return Import.End;
+                var footerLine = _lines[_index + 4].Trim();
+                return StringComparer.OrdinalIgnoreCase.Equals(_headerFilePath, footerLine)
+                    ? Import.Footer
+                    : Import.ImportEnd;
             }
 
             return null;

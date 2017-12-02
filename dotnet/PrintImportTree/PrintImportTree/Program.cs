@@ -12,7 +12,7 @@ namespace PrintImportTree
     {
         internal static void Main(string[] args)
         {
-            var file = args.Length == 1 ? args[0] : @"e:\temp\diff\old.xml";
+            var file = args.Length == 1 ? args[0] : @"e:\temp\data.pp";
             var printer = new TreePrinter();
             var parser = new Parser(file);
             do
