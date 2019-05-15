@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -19,7 +20,7 @@ namespace Query.Util
         /// <summary>
         /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
         /// </summary>
-        public async Task<string> ListBuilds(string project, IEnumerable<int> definitions = null, int? top = null)
+        public async Task<string> ListBuildRaw(string project, IEnumerable<int> definitions = null, int? top = null)
         {
             var builder = new StringBuilder();
             builder.Append($"https://dev.azure.com/{Organization}/{project}/_apis/build/builds?");
@@ -47,27 +48,34 @@ namespace Query.Util
 
             builder.Append("api-version=5.0");
 
-            try
+            using (var client = new HttpClient())
             {
-                using (var client = new HttpClient())
-                {
-                    client.DefaultRequestHeaders.Accept.Add(
-                        new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
-                    using (var response = await client.GetAsync(builder.ToString()))
-                    {
-                        response.EnsureSuccessStatusCode();
-                        string responseBody = await response.Content.ReadAsStringAsync();
-                        Console.WriteLine(responseBody);
-                    }
+                using (var response = await client.GetAsync(builder.ToString()))
+                {
+                    response.EnsureSuccessStatusCode();
+                    string responseBody = await response.Content.ReadAsStringAsync();
+                    return responseBody;
                 }
             }
-            catch (Exception ex)
+        }
+
+        /// <summary>
+        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
+        /// </summary>
+        public async Task<BuildData[]> ListBuild(string project, IEnumerable<int> definitions = null, int? top = null)
+        {
+            var root = JObject.Parse(await ListBuildRaw(project, definitions, top));
+            var array = (JArray)root["value"];
+            var buildDataArray = new BuildData[array.Count];
+            for (var i = 0; i < array.Count; i++)
             {
-                Console.WriteLine(ex.ToString());
+                buildDataArray[i] = JsonUtil.CreateBuildData((JObject)array[i]);
             }
 
-            return null;
+            return buildDataArray;
         }
     }
 
