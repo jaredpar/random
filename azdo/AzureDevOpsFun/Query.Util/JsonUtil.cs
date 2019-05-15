@@ -11,8 +11,9 @@ namespace Query.Util
         {
             var id = (int)obj["id"];
             var buildNumber = (string)obj["buildNumber"];
+            var buildUri = (string)obj["uri"];
             var status = (string)obj["status"];
-            return new BuildData(id, buildNumber, status);
+            return new BuildData(id, buildNumber, buildUri, status);
         }
     }
 }

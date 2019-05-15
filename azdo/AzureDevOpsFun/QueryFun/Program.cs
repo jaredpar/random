@@ -12,7 +12,7 @@ namespace QueryFun
             var server = new AzureServer("dnceng");
             foreach (var build in await server.ListBuild("public", definitions: new[] { 15 }, top: 10))
             {
-                Console.WriteLine($"{build.Id} {build.BuildNumber}");
+                Console.WriteLine($"{build.Id} {build.BuildNumber} {build.BuildUri}");
             }
         }
     }
