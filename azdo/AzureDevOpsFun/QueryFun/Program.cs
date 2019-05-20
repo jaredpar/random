@@ -10,9 +10,12 @@ namespace QueryFun
         {
             Console.WriteLine("Hello World!");
             var server = new AzureServer("dnceng");
-            foreach (var build in await server.ListBuild("public", definitions: new[] { 15 }, top: 10))
+            var project = "public";
+            foreach (var build in await server.ListBuild(project, definitions: new[] { 15 }, top: 10))
             {
                 Console.WriteLine($"{build.Id} {build.BuildNumber} {build.BuildUri}");
+                var buildLogs = await server.GetBuildLogs(project, build.Id);
+                Console.WriteLine($"{buildLogs.Length} logs");
             }
         }
     }

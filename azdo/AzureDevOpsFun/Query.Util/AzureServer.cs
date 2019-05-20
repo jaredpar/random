@@ -22,8 +22,8 @@ namespace Query.Util
         /// </summary>
         public async Task<string> ListBuildRaw(string project, IEnumerable<int> definitions = null, int? top = null)
         {
-            var builder = new StringBuilder();
-            builder.Append($"https://dev.azure.com/{Organization}/{project}/_apis/build/builds?");
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append("/build/builds?");
 
             if (definitions?.Any() == true)
             {
@@ -47,19 +47,7 @@ namespace Query.Util
             }
 
             builder.Append("api-version=5.0");
-
-            using (var client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Accept.Add(
-                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-                using (var response = await client.GetAsync(builder.ToString()))
-                {
-                    response.EnsureSuccessStatusCode();
-                    string responseBody = await response.Content.ReadAsStringAsync();
-                    return responseBody;
-                }
-            }
+            return await GetJsonResult(builder.ToString());
         }
 
         /// <summary>
@@ -69,13 +57,44 @@ namespace Query.Util
         {
             var root = JObject.Parse(await ListBuildRaw(project, definitions, top));
             var array = (JArray)root["value"];
-            var buildDataArray = new BuildData[array.Count];
-            for (var i = 0; i < array.Count; i++)
-            {
-                buildDataArray[i] = JsonUtil.CreateBuildData((JObject)array[i]);
-            }
+            return array.ToObject<BuildData[]>();
+        }
 
-            return buildDataArray;
+        public async Task<string> GetBuildLogsRaw(string project, int buildId)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/logs??api-version=5.0");
+            return await GetJsonResult(builder.ToString());
+        }
+
+        public async Task<BuildLog[]> GetBuildLogs(string project, int buildId)
+        {
+            var root = JObject.Parse(await GetBuildLogsRaw(project, buildId));
+            var array = (JArray)root["value"];
+            return array.ToObject<BuildLog[]>();
+        }
+
+        private StringBuilder GetProjectApiRootBuilder(string project)
+        {
+            var builder = new StringBuilder();
+            builder.Append($"https://dev.azure.com/{Organization}/{project}/_apis");
+            return builder;
+        }
+
+        private async Task<string> GetJsonResult(string uri)
+        {
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+                using (var response = await client.GetAsync(uri))
+                {
+                    response.EnsureSuccessStatusCode();
+                    string responseBody = await response.Content.ReadAsStringAsync();
+                    return responseBody;
+                }
+            }
         }
     }
 
