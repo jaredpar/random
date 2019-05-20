@@ -11,7 +11,13 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await DumpBuild("public", 194440);
+            await DumpTimeline("public", 194440);
+        }
+
+        private static async Task DumpTimeline(string project, int buildId)
+        {
+            var server = new AzureServer(Organization);
+            var timeline = await server.GetTimeline(project, buildId);
         }
 
         private static async Task DumpBuild(string project, int buildId)

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -112,6 +113,19 @@ namespace Query.Util
                     return responseBody;
                 }
             }
+        }
+
+        public async Task<string> GetTimelineRaw(string project, int buildId)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/timeline?api-version=5.0");
+            return await GetJsonResult(builder.ToString());
+        }
+
+        public async Task<Timeline> GetTimeline(string project, int buildId)
+        {
+            var json = await GetTimelineRaw(project, buildId);
+            return JsonConvert.DeserializeObject<Timeline>(json);
         }
 
         private StringBuilder GetProjectApiRootBuilder(string project)
