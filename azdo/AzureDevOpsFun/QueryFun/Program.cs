@@ -1,15 +1,37 @@
 ﻿using Query.Util;
 using System;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace QueryFun
 {
     public class Program
     {
+        public static string Organization = "dnceng";
+
         public static async Task Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
-            var server = new AzureServer("dnceng");
+            await DumpBuild("public", 194440);
+        }
+
+        private static async Task DumpBuild(string project, int buildId)
+        {
+            var server = new AzureServer(Organization);
+            var output = @"e:\temp\logs";
+            Directory.CreateDirectory(output);
+            foreach (var log in await server.GetBuildLogs(project, buildId))
+            {
+                var logFilePath = Path.Combine(output, $"{log.Id}.txt");
+                Console.WriteLine($"Log Id {log.Id} {log.Type} - {logFilePath}");
+                var content = await server.GetBuildLog(project, buildId, log.Id);
+                File.WriteAllText(logFilePath, content);
+
+            }
+        }
+
+        private static async Task Fun()
+        { 
+            var server = new AzureServer(Organization);
             var project = "public";
             foreach (var build in await server.ListBuild(project, definitions: new[] { 15 }, top: 10))
             {

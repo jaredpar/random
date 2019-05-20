@@ -63,7 +63,7 @@ namespace Query.Util
         public async Task<string> GetBuildLogsRaw(string project, int buildId)
         {
             var builder = GetProjectApiRootBuilder(project);
-            builder.Append($"/build/builds/{buildId}/logs??api-version=5.0");
+            builder.Append($"/build/builds/{buildId}/logs?api-version=5.0");
             return await GetJsonResult(builder.ToString());
         }
 
@@ -72,6 +72,46 @@ namespace Query.Util
             var root = JObject.Parse(await GetBuildLogsRaw(project, buildId));
             var array = (JArray)root["value"];
             return array.ToObject<BuildLog[]>();
+        }
+
+        public async Task<string> GetBuildLog(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/logs/{logId}?");
+
+            var first = true;
+            if (startLine.HasValue)
+            {
+                builder.Append($"startLine={startLine}");
+                first = false;
+            }
+
+            if (endLine.HasValue)
+            {
+                if (!first)
+                {
+                    builder.Append("&");
+                }
+
+                builder.Append($"endLine={endLine}");
+                first = false;
+            }
+
+            if (!first)
+            {
+                builder.Append("&");
+            }
+
+            builder.Append("api-version=5.0");
+            using (var client = new HttpClient())
+            {
+                using (var response = await client.GetAsync(builder.ToString()))
+                {
+                    response.EnsureSuccessStatusCode();
+                    string responseBody = await response.Content.ReadAsStringAsync();
+                    return responseBody;
+                }
+            }
         }
 
         private StringBuilder GetProjectApiRootBuilder(string project)
