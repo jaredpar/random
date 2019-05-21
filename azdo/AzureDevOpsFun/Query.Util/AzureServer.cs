@@ -122,9 +122,29 @@ namespace Query.Util
             return await GetJsonResult(builder.ToString());
         }
 
+        public async Task<string> GetTimelineRaw(string project, int buildId, string timelineId, int? changeId = null)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/timeline/{timelineId}?");
+
+            if (changeId.HasValue)
+            {
+                builder.Append($"changeId={changeId}&");
+            }
+
+            builder.Append($"api-version=5.0");
+            return await GetJsonResult(builder.ToString());
+        }
+
         public async Task<Timeline> GetTimeline(string project, int buildId)
         {
             var json = await GetTimelineRaw(project, buildId);
+            return JsonConvert.DeserializeObject<Timeline>(json);
+        }
+
+        public async Task<Timeline> GetTimeline(string project, int buildId, string timelineId, int? changeId = null)
+        {
+            var json = await GetTimelineRaw(project, buildId, timelineId, changeId);
             return JsonConvert.DeserializeObject<Timeline>(json);
         }
 

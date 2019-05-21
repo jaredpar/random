@@ -51,7 +51,7 @@ namespace Query.Util
         public int Attempt { get; set; }
         public int ChangeId { get; set; }
         public string CurrentOperation { get; set; }
-        public TimelineReference[] Details { get; set; }
+        public TimelineReference Details { get; set; }
         public int ErrorCount { get; set; }
         public string FinishTime { get; set; }
         public string Id { get; set; }
