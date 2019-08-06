@@ -349,6 +349,7 @@ namespace DevOps.Util
         public int Id { get; set; }
         public string Name { get; set; }
         public ArtifactResource Resource { get; set; }
+        public override string ToString() => $"{Name} - {Id}";
     }
 
     /// <summary>

@@ -3,6 +3,8 @@ using System;
 using System.Threading.Tasks;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using System.Net.Security;
+using System.IO.Compression;
 
 namespace QueryFun
 {
@@ -12,8 +14,55 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await Fun();
-            await DumpTimeline("public", 196140);
+            await DumpNgenLog(2916584, @"p:\temp\ngen");
+            // await Fun();
+            // await DumpTimeline("public", 196140);
+        }
+
+        private static async Task<string> GetToken()
+        {
+            var text = await File.ReadAllLinesAsync(@"p:\tokens.txt");
+            return text[0].Split(':')[1];
+        }
+
+        private static async Task DumpNgenLog(int buildId, string targetDirPath)
+        {
+            var targetDir = Directory.CreateDirectory(targetDirPath);
+            foreach (var fileInfo in targetDir.GetFiles())
+            {
+                File.Delete(fileInfo.FullName);
+            }
+
+            var server = new DevOpsServer("devdiv", await GetToken());
+            var project = "DevDiv";
+            var stream = new MemoryStream();
+            await server.DownloadArtifact(project, buildId, "Build Diagnostic Files", stream);
+            stream.Position = 0;
+            using (var zipArchive = new ZipArchive(stream))
+            {
+                foreach (var entry in zipArchive.Entries)
+                {
+                    if (entry.FullName.StartsWith("Build Diagnostic Files/ngen/"))
+                    {
+                        using var entryStream = entry.Open();
+                        entry.Name
+
+
+                    }
+                }
+
+            }
+        }
+
+        private static async Task DumpNgenLogFun()
+        {
+            var server = new DevOpsServer("devdiv", await GetToken());
+            string project = "devdiv";
+            var buildId = 2916584;
+            var all = await server.ListArtifacts(project, buildId);
+            var buildArtifact = await server.GetArtifact(project, buildId, "Build Diagnostic Files");
+            var filePath = @"p:\temp\data.zip";
+            await server.DownloadArtifact(project, buildId, "Build Diagnostic Files", filePath);
         }
 
         private static async Task DumpTimeline(string project, int buildId)

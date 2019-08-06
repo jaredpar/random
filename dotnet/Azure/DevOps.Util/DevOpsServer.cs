@@ -2,8 +2,12 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,11 +15,13 @@ namespace DevOps.Util
 {
     public sealed class DevOpsServer
     {
+        private string PersonalAccessToken { get; }
         public string Organization { get; }
 
-        public DevOpsServer(string organization)
+        public DevOpsServer(string organization, string personalAccessToken = null)
         {
             Organization = organization;
+            PersonalAccessToken = personalAccessToken;
         }
 
         /// <summary>
@@ -161,6 +167,38 @@ namespace DevOps.Util
             return array.ToObject<BuildArtifact[]>();
         }
 
+        private string GetArtifactUri(string project, int buildId, string artifactName)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            artifactName = Uri.EscapeDataString(artifactName);
+            builder.Append($"/build/builds/{buildId}/artifacts?artifactName={artifactName}&api-version=5.0");
+            return builder.ToString();
+        }
+
+        public async Task<string> GetArtifactRaw(string project, int buildId, string artifactName)
+        {
+            var uri = GetArtifactUri(project, buildId, artifactName);
+            return await GetJsonResult(uri);
+        }
+
+        public async Task<BuildArtifact> GetArtifact(string project, int buildId, string artifactName)
+        {
+            var json = await GetArtifactRaw(project, buildId, artifactName);
+            return JsonConvert.DeserializeObject<BuildArtifact>(json);
+        }
+
+        public async Task DownloadArtifact(string project, int buildId, string artifactName, string filePath)
+        {
+            var uri = GetArtifactUri(project, buildId, artifactName);
+            await DownloadFile(uri, filePath);
+        }
+
+        public async Task DownloadArtifact(string project, int buildId, string artifactName, Stream stream)
+        {
+            var uri = GetArtifactUri(project, buildId, artifactName);
+            await GetFileResult(uri, stream);
+        }
+
         private StringBuilder GetProjectApiRootBuilder(string project)
         {
             var builder = new StringBuilder();
@@ -175,6 +213,8 @@ namespace DevOps.Util
                 client.DefaultRequestHeaders.Accept.Add(
                     new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
+                AddAuthentication(client);
+
                 using (var response = await client.GetAsync(uri))
                 {
                     response.EnsureSuccessStatusCode();
@@ -183,8 +223,42 @@ namespace DevOps.Util
                 }
             }
         }
-    }
 
+        private async Task GetFileResult(string uri, Stream destinationStream)
+        {
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/zip"));
+
+                AddAuthentication(client);
+
+                using (var response = await client.GetAsync(uri))
+                {
+                    response.EnsureSuccessStatusCode();
+                    await response.Content.CopyToAsync(destinationStream);
+                }
+            }
+        }
+
+        private async Task DownloadFile(string uri, string filePath)
+        {
+            using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+            {
+                await GetFileResult(uri, fileStream);
+            }
+        }
+
+        private void AddAuthentication(HttpClient client)
+        {
+            if (!string.IsNullOrEmpty(PersonalAccessToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                    "Basic",
+                    Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($":{PersonalAccessToken}")));
+            }
+        }
+    }
 
     /*
 	try
