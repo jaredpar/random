@@ -27,7 +27,7 @@ namespace DevOps.Util
         /// <summary>
         /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
         /// </summary>
-        public async Task<string> ListBuildRaw(string project, IEnumerable<int> definitions = null, int? top = null)
+        public async Task<string> ListBuildsRaw(string project, IEnumerable<int> definitions = null, int? top = null)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append("/build/builds?");
@@ -60,9 +60,9 @@ namespace DevOps.Util
         /// <summary>
         /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
         /// </summary>
-        public async Task<Build[]> ListBuild(string project, IEnumerable<int> definitions = null, int? top = null)
+        public async Task<Build[]> ListBuilds(string project, IEnumerable<int> definitions = null, int? top = null)
         {
-            var root = JObject.Parse(await ListBuildRaw(project, definitions, top));
+            var root = JObject.Parse(await ListBuildsRaw(project, definitions, top));
             var array = (JArray)root["value"];
             return array.ToObject<Build[]>();
         }

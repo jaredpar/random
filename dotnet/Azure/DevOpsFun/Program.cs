@@ -8,6 +8,7 @@ using System.Net.Security;
 using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace QueryFun
 {
@@ -17,7 +18,8 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await DumpNgenData(2916584);
+            await DumpNgenData();
+            // await DumpNgenData(2916584;
             // await Fun();
             // await DumpTimeline("public", 196140);
         }
@@ -34,6 +36,48 @@ namespace QueryFun
             foreach (var data in list.OrderBy(x => x.AssemblyName))
             {
                 Console.WriteLine($"{data.AssemblyName} - {data.MethodCount}");
+            }
+        }
+
+        private static async Task DumpNgenData()
+        {
+            var server = new DevOpsServer("devdiv", await GetToken());
+            var project = "DevDiv";
+            var data = new Dictionary<int, List<NgenEntryData>>();
+            var comparer = StringComparer.OrdinalIgnoreCase;
+            var assemblyNames = new HashSet<string>(comparer);
+            foreach (var build in await server.ListBuilds(project, new[] { 8972 }, top: 30))
+            {
+                if (build.Result == BuildResult.Succeeded)
+                {
+                    Console.WriteLine($"Getting data for {build.Uri}");
+                    var list = await GetNgenData(build.Id);
+                    data[build.Id] = list;
+                    list.ForEach(x => assemblyNames.Add(x.AssemblyName));
+                }
+            }
+
+            var buildIds = data.Keys.OrderBy(x => x).ToList();
+            Console.Write("Assembly Name,");
+            buildIds.ForEach(x => Console.Write($"{x},"));
+            Console.WriteLine();
+            foreach (var assemblyName in assemblyNames.OrderBy(x => x))
+            {
+                Console.Write(assemblyName);
+                Console.Write(',');
+                foreach (var buildId in buildIds)
+                {
+                    try
+                    {
+                        var methodData = data[buildId].Single(x => comparer.Equals(x.AssemblyName, assemblyName));
+                        Console.Write($"{methodData.MethodCount},");
+                    }
+                    catch
+                    { 
+                        Console.Write("N/A,");
+                    }
+                }
+                Console.WriteLine();
             }
         }
 
@@ -137,7 +181,7 @@ namespace QueryFun
         { 
             var server = new DevOpsServer(Organization);
             var project = "public";
-            var builds = await server.ListBuild(project, definitions: new[] { 15 }, top: 10);
+            var builds = await server.ListBuilds(project, definitions: new[] { 15 }, top: 10);
             foreach (var build in builds)
             {
                 Console.WriteLine($"{build.Id} {build.Uri}");
