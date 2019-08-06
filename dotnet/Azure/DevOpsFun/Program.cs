@@ -2,9 +2,12 @@
 using System;
 using System.Threading.Tasks;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Net.Security;
 using System.IO.Compression;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace QueryFun
 {
@@ -14,7 +17,7 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await DumpNgenLog(2916584, @"p:\temp\ngen");
+            await DumpNgenData(2916584);
             // await Fun();
             // await DumpTimeline("public", 196140);
         }
@@ -25,32 +28,53 @@ namespace QueryFun
             return text[0].Split(':')[1];
         }
 
-        private static async Task DumpNgenLog(int buildId, string targetDirPath)
+        private static async Task DumpNgenData(int buildId)
         {
-            var targetDir = Directory.CreateDirectory(targetDirPath);
-            foreach (var fileInfo in targetDir.GetFiles())
+            var list = await GetNgenData(buildId);
+            foreach (var data in list.OrderBy(x => x.AssemblyName))
             {
-                File.Delete(fileInfo.FullName);
+                Console.WriteLine($"{data.AssemblyName} - {data.MethodCount}");
+            }
+        }
+
+        private static async Task<List<NgenEntryData>> GetNgenData(int buildId)
+        {
+            static int countLines(StreamReader reader)
+            {
+                var count = 0;
+                while (null != reader.ReadLine())
+                {
+                    count++;
+                }
+
+                return count;
             }
 
             var server = new DevOpsServer("devdiv", await GetToken());
             var project = "DevDiv";
             var stream = new MemoryStream();
+            var regex = new Regex(@"(.*)-([\w.]+).ngen.txt", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             await server.DownloadArtifact(project, buildId, "Build Diagnostic Files", stream);
             stream.Position = 0;
             using (var zipArchive = new ZipArchive(stream))
             {
+                var list = new List<NgenEntryData>();
                 foreach (var entry in zipArchive.Entries)
                 {
-                    if (entry.FullName.StartsWith("Build Diagnostic Files/ngen/"))
+                    if (!string.IsNullOrEmpty(entry.Name) && entry.FullName.StartsWith("Build Diagnostic Files/ngen/"))
                     {
+                        var match = regex.Match(entry.Name);
+                        var assemblyName = match.Groups[1].Value;
+                        var targetFramework = match.Groups[2].Value;
                         using var entryStream = entry.Open();
-                        entry.Name
+                        using var reader = new StreamReader(entryStream);
+                        var methodCount = countLines(reader);
 
-
+                        list.Add(new NgenEntryData(new NgenEntry(assemblyName, targetFramework), methodCount));
                     }
                 }
 
+                return list;
             }
         }
 
@@ -124,38 +148,33 @@ namespace QueryFun
                 }
             }
         }
+
+        internal readonly struct NgenEntry
+        {
+            internal string AssemblyName { get; }
+            internal string TargetFramework { get; }
+
+            internal NgenEntry(string assemblyName, string targetFramework)
+            {
+                AssemblyName = assemblyName;
+                TargetFramework = targetFramework;
+            }
+        }
+
+        internal readonly struct NgenEntryData
+        {
+            internal NgenEntry NgenEntry { get; }
+            internal int MethodCount { get; }
+
+            internal string AssemblyName => NgenEntry.AssemblyName;
+            internal string TargetFramework => NgenEntry.TargetFramework;
+
+            internal NgenEntryData(NgenEntry ngenEntry, int methodCount)
+            {
+                NgenEntry = ngenEntry;
+                MethodCount = methodCount;
+            }
+        }
     }
 }
 
-/*
- * public static async void GetProjects()
-{
-	try
-	{
-		var personalaccesstoken = "PAT_FROM_WEBSITE";
-
-		using (HttpClient client = new HttpClient())
-		{
-			client.DefaultRequestHeaders.Accept.Add(
-				new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic",
-				Convert.ToBase64String(
-					System.Text.ASCIIEncoding.ASCII.GetBytes(
-						string.Format("{0}:{1}", "", personalaccesstoken))));
-
-			using (HttpResponseMessage response = await client.GetAsync(
-						"https://dev.azure.com/{organization}/_apis/projects"))
-			{
-				response.EnsureSuccessStatusCode();
-				string responseBody = await response.Content.ReadAsStringAsync();
-				Console.WriteLine(responseBody);
-			}
-		}
-	}
-	catch (Exception ex)
-	{
-		Console.WriteLine(ex.ToString());
-	}
-}
-*/
