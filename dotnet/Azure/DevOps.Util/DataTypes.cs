@@ -366,6 +366,5 @@ namespace DevOps.Util
         /// The full http link to the resource
         /// </summary>
         public string Url { get; set; }
-
     }
 }

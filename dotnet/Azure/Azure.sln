@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29123.89
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevOps.Util", "DevOps.Util\DevOps.Util.csproj", "{F36068E8-812B-440C-84FD-ECA19100936A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DevOps.Util", "DevOps.Util\DevOps.Util.csproj", "{F36068E8-812B-440C-84FD-ECA19100936A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DevOps.Util.UnitTests", "DevOps.Util.UnitTests\DevOps.Util.UnitTests.csproj", "{3E97648B-B843-42F0-A436-3B5EF032B774}"
 EndProject

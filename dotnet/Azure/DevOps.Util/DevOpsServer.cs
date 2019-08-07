@@ -67,6 +67,19 @@ namespace DevOps.Util
             return array.ToObject<Build[]>();
         }
 
+        public async Task<string> GetBuildRaw(string project, int buildId)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}?api-version=5.0");
+            return await GetJsonResult(builder.ToString());
+        }
+
+        public async Task<Build> GetBuild(string project, int buildId)
+        {
+            var json = await GetBuildRaw(project, buildId);
+            return JsonConvert.DeserializeObject<Build>(json);
+        }
+
         public async Task<string> GetBuildLogsRaw(string project, int buildId)
         {
             var builder = GetProjectApiRootBuilder(project);

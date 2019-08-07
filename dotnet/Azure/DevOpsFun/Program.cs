@@ -9,6 +9,12 @@ using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices.ComTypes;
+using Newtonsoft.Json.Serialization;
+using Newtonsoft.Json;
+using Microsoft.Azure.Documents;
+using Microsoft.Azure.Documents.Client;
+using DevOpsFun;
+using System.Net;
 
 namespace QueryFun
 {
@@ -18,16 +24,91 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await DumpNgenData();
+            await UploadNgenData();
+            // await DumpNgenData();
             // await DumpNgenData(2916584;
             // await Fun();
             // await DumpTimeline("public", 196140);
         }
 
-        private static async Task<string> GetToken()
+        private static async Task<string> GetToken(string name)
         {
-            var text = await File.ReadAllLinesAsync(@"p:\tokens.txt");
-            return text[0].Split(':')[1];
+            var lines = await File.ReadAllLinesAsync(@"p:\tokens.txt");
+            foreach (var line in lines)
+            {
+                var split = line.Split(':', count: 2);
+                if (name == split[0])
+                {
+                    return split[1];
+                }
+            }
+
+            throw new Exception($"Could not find token with name {name}");
+        }
+
+        private static async Task UploadNgenData()
+        {
+            var documentClient = new DocumentClient(
+                new Uri("https://jaredpar-scratch.documents.azure.com:443/"),
+                await GetToken("cosmos-db"));
+            var ngenUtil = new NGenUtil(await GetToken("azure-devdiv"));
+            var collectionUri = UriFactory.CreateDocumentCollectionUri("ngen", "ngen");
+            foreach (var build in await ngenUtil.ListBuilds(top: 100))
+            {
+                if (build.Result != BuildResult.Succeeded)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    Console.Write($"Getting build {build.Id} ... ");
+                    var ngenDocument = await ngenUtil.GetNgenDocument(build);
+                    if (buildExists(build.Id, ngenDocument.Branch))
+                    {
+                        Console.WriteLine("exists");
+                        continue;
+                    }
+
+                    Console.Write($"uploading ...");
+                    var response = await documentClient.CreateDocumentAsync(collectionUri, ngenDocument);
+                    if (response.StatusCode == HttpStatusCode.Created)
+                    {
+                        Console.WriteLine("succeeded");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"failed {response.StatusCode}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("failed");
+                    Console.WriteLine(ex.Message);
+                }
+            }
+
+            bool buildExists(int buildId, string branchName)
+            {
+                try
+                {
+                    var feedOptions = new FeedOptions()
+                    {
+                        PartitionKey = new PartitionKey(branchName)
+                    };
+
+                    var document = documentClient
+                        .CreateDocumentQuery<NgenDocument>(collectionUri, feedOptions)
+                        .Where(x => x.BuildId == buildId)
+                        .AsEnumerable()
+                        .FirstOrDefault();
+                    return document is object;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
         }
 
         private static async Task DumpNgenData(int buildId)
@@ -41,19 +122,26 @@ namespace QueryFun
 
         private static async Task DumpNgenData()
         {
-            var server = new DevOpsServer("devdiv", await GetToken());
+            var server = new DevOpsServer("devdiv", await GetToken("azure-devdiv"));
             var project = "DevDiv";
             var data = new Dictionary<int, List<NgenEntryData>>();
             var comparer = StringComparer.OrdinalIgnoreCase;
             var assemblyNames = new HashSet<string>(comparer);
-            foreach (var build in await server.ListBuilds(project, new[] { 8972 }, top: 30))
+            foreach (var build in await server.ListBuilds(project, new[] { 8972 }, top: 200))
             {
-                if (build.Result == BuildResult.Succeeded)
+                if (build.Result == BuildResult.Succeeded && build.SourceBranch.Contains("master-vs-deps"))
                 {
-                    Console.WriteLine($"Getting data for {build.Uri}");
-                    var list = await GetNgenData(build.Id);
-                    data[build.Id] = list;
-                    list.ForEach(x => assemblyNames.Add(x.AssemblyName));
+                    try
+                    {
+                        Console.WriteLine($"Getting data for {build.Uri}");
+                        var list = await GetNgenData(build.Id);
+                        data[build.Id] = list;
+                        list.ForEach(x => assemblyNames.Add(x.AssemblyName));
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Failed");
+                    }
                 }
             }
 
@@ -94,7 +182,7 @@ namespace QueryFun
                 return count;
             }
 
-            var server = new DevOpsServer("devdiv", await GetToken());
+            var server = new DevOpsServer("devdiv", await GetToken("azure-devdiv"));
             var project = "DevDiv";
             var stream = new MemoryStream();
             var regex = new Regex(@"(.*)-([\w.]+).ngen.txt", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -124,7 +212,7 @@ namespace QueryFun
 
         private static async Task DumpNgenLogFun()
         {
-            var server = new DevOpsServer("devdiv", await GetToken());
+            var server = new DevOpsServer("devdiv", await GetToken("azure-devdiv"));
             string project = "devdiv";
             var buildId = 2916584;
             var all = await server.ListArtifacts(project, buildId);
