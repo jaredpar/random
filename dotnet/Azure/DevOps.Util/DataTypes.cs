@@ -220,6 +220,9 @@ namespace DevOps.Util
         public int Id { get; set; }
         public int LineCount { get; set; }
         public string Type { get; set; }
+        public string CreatedOn { get; set; }
+        public string LastChangedOn { get; set; }
+        public string Url { get; set; }
 
         public override string ToString() => $"Id: {Id} Type: {Type} LineCount: {LineCount}";
     }

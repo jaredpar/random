@@ -107,7 +107,6 @@ namespace DevOpsFun
                 return branchName;
             }
         }
-
     }
 
     public sealed class NgenDocument

@@ -80,11 +80,17 @@ namespace DevOps.Util
             return JsonConvert.DeserializeObject<Build>(json);
         }
 
-        public async Task<string> GetBuildLogsRaw(string project, int buildId)
+        private string GetBuildLogsUri(string project, int buildId)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append($"/build/builds/{buildId}/logs?api-version=5.0");
-            return await GetJsonResult(builder.ToString());
+            return builder.ToString();
+        }
+
+        public async Task<string> GetBuildLogsRaw(string project, int buildId)
+        {
+            var uri = GetBuildLogsUri(project, buildId);
+            return await GetJsonResult(uri);
         }
 
         public async Task<BuildLog[]> GetBuildLogs(string project, int buildId)
@@ -92,6 +98,18 @@ namespace DevOps.Util
             var root = JObject.Parse(await GetBuildLogsRaw(project, buildId));
             var array = (JArray)root["value"];
             return array.ToObject<BuildLog[]>();
+        }
+
+        public async Task DownloadBuildLogs(string project, int buildId, string filePath)
+        {
+            var uri = GetBuildLogsUri(project, buildId);
+            await DownloadFile(uri, filePath);
+        }
+
+        public async Task DownloadBuildLogs(string project, int buildId, Stream stream)
+        {
+            var uri = GetBuildLogsUri(project, buildId);
+            await GetFileResult(uri, stream);
         }
 
         public async Task<string> GetBuildLog(string project, int buildId, int logId, int? startLine = null, int? endLine = null)

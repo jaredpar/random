@@ -24,7 +24,8 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await UploadNgenData();
+            await DumpTestTimes();
+            // await UploadNgenData();
             // await DumpNgenData();
             // await DumpNgenData(2916584;
             // await Fun();
@@ -46,6 +47,12 @@ namespace QueryFun
             throw new Exception($"Could not find token with name {name}");
         }
 
+        private static async Task DumpTestTimes()
+        {
+            var util = new RunTestsUtil(await GetToken("scratch-db"));
+            await util.UpdateDatabase(top: 100);
+        }
+
         private static async Task UploadNgenData()
         {
             var documentClient = new DocumentClient(
@@ -64,7 +71,8 @@ namespace QueryFun
                 {
                     Console.Write($"Getting build {build.Id} ... ");
                     var ngenDocument = await ngenUtil.GetNgenDocument(build);
-                    if (buildExists(build.Id, ngenDocument.Branch))
+                    var partitionKey = new PartitionKey(ngenDocument.Branch);
+                    if (buildExists(build.Id, partitionKey))
                     {
                         Console.WriteLine("exists");
                         continue;
@@ -88,14 +96,25 @@ namespace QueryFun
                 }
             }
 
-            bool buildExists(int buildId, string branchName)
+            bool buildExists(int buildId, PartitionKey partitionKey)
             {
                 try
                 {
                     var feedOptions = new FeedOptions()
                     {
-                        PartitionKey = new PartitionKey(branchName)
+                        PartitionKey = partitionKey,
                     };
+
+                    var document1 = documentClient
+                        .CreateDocumentQuery<NgenDocument>(collectionUri, feedOptions)
+                        .Where(x => x.BuildId == buildId)
+                        .AsEnumerable()
+                        .ToList();
+
+                    var document2 = documentClient
+                        .CreateDocumentQuery<NgenDocument>(collectionUri, feedOptions)
+                        .AsEnumerable()
+                        .ToList();
 
                     var document = documentClient
                         .CreateDocumentQuery<NgenDocument>(collectionUri, feedOptions)
