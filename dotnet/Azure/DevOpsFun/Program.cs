@@ -15,6 +15,7 @@ using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using DevOpsFun;
 using System.Net;
+using System.ComponentModel.DataAnnotations;
 
 namespace QueryFun
 {
@@ -24,7 +25,9 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await DumpTestTimes();
+            await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
+            // await DumpTimelines("dnceng", "public", 15, top: 20);
+            // await DumpTestTimes();
             // await UploadNgenData();
             // await DumpNgenData();
             // await DumpNgenData(2916584;
@@ -240,6 +243,23 @@ namespace QueryFun
             await server.DownloadArtifact(project, buildId, "Build Diagnostic Files", filePath);
         }
 
+        private static async Task DumpTimelines(string organization, string project, int buildDefinitionId, int top)
+        {
+            var server = new DevOpsServer(organization);
+            foreach (var build in await server.ListBuilds(project, new[] { buildDefinitionId }, top: top))
+            {
+                Console.WriteLine($"{build.Id} {build.SourceBranch}");
+                try
+                {
+                    await DumpTimeline(project, build.Id);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+
         private static async Task DumpTimeline(string project, int buildId)
         {
             var server = new DevOpsServer(Organization);
@@ -267,6 +287,45 @@ namespace QueryFun
                     }
                 }
             }
+        }
+
+        private static async Task DumpCheckoutTimes(string organization, string project, int buildDefinitionId, int top)
+        {
+            var server = new DevOpsServer(organization);
+            var total = 0;
+            foreach (var build in await server.ListBuilds(project, new[] { buildDefinitionId }, top: top))
+            {
+                var printed = false;
+                void printBuildUri()
+                {
+                    if (!printed)
+                    {
+                        total++;
+                        printed = true;
+                        Console.WriteLine(Util.GetUri(build));
+                    }
+                }
+
+                try
+                {
+                    var timeline = await server.GetTimeline(project, build.Id);
+                    foreach (var record in timeline.Records.Where(x => x.Name == "Checkout" && x.FinishTime is object && x.StartTime is object))
+                    {
+                        var duration = DateTime.Parse(record.FinishTime) - DateTime.Parse(record.StartTime);
+                        if (duration > TimeSpan.FromMinutes(10))
+                        {
+                            var parent = timeline.Records.Single(x => x.Id == record.ParentId);
+                            printBuildUri();
+                            Console.WriteLine($"\t{parent.Name} {duration}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+            Console.WriteLine($"Total is {total}");
         }
 
         private static async Task DumpBuild(string project, int buildId)

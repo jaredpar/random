@@ -100,8 +100,7 @@ namespace DevOpsFun
                 {
                     try
                     {
-                        var branch = Util.NormalizeBranchName(build.SourceBranch);
-                        Console.Write($"Processing {build.Id} {branch}");
+                        Console.Write($"Processing {build.Id} {build.SourceBranch}");
                         await UpdateDatabaseAsync(build);
                         Console.WriteLine();
                     }
@@ -135,10 +134,10 @@ namespace DevOpsFun
                 {
                     foreach (var assembly in job.Assemblies)
                     {
-                        await UploadAssemblyTestTime(build.Id, jobKind.Value, buildTestTime.Branch, assembly.AssemblyName, assembly.Duration);
+                        await UploadAssemblyTestTime(build.Id, jobKind.Value, buildTestTime.BranchName, assembly.AssemblyName, assembly.Duration);
                     }
 
-                    await UploadJobTestTime(build.Id, jobKind.Value, buildTestTime.Branch, job.Duration);
+                    await UploadJobTestTime(build.Id, jobKind.Value, buildTestTime.BranchName, job.Duration);
                 }
             }
         }
@@ -161,7 +160,7 @@ namespace DevOpsFun
             var totalTimeRegex = new Regex(@"Test execution time: ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             var assemblyTimeRegex = new Regex(@" ([\w.]+\.dll[\d.]*)\s+PASSED ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-            var branch = Util.NormalizeBranchName(build.SourceBranch);
+            var branchName = BranchName.Parse(build.SourceBranch);
             using var zipArchive = new ZipArchive(logStream);
             var jobs = new List<JobTestTime>();
             foreach (var entry in zipArchive.Entries.Where(x => x.Name == "3_Build and Test.txt"))
@@ -208,16 +207,17 @@ namespace DevOpsFun
                 throw new Exception("Could not parse the log");
             }
 
-            return new BuildTestTime(build.Id, branch, jobs);
+            return new BuildTestTime(build.Id, branchName, jobs);
         }
 
-        private async Task UploadJobTestTime(int buildId, int jobKind, string branch, TimeSpan duration)
+        private async Task UploadJobTestTime(int buildId, int jobKind, BranchName branchName, TimeSpan duration)
         {
-            var query = "INSERT INTO dbo.JobTestTime (BuildId, JobKind, Branch, Duration) VALUES (@BuildId, @JobKind, @Branch, @Duration)";
+            var query = "INSERT INTO dbo.JobTestTime (BuildId, JobKind, Branch, IsPullRequest, Duration) VALUES (@BuildId, @JobKind, @Branch, @IsPullRequest, @Duration)";
             using var command = new SqlCommand(query, SqlConnection);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@JobKind", jobKind);
-            command.Parameters.AddWithValue("@Branch", branch);
+            command.Parameters.AddWithValue("@Branch", branchName.FullName);
+            command.Parameters.AddWithValue("@IsPullRequest", branchName.IsPullRequest);
             command.Parameters.AddWithValue("@Duration", duration);
             var result = await command.ExecuteNonQueryAsync();
             if (result < 0)
@@ -226,14 +226,15 @@ namespace DevOpsFun
             }
         }
 
-        private async Task UploadAssemblyTestTime(int buildId, int jobKind, string branch, string assemblyName, TimeSpan duration)
+        private async Task UploadAssemblyTestTime(int buildId, int jobKind, BranchName branchName, string assemblyName, TimeSpan duration)
         {
-            var query = "INSERT INTO dbo.AssemblyTime (BuildId, JobKind, AssemblyName, Branch, Duration) VALUES (@BuildId, @JobKind, @AssemblyName, @Branch, @Duration)";
+            var query = "INSERT INTO dbo.AssemblyTime (BuildId, JobKind, AssemblyName, Branch, IsPullRequest, Duration) VALUES (@BuildId, @JobKind, @AssemblyName, @Branch, @IsPullRequest, @Duration)";
             using var command = new SqlCommand(query, SqlConnection);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@JobKind", jobKind);
             command.Parameters.AddWithValue("@AssemblyName", assemblyName);
-            command.Parameters.AddWithValue("@Branch", branch);
+            command.Parameters.AddWithValue("@Branch", branchName.FullName);
+            command.Parameters.AddWithValue("@IsPullRequest", branchName.IsPullRequest);
             command.Parameters.AddWithValue("@Duration", duration);
             var result = await command.ExecuteNonQueryAsync();
             if (result < 0)
@@ -255,17 +256,17 @@ namespace DevOpsFun
     public sealed class BuildTestTime
     {
         public int BuildId { get; }
-        public string Branch { get; }
+        public BranchName BranchName { get; }
         public List<JobTestTime> Jobs { get; }
 
-        public BuildTestTime(int buildId, string branch, List<JobTestTime> jobs)
+        public BuildTestTime(int buildId, BranchName branchName, List<JobTestTime> jobs)
         {
             BuildId = buildId;
-            Branch = branch;
+            BranchName = branchName;
             Jobs = jobs;
         }
 
-        public override string ToString() => $"{BuildId} - {Branch}";
+        public override string ToString() => $"{BuildId} - {BranchName.FullName}";
     }
 
     public sealed class JobTestTime

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DevOps.Util;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -10,25 +11,87 @@ namespace DevOpsFun
         /// Normalize the branch name so that has the short human readable form of the branch
         /// name
         /// </summary>
-        public static string NormalizeBranchName(string branchName)
+        public static string NormalizeBranchName(string fullName) => BranchName.Parse(fullName).ShortName;
+
+        public static string GetOrganization(Build build)
         {
-            if (string.IsNullOrEmpty(branchName))
+            var uri = new Uri(build.Url);
+            return uri.PathAndQuery.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)[0];
+        }
+
+        /// <summary>
+        /// Get a human readable build URI for the build
+        /// </summary>
+        /// <param name="build"></param>
+        /// <returns></returns>
+        public static Uri GetUri(Build build)
+        {
+            var organization = GetOrganization(build);
+            var uri = $"https://dev.azure.com/{organization}/{build.Project.Name}/_build/results?buildId={build.Id}";
+            return new Uri(uri);
+        }
+    }
+
+    public readonly struct BranchName
+    {
+        public string FullName { get; }
+        public string ShortName { get; }
+        public bool IsPullRequest { get; }
+
+        private BranchName(string fullName, string shortName, bool isPullRequest)
+        {
+            FullName = fullName;
+            ShortName = shortName;
+            IsPullRequest = isPullRequest;
+        }
+
+        public static bool TryParse(string fullName, out BranchName branchName)
+        {
+            if (string.IsNullOrEmpty(fullName))
             {
-                return branchName;
+                branchName = default;
+                return false;
             }
 
-            if (branchName[0] == '/')
+            if (fullName[0] == '/')
             {
-                branchName = branchName.Substring(1);
+                fullName = fullName.Substring(1);
             }
 
-            var prefix = "refs/heads/";
-            if (branchName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            var normalPrefix = "refs/heads/";
+            var prPrefix = "refs/pull/";
+            string shortName;
+            bool isPullRequest;
+            if (fullName.StartsWith(normalPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                branchName = branchName.Substring(prefix.Length);
+                shortName = fullName.Substring(normalPrefix.Length);
+                isPullRequest = false;
+            }
+            else if (fullName.StartsWith(prPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                shortName = fullName.Split(new[] { '/' })[2];
+                isPullRequest = true;
+            }
+            else
+            {
+                shortName = fullName;
+                isPullRequest = false;
+            }
+
+            branchName = new BranchName(fullName, shortName, isPullRequest);
+            return true;
+        }
+
+        public static BranchName Parse(string fullName)
+        {
+            if (!TryParse(fullName, out var branchName))
+            {
+                throw new Exception($"Invalid branch full name {fullName}");
             }
 
             return branchName;
         }
+
+        public override string ToString() => FullName;
     }
 }

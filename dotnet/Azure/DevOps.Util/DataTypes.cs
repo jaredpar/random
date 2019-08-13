@@ -140,7 +140,10 @@ namespace DevOps.Util
     /// </summary>
     public sealed class PropertiesCollection
     {
-        // TODO
+        public int Count { get; set; }
+        public object Item { get; set; }
+        public object[] Keys { get; set; }
+        public object[] Values { get; set; }
     }
 
     /// <summary>
@@ -168,7 +171,35 @@ namespace DevOps.Util
     /// </summary>
     public sealed class DefinitionReference
     {
-        // TODO
+        public string CreatedDate { get; set; }
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Path { get; set; }
+        public TeamProjectReference Project { get; set; }
+        public DefinitionQueueStatus QueueStatus { get; set; }
+        public int Revision { get; set; }
+        public DefinitionType Type { get; set; }
+        public string Uri { get; set; }
+        public string Url { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0#definitionqueuestatus
+    /// </summary>
+    public enum DefinitionQueueStatus
+    {
+        Disabled,
+        Enabled,
+        Paused
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0#definitiontype
+    /// </summary>
+    public enum DefinitionType
+    {
+        Build,
+        Xaml
     }
 
     /// <summary>
@@ -200,7 +231,32 @@ namespace DevOps.Util
     /// </summary>
     public sealed class TeamProjectReference
     {
-        // TODO
+        public string Abbreviation { get; set; }
+        public string DefaultTeamImageUrl { get; set; }
+        public string Description { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public int Revision { get; set; }
+        public ProjectState State { get; set; }
+        public string Url { get; set; }
+        public ProjectVisibility ProjectVisibility { get; set; }
+    }
+
+    public enum ProjectState
+    {
+        All,
+        CreatePending,
+        Deleted,
+        Deleting,
+        New,
+        Unchanged,
+        WellFormed
+    }
+
+    public enum ProjectVisibility
+    {
+        Private,
+        Public
     }
 
     /// <summary>
@@ -257,10 +313,14 @@ namespace DevOps.Util
         public string Name { get; set; }
         public BuildLogReference Log { get; set; }
         public int Order { get; set; }
+        /// <summary>
+        /// The <see cref="Id"/> field of the timeline record which is this records parent
+        /// </summary>
         public string ParentId { get; set; }
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public int PercentComplete { get; set; }
         public TimelineAttempt[] PreviousAttempts { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public TaskResult Result { get; set; }
         public string ResultCode { get; set; }
         public string StartTime { get; set; }
@@ -268,6 +328,8 @@ namespace DevOps.Util
         public string Url { get; set; }
         public int WarningCount { get; set; }
         public string WorkerName { get; set; }
+
+        public override string ToString() => Name;
     }
 
     /// <summary>
