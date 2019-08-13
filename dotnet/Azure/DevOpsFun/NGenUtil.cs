@@ -75,36 +75,13 @@ namespace DevOpsFun
                     }
                 }
 
-                var branchName = normalizeBranchName(build.SourceBranch);
+                var branchName = Util.NormalizeBranchName(build.SourceBranch);
                 return new NgenDocument()
                 {
                     Branch = branchName,
                     BuildId = build.Id,
                     Assemblies = documentList.ToArray()
                 };
-            }
-
-            // Normalize the branch name so that has the short human readable form of the branch
-            // name
-            static string normalizeBranchName(string branchName)
-            {
-                if (string.IsNullOrEmpty(branchName))
-                {
-                    return branchName;
-                }
-
-                if (branchName[0] == '/')
-                {
-                    branchName = branchName.Substring(1);
-                }
-
-                var prefix = "refs/heads/";
-                if (branchName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    branchName = branchName.Substring(prefix.Length);
-                }
-
-                return branchName;
             }
         }
     }

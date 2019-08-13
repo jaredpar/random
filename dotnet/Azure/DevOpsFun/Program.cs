@@ -50,7 +50,7 @@ namespace QueryFun
         private static async Task DumpTestTimes()
         {
             var util = new RunTestsUtil(await GetToken("scratch-db"));
-            await util.UpdateDatabase(top: 100);
+            await util.UpdateDatabaseAsync(top: 100);
         }
 
         private static async Task UploadNgenData()
