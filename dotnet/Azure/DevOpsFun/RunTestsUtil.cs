@@ -36,6 +36,8 @@ namespace DevOpsFun
             SqlConnection.Dispose();
         }
 
+        public async Task<Build[]> ListBuildsAsync(int top) => await DevOpsServer.ListBuilds(ProjectName, new[] { BuildDefinitionId }, top: top);
+
         public async Task UpdateDatabaseAsync(int top)
         {
             foreach (var build in await DevOpsServer.ListBuilds(ProjectName, new[] { BuildDefinitionId }, top: top))
@@ -86,63 +88,28 @@ namespace DevOpsFun
             }
         }
 
-        private async Task<BuildTestTime> GetBuildTestTimeAsync(Build build)
+        public async Task<BuildTestTime> GetBuildTestTimeAsync(Build build)
         {
             if (build.Result != BuildResult.Succeeded)
             {
                 throw new InvalidOperationException();
             }
 
-            using var stream = new MemoryStream();
-            await DevOpsServer.DownloadBuildLogs(ProjectName, build.Id, stream);
-            stream.Position = 0;
-            return GetBuildTestTime(build, stream);
-        }
-
-        private BuildTestTime GetBuildTestTime(Build build, Stream logStream)
-        {
-            var totalTimeRegex = new Regex(@"Test execution time: ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-            var assemblyTimeRegex = new Regex(@" ([\w.]+\.dll[\d.]*)\s+PASSED ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
             var branchName = BranchName.Parse(build.SourceBranch);
-            using var zipArchive = new ZipArchive(logStream);
+            var timeline = await DevOpsServer.GetTimeline(ProjectName, build.Id);
             var jobs = new List<JobTestTime>();
-            foreach (var entry in zipArchive.Entries.Where(x => x.Name == "3_Build and Test.txt"))
+            foreach (var record in timeline.Records.Where(x => x.Name == "Build and Test"))
             {
-                var jobName = entry.FullName.Split("/")[0];
-                var assemblies = new List<AssemblyTestTime>();
-                TimeSpan? jobDuration = null;
-
-                using var entryStream = entry.Open();
-                using var reader = new StreamReader(entryStream);
-                do
+                var parentRecord = timeline.Records.FirstOrDefault(x => x.Id == record.ParentId);
+                if (parentRecord is null)
                 {
-                    var line = reader.ReadLine();
-                    if (line is null)
-                    {
-                        break;
-                    }
+                    continue;
+                }
 
-                    var assemblyTimeMatch = assemblyTimeRegex.Match(line);
-                    if (assemblyTimeMatch.Success)
-                    {
-                        var duration = TimeSpan.Parse(assemblyTimeMatch.Groups[2].Value);
-                        assemblies.Add(new AssemblyTestTime(assemblyTimeMatch.Groups[1].Value, duration));
-                        continue;
-                    }
-
-                    var totalTimeMatch = totalTimeRegex.Match(line);
-                    if (totalTimeMatch.Success)
-                    {
-                        jobDuration = TimeSpan.Parse(totalTimeMatch.Groups[1].Value);
-                        break;
-                    }
-
-                } while (true);
-
-                if (jobDuration is object)
+                var jobTestTime = await TryGetJobTestTime(record, parentRecord);
+                if (jobTestTime is object)
                 {
-                    jobs.Add(new JobTestTime(jobName, jobDuration.Value, assemblies));
+                    jobs.Add(jobTestTime);
                 }
             }
 
@@ -152,6 +119,49 @@ namespace DevOpsFun
             }
 
             return new BuildTestTime(build.Id, branchName, jobs);
+        }
+
+        private async Task<JobTestTime> TryGetJobTestTime(TimelineRecord record, TimelineRecord parentRecord)
+        {
+            using var stream = new MemoryStream();
+            await DevOpsServer.DownloadFile(record.Log.Url, stream);
+            stream.Position = 0;
+
+            var totalTimeRegex = new Regex(@"Test execution time: ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            var assemblyTimeRegex = new Regex(@" ([\w.]+\.dll[\d.]*)\s+PASSED ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            var jobName = parentRecord.Name;
+            var assemblies = new List<AssemblyTestTime>();
+            TimeSpan? jobDuration = null;
+
+            using var reader = new StreamReader(stream);
+            do
+            {
+                var line = await reader.ReadLineAsync();
+                if (line is null)
+                {
+                    break;
+                }
+
+                var assemblyTimeMatch = assemblyTimeRegex.Match(line);
+                if (assemblyTimeMatch.Success)
+                {
+                    var duration = TimeSpan.Parse(assemblyTimeMatch.Groups[2].Value);
+                    assemblies.Add(new AssemblyTestTime(assemblyTimeMatch.Groups[1].Value, duration));
+                    continue;
+                }
+
+                var totalTimeMatch = totalTimeRegex.Match(line);
+                if (totalTimeMatch.Success)
+                {
+                    jobDuration = TimeSpan.Parse(totalTimeMatch.Groups[1].Value);
+                    break;
+                }
+
+            } while (true);
+
+            return jobDuration is object
+                ? new JobTestTime(jobName, jobDuration.Value, assemblies)
+                : null;
         }
 
         private async Task UploadJobTestTime(int buildId, int jobKind, BranchName branchName, TimeSpan duration)

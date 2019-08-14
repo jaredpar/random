@@ -109,7 +109,7 @@ namespace DevOps.Util
         public async Task DownloadBuildLogs(string project, int buildId, Stream stream)
         {
             var uri = GetBuildLogsUri(project, buildId);
-            await GetFileResult(uri, stream);
+            await DownloadZipFile(uri, stream);
         }
 
         public async Task<string> GetBuildLog(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
@@ -227,7 +227,7 @@ namespace DevOps.Util
         public async Task DownloadArtifact(string project, int buildId, string artifactName, Stream stream)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
-            await GetFileResult(uri, stream);
+            await DownloadZipFile(uri, stream);
         }
 
         private StringBuilder GetProjectApiRootBuilder(string project)
@@ -255,7 +255,21 @@ namespace DevOps.Util
             }
         }
 
-        private async Task GetFileResult(string uri, Stream destinationStream)
+        public async Task DownloadFile(string uri, Stream destinationStream)
+        {
+            using (var client = new HttpClient())
+            {
+                AddAuthentication(client);
+
+                using (var response = await client.GetAsync(uri))
+                {
+                    response.EnsureSuccessStatusCode();
+                    await response.Content.CopyToAsync(destinationStream);
+                }
+            }
+        }
+
+        public async Task DownloadZipFile(string uri, Stream destinationStream)
         {
             using (var client = new HttpClient())
             {
@@ -276,7 +290,7 @@ namespace DevOps.Util
         {
             using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
             {
-                await GetFileResult(uri, fileStream);
+                await DownloadZipFile(uri, fileStream);
             }
         }
 

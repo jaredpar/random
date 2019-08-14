@@ -25,9 +25,9 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
+            // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // await DumpTimelines("dnceng", "public", 15, top: 20);
-            // await DumpTestTimes();
+            await DumpTestTimes();
             // await UploadNgenData();
             // await DumpNgenData();
             // await DumpNgenData(2916584;
@@ -52,7 +52,25 @@ namespace QueryFun
 
         private static async Task DumpTestTimes()
         {
-            var util = new RunTestsUtil(await GetToken("scratch-db"));
+            using var util = new RunTestsUtil(await GetToken("scratch-db"));
+            foreach (var build in (await util.ListBuildsAsync(top: 20)).Where(x => x.Result == BuildResult.Succeeded))
+            {
+                Console.Write(Util.GetUri(build));
+                Console.Write(" ");
+                try
+                {
+                    var buildTestTime = await util.GetBuildTestTimeAsync(build);
+                    var milliseconds = buildTestTime.Jobs.Sum(x => x.Duration.TotalMilliseconds);
+                    Console.Write(TimeSpan.FromMilliseconds(milliseconds));
+                    Console.Write(" ");
+                    var max = buildTestTime.Jobs.Max(x => x.Duration.TotalMilliseconds);
+                    Console.WriteLine(TimeSpan.FromMilliseconds(max));
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
             await util.UpdateDatabaseAsync(top: 100);
         }
 
