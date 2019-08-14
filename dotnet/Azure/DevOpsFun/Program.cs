@@ -54,7 +54,7 @@ namespace QueryFun
         private static async Task ListBuildsFullAsync()
         {
             var server = new DevOpsServer("dnceng");
-            var builds1 = await server.ListBuildsAsync("public");
+            var builds1 = await server.ListBuildsAsync("public", new[] { 15 });
             var builds2 = await server.ListBuildsAsync("public", top: 10);
 
 

@@ -36,7 +36,7 @@ namespace DevOpsFun
             SqlConnection.Dispose();
         }
 
-        public async Task<Build[]> ListBuildsAsync(int top) => await DevOpsServer.ListBuildsAsync(ProjectName, new[] { BuildDefinitionId }, top: top);
+        public async Task<List<Build>> ListBuildsAsync(int top) => await DevOpsServer.ListBuildsAsync(ProjectName, new[] { BuildDefinitionId }, top: top);
 
         public async Task UpdateDatabaseAsync(int top)
         {
@@ -124,7 +124,7 @@ namespace DevOpsFun
         private async Task<JobTestTime> TryGetJobTestTime(TimelineRecord record, TimelineRecord parentRecord)
         {
             using var stream = new MemoryStream();
-            await DevOpsServer.DownloadFile(record.Log.Url, stream);
+            await DevOpsServer.DownloadFileAsync(record.Log.Url, stream);
             stream.Position = 0;
 
             var totalTimeRegex = new Regex(@"Test execution time: ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);

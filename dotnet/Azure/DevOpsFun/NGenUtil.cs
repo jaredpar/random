@@ -22,7 +22,7 @@ namespace DevOpsFun
             DevOpsServer = new DevOpsServer("devdiv", personalAccessToken);
         }
 
-        public async Task<Build[]> ListBuilds(int? top = null) =>
+        public async Task<List<Build>> ListBuilds(int? top = null) =>
             await DevOpsServer.ListBuildsAsync(ProjectName, definitions: new[] { RoslynSignedBuildDefinitionId }, top: top);
 
         public async Task<NgenDocument> GetNgenDocument(int buildId) =>

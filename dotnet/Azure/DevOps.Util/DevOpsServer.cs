@@ -27,7 +27,11 @@ namespace DevOps.Util
         /// <summary>
         /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
         /// </summary>
-        public async Task<Build[]> ListBuildsAsync(string project, IEnumerable<int> definitions = null, int? top = null)
+        private async Task<(Build[] Builds, string ContinuationToken)> ListBuildsCoreAsync(
+            string project,
+            IEnumerable<int> definitions = null,
+            int? top = null,
+            string continuationToken = null)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append("/build/builds?");
@@ -53,11 +57,62 @@ namespace DevOps.Util
                 builder.Append($"$top={top.Value}&");
             }
 
+            if (!string.IsNullOrEmpty(continuationToken))
+            {
+                builder.Append($"continuationToken={continuationToken}&");
+            }
+
             builder.Append("api-version=5.0");
-            var json = await GetJsonResult(builder.ToString());
+            var (json, token) = await GetJsonResultAndContinuationToken(builder.ToString());
             var root = JObject.Parse(json);
             var array = (JArray)root["value"];
-            return array.ToObject<Build[]>();
+            return (array.ToObject<Build[]>(), token);
+        }
+
+        public async Task ListBuildsAsync(
+            Func<Build[], Task> processBuilds,
+            string project,
+            IEnumerable<int> definitions = null,
+            int? top = null)
+        {
+            string continuationToken = null;
+            var count = 0;
+            do
+            {
+                var tuple = await ListBuildsCoreAsync(project, definitions, top, continuationToken);
+                await processBuilds(tuple.Builds);
+                continuationToken = tuple.ContinuationToken;
+                count += tuple.Builds.Length;
+
+                if (continuationToken is null)
+                {
+                    break;
+                }
+
+                if (top.HasValue && count > top.Value)
+                {
+                    break;
+                }
+
+            } while (true);
+        }
+
+        public async Task<List<Build>> ListBuildsAsync(string project, IEnumerable<int> definitions = null, int? top = null)
+        {
+            var builds = new List<Build>();
+            await ListBuildsAsync(
+                processBuilds,
+                project,
+                definitions,
+                top);
+
+            return builds;
+
+            Task processBuilds(Build[] b)
+            {
+                builds.AddRange(b);
+                return Task.CompletedTask;
+            }
         }
 
         public async Task<Build> GetBuildAsync(string project, int buildId)
@@ -87,13 +142,13 @@ namespace DevOps.Util
         public async Task DownloadBuildLogsAsync(string project, int buildId, string filePath)
         {
             var uri = GetBuildLogsUri(project, buildId);
-            await DownloadFile(uri, filePath);
+            await DownloadFileAsync(uri, filePath);
         }
 
         public async Task DownloadBuildLogsAsync(string project, int buildId, Stream stream)
         {
             var uri = GetBuildLogsUri(project, buildId);
-            await DownloadZipFile(uri, stream);
+            await DownloadZipFileAsync(uri, stream);
         }
 
         public async Task<string> GetBuildLogAsync(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
@@ -186,13 +241,13 @@ namespace DevOps.Util
         public async Task DownloadArtifactAsync(string project, int buildId, string artifactName, string filePath)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
-            await DownloadFile(uri, filePath);
+            await DownloadFileAsync(uri, filePath);
         }
 
         public async Task DownloadArtifactAsync(string project, int buildId, string artifactName, Stream stream)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
-            await DownloadZipFile(uri, stream);
+            await DownloadZipFileAsync(uri, stream);
         }
 
         private StringBuilder GetProjectApiRootBuilder(string project)
@@ -202,7 +257,9 @@ namespace DevOps.Util
             return builder;
         }
 
-        private async Task<string> GetJsonResult(string uri)
+        private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url)).Body;
+
+        private async Task<(string Body, string ContinuationToken)> GetJsonResultAndContinuationToken(string url)
         {
             using (var client = new HttpClient())
             {
@@ -211,16 +268,23 @@ namespace DevOps.Util
 
                 AddAuthentication(client);
 
-                using (var response = await client.GetAsync(uri))
+                using (var response = await client.GetAsync(url))
                 {
                     response.EnsureSuccessStatusCode();
+
+                    string continuationToken = null;
+                    if (response.Headers.TryGetValues("x-ms-continuationtoken", out var values))
+                    {
+                        continuationToken = values.FirstOrDefault();
+                    }
+
                     string responseBody = await response.Content.ReadAsStringAsync();
-                    return responseBody;
+                    return (responseBody, continuationToken);
                 }
             }
         }
 
-        public async Task DownloadFile(string uri, Stream destinationStream)
+        public async Task DownloadFileAsync(string uri, Stream destinationStream)
         {
             using (var client = new HttpClient())
             {
@@ -234,7 +298,7 @@ namespace DevOps.Util
             }
         }
 
-        public async Task DownloadZipFile(string uri, Stream destinationStream)
+        public async Task DownloadZipFileAsync(string uri, Stream destinationStream)
         {
             using (var client = new HttpClient())
             {
@@ -251,11 +315,11 @@ namespace DevOps.Util
             }
         }
 
-        private async Task DownloadFile(string uri, string filePath)
+        private async Task DownloadFileAsync(string uri, string filePath)
         {
             using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
             {
-                await DownloadZipFile(uri, fileStream);
+                await DownloadZipFileAsync(uri, fileStream);
             }
         }
 
