@@ -25,9 +25,10 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
+            await ListBuildsFullAsync();
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // await DumpTimelines("dnceng", "public", 15, top: 20);
-            await DumpTestTimes();
+            // await DumpTestTimes();
             // await UploadNgenData();
             // await DumpNgenData();
             // await DumpNgenData(2916584;
@@ -48,6 +49,15 @@ namespace QueryFun
             }
 
             throw new Exception($"Could not find token with name {name}");
+        }
+
+        private static async Task ListBuildsFullAsync()
+        {
+            var server = new DevOpsServer("dnceng");
+            var builds1 = await server.ListBuildsAsync("public");
+            var builds2 = await server.ListBuildsAsync("public", top: 10);
+
+
         }
 
         private static async Task DumpTestTimes()
@@ -167,7 +177,7 @@ namespace QueryFun
             var data = new Dictionary<int, List<NgenEntryData>>();
             var comparer = StringComparer.OrdinalIgnoreCase;
             var assemblyNames = new HashSet<string>(comparer);
-            foreach (var build in await server.ListBuilds(project, new[] { 8972 }, top: 200))
+            foreach (var build in await server.ListBuildsAsync(project, new[] { 8972 }, top: 200))
             {
                 if (build.Result == BuildResult.Succeeded && build.SourceBranch.Contains("master-vs-deps"))
                 {
@@ -226,7 +236,7 @@ namespace QueryFun
             var project = "DevDiv";
             var stream = new MemoryStream();
             var regex = new Regex(@"(.*)-([\w.]+).ngen.txt", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-            await server.DownloadArtifact(project, buildId, "Build Diagnostic Files", stream);
+            await server.DownloadArtifactAsync(project, buildId, "Build Diagnostic Files", stream);
             stream.Position = 0;
             using (var zipArchive = new ZipArchive(stream))
             {
@@ -255,16 +265,16 @@ namespace QueryFun
             var server = new DevOpsServer("devdiv", await GetToken("azure-devdiv"));
             string project = "devdiv";
             var buildId = 2916584;
-            var all = await server.ListArtifacts(project, buildId);
-            var buildArtifact = await server.GetArtifact(project, buildId, "Build Diagnostic Files");
+            var all = await server.ListArtifactsAsync(project, buildId);
+            var buildArtifact = await server.GetArtifactAsync(project, buildId, "Build Diagnostic Files");
             var filePath = @"p:\temp\data.zip";
-            await server.DownloadArtifact(project, buildId, "Build Diagnostic Files", filePath);
+            await server.DownloadArtifactAsync(project, buildId, "Build Diagnostic Files", filePath);
         }
 
         private static async Task DumpTimelines(string organization, string project, int buildDefinitionId, int top)
         {
             var server = new DevOpsServer(organization);
-            foreach (var build in await server.ListBuilds(project, new[] { buildDefinitionId }, top: top))
+            foreach (var build in await server.ListBuildsAsync(project, new[] { buildDefinitionId }, top: top))
             {
                 Console.WriteLine($"{build.Id} {build.SourceBranch}");
                 try
@@ -282,7 +292,7 @@ namespace QueryFun
         {
             var server = new DevOpsServer(Organization);
 
-            var timeline = await server.GetTimeline(project, buildId);
+            var timeline = await server.GetTimelineAsync(project, buildId);
             await DumpTimeline("", timeline);
             async Task DumpTimeline(string indent, Timeline timeline)
             {
@@ -300,7 +310,7 @@ namespace QueryFun
                     if (record.Details is object)
                     {
                         var nextIndent = indent + "\t";
-                        var subTimeline = await server.GetTimeline(project, buildId, record.Details.Id, record.Details.ChangeId);
+                        var subTimeline = await server.GetTimelineAsync(project, buildId, record.Details.Id, record.Details.ChangeId);
                         await DumpTimeline(nextIndent, subTimeline);
                     }
                 }
@@ -311,7 +321,7 @@ namespace QueryFun
         {
             var server = new DevOpsServer(organization);
             var total = 0;
-            foreach (var build in await server.ListBuilds(project, new[] { buildDefinitionId }, top: top))
+            foreach (var build in await server.ListBuildsAsync(project, new[] { buildDefinitionId }, top: top))
             {
                 var printed = false;
                 void printBuildUri()
@@ -326,7 +336,7 @@ namespace QueryFun
 
                 try
                 {
-                    var timeline = await server.GetTimeline(project, build.Id);
+                    var timeline = await server.GetTimelineAsync(project, build.Id);
                     foreach (var record in timeline.Records.Where(x => x.Name == "Checkout" && x.FinishTime is object && x.StartTime is object))
                     {
                         var duration = DateTime.Parse(record.FinishTime) - DateTime.Parse(record.StartTime);
@@ -351,11 +361,11 @@ namespace QueryFun
             var server = new DevOpsServer(Organization);
             var output = @"e:\temp\logs";
             Directory.CreateDirectory(output);
-            foreach (var log in await server.GetBuildLogs(project, buildId))
+            foreach (var log in await server.GetBuildLogsAsync(project, buildId))
             {
                 var logFilePath = Path.Combine(output, $"{log.Id}.txt");
                 Console.WriteLine($"Log Id {log.Id} {log.Type} - {logFilePath}");
-                var content = await server.GetBuildLog(project, buildId, log.Id);
+                var content = await server.GetBuildLogAsync(project, buildId, log.Id);
                 File.WriteAllText(logFilePath, content);
 
             }
@@ -365,11 +375,11 @@ namespace QueryFun
         { 
             var server = new DevOpsServer(Organization);
             var project = "public";
-            var builds = await server.ListBuilds(project, definitions: new[] { 15 }, top: 10);
+            var builds = await server.ListBuildsAsync(project, definitions: new[] { 15 }, top: 10);
             foreach (var build in builds)
             {
                 Console.WriteLine($"{build.Id} {build.Uri}");
-                var artifacts = await server.ListArtifacts(project, build.Id);
+                var artifacts = await server.ListArtifactsAsync(project, build.Id);
                 foreach (var artifact in artifacts)
                 {
                     Console.WriteLine($"\t{artifact.Id} {artifact.Name} {artifact.Resource.Type}");

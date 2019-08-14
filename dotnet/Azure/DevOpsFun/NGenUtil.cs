@@ -23,10 +23,10 @@ namespace DevOpsFun
         }
 
         public async Task<Build[]> ListBuilds(int? top = null) =>
-            await DevOpsServer.ListBuilds(ProjectName, definitions: new[] { RoslynSignedBuildDefinitionId }, top: top);
+            await DevOpsServer.ListBuildsAsync(ProjectName, definitions: new[] { RoslynSignedBuildDefinitionId }, top: top);
 
         public async Task<NgenDocument> GetNgenDocument(int buildId) =>
-            await GetNgenDocument(await DevOpsServer.GetBuild(ProjectName, buildId));
+            await GetNgenDocument(await DevOpsServer.GetBuildAsync(ProjectName, buildId));
 
         public async Task<NgenDocument> GetNgenDocument(Build build)
         { 
@@ -37,7 +37,7 @@ namespace DevOpsFun
 
             var stream = new MemoryStream();
             var regex = new Regex(@"(.*)-([\w.]+).ngen.txt", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-            await DevOpsServer.DownloadArtifact(ProjectName, build.Id, "Build Diagnostic Files", stream);
+            await DevOpsServer.DownloadArtifactAsync(ProjectName, build.Id, "Build Diagnostic Files", stream);
             stream.Position = 0;
             using (var zipArchive = new ZipArchive(stream))
             {

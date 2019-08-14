@@ -36,11 +36,11 @@ namespace DevOpsFun
             SqlConnection.Dispose();
         }
 
-        public async Task<Build[]> ListBuildsAsync(int top) => await DevOpsServer.ListBuilds(ProjectName, new[] { BuildDefinitionId }, top: top);
+        public async Task<Build[]> ListBuildsAsync(int top) => await DevOpsServer.ListBuildsAsync(ProjectName, new[] { BuildDefinitionId }, top: top);
 
         public async Task UpdateDatabaseAsync(int top)
         {
-            foreach (var build in await DevOpsServer.ListBuilds(ProjectName, new[] { BuildDefinitionId }, top: top))
+            foreach (var build in await DevOpsServer.ListBuildsAsync(ProjectName, new[] { BuildDefinitionId }, top: top))
             {
                 if (build.Result == BuildResult.Succeeded)
                 {
@@ -96,7 +96,7 @@ namespace DevOpsFun
             }
 
             var branchName = BranchName.Parse(build.SourceBranch);
-            var timeline = await DevOpsServer.GetTimeline(ProjectName, build.Id);
+            var timeline = await DevOpsServer.GetTimelineAsync(ProjectName, build.Id);
             var jobs = new List<JobTestTime>();
             foreach (var record in timeline.Records.Where(x => x.Name == "Build and Test"))
             {

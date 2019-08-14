@@ -221,9 +221,11 @@ namespace DevOps.Util
     /// <summary>
     /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0#validationresult
     /// </summary>
-    public sealed class ValidationResult
+    public enum ValidationResult
     {
-        // TODO
+        Error,
+        Ok,
+        Warning
     }
 
     /// <summary>

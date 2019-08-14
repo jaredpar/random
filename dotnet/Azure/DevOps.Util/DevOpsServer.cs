@@ -27,7 +27,7 @@ namespace DevOps.Util
         /// <summary>
         /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
         /// </summary>
-        public async Task<string> ListBuildsRaw(string project, IEnumerable<int> definitions = null, int? top = null)
+        public async Task<Build[]> ListBuildsAsync(string project, IEnumerable<int> definitions = null, int? top = null)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append("/build/builds?");
@@ -54,29 +54,17 @@ namespace DevOps.Util
             }
 
             builder.Append("api-version=5.0");
-            return await GetJsonResult(builder.ToString());
-        }
-
-        /// <summary>
-        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
-        /// </summary>
-        public async Task<Build[]> ListBuilds(string project, IEnumerable<int> definitions = null, int? top = null)
-        {
-            var root = JObject.Parse(await ListBuildsRaw(project, definitions, top));
+            var json = await GetJsonResult(builder.ToString());
+            var root = JObject.Parse(json);
             var array = (JArray)root["value"];
             return array.ToObject<Build[]>();
         }
 
-        public async Task<string> GetBuildRaw(string project, int buildId)
+        public async Task<Build> GetBuildAsync(string project, int buildId)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append($"/build/builds/{buildId}?api-version=5.0");
-            return await GetJsonResult(builder.ToString());
-        }
-
-        public async Task<Build> GetBuild(string project, int buildId)
-        {
-            var json = await GetBuildRaw(project, buildId);
+            var json = await GetJsonResult(builder.ToString());
             return JsonConvert.DeserializeObject<Build>(json);
         }
 
@@ -87,32 +75,28 @@ namespace DevOps.Util
             return builder.ToString();
         }
 
-        public async Task<string> GetBuildLogsRaw(string project, int buildId)
+        public async Task<BuildLog[]> GetBuildLogsAsync(string project, int buildId)
         {
             var uri = GetBuildLogsUri(project, buildId);
-            return await GetJsonResult(uri);
-        }
-
-        public async Task<BuildLog[]> GetBuildLogs(string project, int buildId)
-        {
-            var root = JObject.Parse(await GetBuildLogsRaw(project, buildId));
+            var json = await GetJsonResult(uri);
+            var root = JObject.Parse(json);
             var array = (JArray)root["value"];
             return array.ToObject<BuildLog[]>();
         }
 
-        public async Task DownloadBuildLogs(string project, int buildId, string filePath)
+        public async Task DownloadBuildLogsAsync(string project, int buildId, string filePath)
         {
             var uri = GetBuildLogsUri(project, buildId);
             await DownloadFile(uri, filePath);
         }
 
-        public async Task DownloadBuildLogs(string project, int buildId, Stream stream)
+        public async Task DownloadBuildLogsAsync(string project, int buildId, Stream stream)
         {
             var uri = GetBuildLogsUri(project, buildId);
             await DownloadZipFile(uri, stream);
         }
 
-        public async Task<string> GetBuildLog(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
+        public async Task<string> GetBuildLogAsync(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append($"/build/builds/{buildId}/logs/{logId}?");
@@ -152,14 +136,15 @@ namespace DevOps.Util
             }
         }
 
-        public async Task<string> GetTimelineRaw(string project, int buildId)
+        public async Task<Timeline> GetTimelineAsync(string project, int buildId)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append($"/build/builds/{buildId}/timeline?api-version=5.0");
-            return await GetJsonResult(builder.ToString());
+            var json = await GetJsonResult(builder.ToString());
+            return JsonConvert.DeserializeObject<Timeline>(json);
         }
 
-        public async Task<string> GetTimelineRaw(string project, int buildId, string timelineId, int? changeId = null)
+        public async Task<Timeline> GetTimelineAsync(string project, int buildId, string timelineId, int? changeId = null)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append($"/build/builds/{buildId}/timeline/{timelineId}?");
@@ -169,31 +154,16 @@ namespace DevOps.Util
                 builder.Append($"changeId={changeId}&");
             }
 
-            return await GetJsonResult(builder.ToString());
-        }
-
-        public async Task<Timeline> GetTimeline(string project, int buildId)
-        {
-            var json = await GetTimelineRaw(project, buildId);
+            var json = await GetJsonResult(builder.ToString());
             return JsonConvert.DeserializeObject<Timeline>(json);
         }
 
-        public async Task<Timeline> GetTimeline(string project, int buildId, string timelineId, int? changeId = null)
-        {
-            var json = await GetTimelineRaw(project, buildId, timelineId, changeId);
-            return JsonConvert.DeserializeObject<Timeline>(json);
-        }
-
-        public async Task<string> ListArtifactsRaw(string project, int buildId)
+        public async Task<BuildArtifact[]> ListArtifactsAsync(string project, int buildId)
         {
             var builder = GetProjectApiRootBuilder(project);
             builder.Append($"/build/builds/{buildId}/artifacts?api-version=5.0");
-            return await GetJsonResult(builder.ToString());
-        }
-
-        public async Task<BuildArtifact[]> ListArtifacts(string project, int buildId)
-        {
-            var root = JObject.Parse(await ListArtifactsRaw(project, buildId));
+            var json = await GetJsonResult(builder.ToString());
+            var root = JObject.Parse(json);
             var array = (JArray)root["value"];
             return array.ToObject<BuildArtifact[]>();
         }
@@ -206,25 +176,20 @@ namespace DevOps.Util
             return builder.ToString();
         }
 
-        public async Task<string> GetArtifactRaw(string project, int buildId, string artifactName)
+        public async Task<BuildArtifact> GetArtifactAsync(string project, int buildId, string artifactName)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
-            return await GetJsonResult(uri);
-        }
-
-        public async Task<BuildArtifact> GetArtifact(string project, int buildId, string artifactName)
-        {
-            var json = await GetArtifactRaw(project, buildId, artifactName);
+            var json = await GetJsonResult(uri);
             return JsonConvert.DeserializeObject<BuildArtifact>(json);
         }
 
-        public async Task DownloadArtifact(string project, int buildId, string artifactName, string filePath)
+        public async Task DownloadArtifactAsync(string project, int buildId, string artifactName, string filePath)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
             await DownloadFile(uri, filePath);
         }
 
-        public async Task DownloadArtifact(string project, int buildId, string artifactName, Stream stream)
+        public async Task DownloadArtifactAsync(string project, int buildId, string artifactName, Stream stream)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
             await DownloadZipFile(uri, stream);
