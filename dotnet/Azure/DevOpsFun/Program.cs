@@ -27,6 +27,18 @@ namespace QueryFun
         {
             await ListBuildsFullAsync();
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
+            // Roslyn
+            // await DumpCheckoutTimes("dnceng", "public", 15, top: 200);
+            // Roslyn Integration
+            await DumpCheckoutTimes("dnceng", "public", 245, top: 200);
+            // CoreFx
+            // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
+            // CoreClr
+            // await DumpCheckoutTimes("dnceng", "public", 228, top: 200);
+            // CLI
+            // await DumpCheckoutTimes("dnceng", "public", 166, top: 200);
+            // ASP.NET
+            // await DumpCheckoutTimes("dnceng", "public", 278, top: 200);
             // await DumpTimelines("dnceng", "public", 15, top: 20);
             // await DumpTestTimes();
             // await UploadNgenData();
@@ -337,6 +349,12 @@ namespace QueryFun
                 try
                 {
                     var timeline = await server.GetTimelineAsync(project, build.Id);
+                    var timeline = await server.GetTimeline(project, build.Id);
+                    if (timeline is null)
+                    {
+                        continue;
+                    }
+
                     foreach (var record in timeline.Records.Where(x => x.Name == "Checkout" && x.FinishTime is object && x.StartTime is object))
                     {
                         var duration = DateTime.Parse(record.FinishTime) - DateTime.Parse(record.StartTime);
