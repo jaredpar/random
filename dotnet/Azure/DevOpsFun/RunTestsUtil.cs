@@ -36,62 +36,6 @@ namespace DevOpsFun
             SqlConnection.Dispose();
         }
 
-        public async Task<List<TimeSpan>> GetTestTimes(int top)
-        {
-            var list = new List<TimeSpan>();
-            foreach (var build in await DevOpsServer.ListBuilds(ProjectName, new[] { BuildDefinitionId }, top: top))
-            {
-                if (build.Result == BuildResult.Succeeded)
-                {
-                    list.Add(await GetTestTime(build));
-                }
-            }
-
-            return list;
-        }
-
-        public async Task<TimeSpan> GetTestTime(Build build)
-        {
-            if (build.Result != BuildResult.Succeeded)
-            {
-                throw new InvalidOperationException();
-            }
-
-            using var stream = new MemoryStream();
-            await DevOpsServer.DownloadBuildLogs(ProjectName, build.Id, stream);
-            stream.Position = 0;
-
-            using (var zipArchive = new ZipArchive(stream))
-            {
-                var entry = zipArchive
-                    .Entries
-                    .FirstOrDefault(x => x.FullName == "Windows_Desktop_Unit_Tests debug_32/3_Build and Test.txt");
-                if (entry is null)
-                {
-                    throw new Exception($"Could not find the log file");
-                }
-
-                var regex = new Regex(@"Test execution time: ([\d.:]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-                using var entryStream = entry.Open();
-                using var reader = new StreamReader(entryStream);
-                do
-                {
-                    var line = reader.ReadLine();
-                    if (line is null)
-                    {
-                        break;
-                    }
-                    var match = regex.Match(line);
-                    if (match.Success)
-                    {
-                        return TimeSpan.Parse(match.Groups[1].Value);
-                    }
-                } while (true);
-
-                throw new Exception("Could not parse the log");
-            }
-        }
-
         public async Task UpdateDatabaseAsync(int top)
         {
             foreach (var build in await DevOpsServer.ListBuilds(ProjectName, new[] { BuildDefinitionId }, top: top))
