@@ -116,7 +116,16 @@ namespace DevOps.Util
     /// </summary>
     public sealed class BuildRepository
     {
-        // TODO
+        public bool CheckoutSubModules { get; set; }
+        public string Clean { get; set; }
+        public string DefaultBranch { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string RootFolder { get; set; }
+        public string Type { get; set; }
+        public string Url { get; set; }
+
+        public override string ToString() => Id;
     }
 
     /// <summary>

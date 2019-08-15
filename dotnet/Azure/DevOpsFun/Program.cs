@@ -25,12 +25,16 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
+<<<<<<< HEAD
             await ListBuildsFullAsync();
+=======
+            await UploadCloneTime();
+>>>>>>> More progress on clone
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // Roslyn
             // await DumpCheckoutTimes("dnceng", "public", 15, top: 200);
             // Roslyn Integration
-            await DumpCheckoutTimes("dnceng", "public", 245, top: 200);
+            // await DumpCheckoutTimes("dnceng", "public", 245, top: 200);
             // CoreFx
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // CoreClr
@@ -68,8 +72,12 @@ namespace QueryFun
             var server = new DevOpsServer("dnceng");
             var builds1 = await server.ListBuildsAsync("public", new[] { 15 });
             var builds2 = await server.ListBuildsAsync("public", top: 10);
+        }
 
-
+        private static async Task UploadCloneTime()
+        {
+            using var util = new CloneTimeUtil(await GetToken("scratch-db"));
+            await util.UpdateDatabaseAsync();
         }
 
         private static async Task DumpTestTimes()
