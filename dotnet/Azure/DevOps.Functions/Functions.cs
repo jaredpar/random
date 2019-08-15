@@ -33,6 +33,7 @@ namespace DevOps.Functions
             ILogger logger)
         {
             var buildId = int.Parse(message);
+            log.LogInformation($"Processing build {buildId}");
             var connectionString = ConfigurationManager.AppSettings.Get("SQL_CONNECTION_STRING");
             using var cloneTimeUtil = new CloneTimeUtil(connectionString, logger);
             await cloneTimeUtil.UpdateBuildAsync(buildId);
