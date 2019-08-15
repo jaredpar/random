@@ -1,7 +1,10 @@
 ﻿using DevOps.Util;
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DevOpsFun
 {
@@ -29,6 +32,34 @@ namespace DevOpsFun
             var organization = GetOrganization(build);
             var uri = $"https://dev.azure.com/{organization}/{build.Project.Name}/_build/results?buildId={build.Id}";
             return new Uri(uri);
+        }
+
+        public static async Task DoWithTransactionAsync(SqlConnection connection, string transactionName, Func<SqlTransaction, Task> process)
+        {
+            if (connection.State != ConnectionState.Open)
+            {
+                await connection.OpenAsync();
+            }
+
+            var transaction = connection.BeginTransaction(transactionName);
+
+            try
+            {
+                await process(transaction);
+                transaction.Commit();
+            }
+            catch (Exception)
+            {
+                // Attempt to roll back the transaction. 
+                try
+                {
+                    transaction.Rollback();
+                }
+                catch (Exception)
+                {
+                    // Expected that this will fail if the transaction fails on the server
+                }
+            }
         }
     }
 

@@ -26,7 +26,7 @@ namespace QueryFun
         public static async Task Main(string[] args)
         {
             // await ListBuildsFullAsync();
-            // await UploadCloneTime();
+            await UploadCloneTime();
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // Roslyn
             // await DumpCheckoutTimes("dnceng", "public", 15, top: 200);

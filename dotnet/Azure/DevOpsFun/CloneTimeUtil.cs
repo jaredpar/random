@@ -40,11 +40,6 @@ namespace DevOpsFun
 
         public async Task UpdateDatabaseAsync()
         {
-            if (SqlConnection.State != ConnectionState.Open)
-            {
-                await SqlConnection.OpenAsync();
-            }
-
             var builds = await DevOpsServer.ListBuildsAsync(ProjectName, top: 5000, definitions: new[] { 15 });
             foreach (var build in builds)
             {
@@ -67,14 +62,18 @@ namespace DevOpsFun
 
                 Console.Write("uploading ... ");
                 var buildStartTime = DateTimeOffset.Parse(build.StartTime);
-                foreach (var tuple in jobs)
-                {
-                    await UploadJobCloneTime(build.Id, build.Definition.Id, tuple.JobName, tuple.Duration, buildStartTime, uri);
-                }
 
-                var minDuration = jobs.Min(x => x.Duration);
-                var maxDuration = jobs.Max(x => x.Duration);
-                await UploadBuildCloneTime(build.Id, build.Definition.Id, minDuration, maxDuration, buildStartTime, uri);
+                await Util.DoWithTransactionAsync(SqlConnection, $"Upload Clone {build.Id}", async transaction =>
+                {
+                    foreach (var tuple in jobs)
+                    {
+                        await UploadJobCloneTime(transaction, build.Id, build.Definition.Id, tuple.JobName, tuple.Duration, buildStartTime, uri);
+                    }
+
+                    var minDuration = jobs.Min(x => x.Duration);
+                    var maxDuration = jobs.Max(x => x.Duration);
+                    await UploadBuildCloneTime(transaction, build.Id, build.Definition.Id, minDuration, maxDuration, buildStartTime, uri);
+                });
                 Console.WriteLine("done");
             }
             catch (Exception ex)
@@ -103,10 +102,10 @@ namespace DevOpsFun
             return list;
         }
 
-        private async Task UploadJobCloneTime(int buildId, int definitionId, string jobName, TimeSpan duration, DateTimeOffset buildStartTime, Uri buildUri)
+        private async Task UploadJobCloneTime(SqlTransaction transaction, int buildId, int definitionId, string jobName, TimeSpan duration, DateTimeOffset buildStartTime, Uri buildUri)
         {
             var query = "INSERT INTO dbo.JobCloneTime (BuildId, DefinitionId, Name, Duration, BuildStartTime, BuildUri) VALUES (@BuildId, @DefinitionId, @Name, @Duration, @BuildStartTime, @BuildUri)";
-            using var command = new SqlCommand(query, SqlConnection);
+            using var command = new SqlCommand(query, transaction.Connection, transaction);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@DefinitionId", definitionId);
             command.Parameters.AddWithValue("@Name", jobName);
@@ -120,10 +119,10 @@ namespace DevOpsFun
             }
         }
 
-        private async Task UploadBuildCloneTime(int buildId, int definitionId, TimeSpan minDuration, TimeSpan maxDuration, DateTimeOffset buildStartTime, Uri buildUri)
+        private async Task UploadBuildCloneTime(SqlTransaction transaction, int buildId, int definitionId, TimeSpan minDuration, TimeSpan maxDuration, DateTimeOffset buildStartTime, Uri buildUri)
         {
             var query = "INSERT INTO dbo.BuildCloneTime (BuildId, DefinitionId, MinDuration, MaxDuration, BuildStartTime, BuildUri) VALUES (@BuildId, @DefinitionId, @MinDuration, @MaxDuration, @BuildStartTime, @BuildUri)";
-            using var command = new SqlCommand(query, SqlConnection);
+            using var command = new SqlCommand(query, transaction.Connection, transaction);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@DefinitionId", definitionId);
             command.Parameters.AddWithValue("@MinDuration", minDuration);
