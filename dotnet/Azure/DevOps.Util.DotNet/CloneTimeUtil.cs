@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Data.SqlClient;
 using System.Data;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 
 namespace DevOps.Util.DotNet
 {
@@ -17,9 +19,11 @@ namespace DevOps.Util.DotNet
 
         public SqlConnection SqlConnection { get; }
         public DevOpsServer DevOpsServer { get; }
+        public ILogger Logger { get; }
 
-        public CloneTimeUtil(string sqlConnectionString)
+        public CloneTimeUtil(string sqlConnectionString, ILogger logger = null)
         {
+            Logger = logger ?? Util.CreateConsoleLogger();
             DevOpsServer = new DevOpsServer("dnceng");
             SqlConnection = new SqlConnection(sqlConnectionString);
         }
@@ -51,15 +55,15 @@ namespace DevOps.Util.DotNet
             try
             {
                 var uri = Util.GetUri(build);
-                Console.Write($"{uri} reading ... ");
+                Logger.LogInformation($"Getting timeline {uri}");
                 var jobs = await GetJobCloneTimesAsync(build);
                 if (jobs.Count == 0)
                 {
-                    Console.WriteLine("empty");
+                    Logger.LogInformation("Found no jobs");
                     return;
                 }
 
-                Console.Write("uploading ... ");
+                Logger.LogInformation($"Uploading {uri}");
                 var buildStartTime = DateTimeOffset.Parse(build.StartTime);
 
                 await Util.DoWithTransactionAsync(SqlConnection, $"Upload Clone {build.Id}", async transaction =>
@@ -73,12 +77,10 @@ namespace DevOps.Util.DotNet
                     var maxDuration = jobs.Max(x => x.Duration);
                     await UploadBuildCloneTime(transaction, build.Id, build.Definition.Id, minDuration, maxDuration, buildStartTime, uri);
                 });
-                Console.WriteLine("done");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Failed");
-                Console.WriteLine(ex.Message);
+                Logger.LogError($"Error {ex.Message}");
             }
         }
 

@@ -1,4 +1,6 @@
 ﻿using DevOps.Util;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -60,6 +62,12 @@ namespace DevOps.Util.DotNet
                     // Expected that this will fail if the transaction fails on the server
                 }
             }
+        }
+
+        public static ILogger CreateConsoleLogger()
+        {
+            var provider = new ConsoleLoggerProvider((message, level) => true, includeScopes: true);
+            return provider.CreateLogger("Console logger");
         }
     }
 

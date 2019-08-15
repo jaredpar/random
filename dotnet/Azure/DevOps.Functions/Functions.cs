@@ -30,11 +30,11 @@ namespace DevOps.Functions
         [FunctionName("build-upload")]
         public static async Task OnBuildComplete(
             [QueueTrigger("build-complete", Connection = "AzureWebJobsStorage")] string message,
-            ILogger log)
+            ILogger logger)
         {
             var buildId = int.Parse(message);
             var connectionString = ConfigurationManager.AppSettings.Get("SQL_CONNECTION_STRING");
-            using var cloneTimeUtil = new CloneTimeUtil(connectionString);
+            using var cloneTimeUtil = new CloneTimeUtil(connectionString, logger);
             await cloneTimeUtil.UpdateBuildAsync(buildId);
         }
     }
