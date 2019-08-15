@@ -27,7 +27,7 @@ namespace QueryFun
         public static async Task Main(string[] args)
         {
             // await ListBuildsFullAsync();
-            await UploadCloneTime(311562);
+            await UploadCloneTime();
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // Roslyn
             // await DumpCheckoutTimes("dnceng", "public", 15, top: 200);
@@ -72,10 +72,10 @@ namespace QueryFun
             var builds2 = await server.ListBuildsAsync("public", top: 10);
         }
 
-        private static async Task UploadCloneTime(int buildId)
+        private static async Task UploadCloneTime()
         {
             using var util = new CloneTimeUtil(await GetToken("scratch-db"));
-            await util.UpdateBuildAsync(buildId);
+            await util.UpdateDatabaseAsync();
         }
 
         private static async Task DumpTestTimes()

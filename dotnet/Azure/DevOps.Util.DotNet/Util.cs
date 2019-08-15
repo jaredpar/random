@@ -61,6 +61,8 @@ namespace DevOps.Util.DotNet
                 {
                     // Expected that this will fail if the transaction fails on the server
                 }
+
+                throw;
             }
         }
 

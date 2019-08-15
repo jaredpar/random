@@ -37,14 +37,35 @@ namespace DevOps.Util.DotNet
 
         public async Task UpdateDatabaseAsync()
         {
-            var builds = await DevOpsServer.ListBuildsAsync(ProjectName, top: 5000, definitions: new[] { 15 });
+            var builds = await DevOpsServer.ListBuildsAsync(ProjectName, definitions: new[] { 15 });
             foreach (var build in builds)
             {
-                await UploadBuild(build);
+                try
+                {
+                    await UploadBuild(build);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Unable to upload {build.Id}: {ex.Message}");
+                }
             }
         }
 
-        public async Task UpdateBuildAsync(int buildId)
+        public async Task<bool> IsBuildUploadedAsync(int buildId)
+        {
+            if (SqlConnection.State != ConnectionState.Open)
+            {
+                await SqlConnection.OpenAsync();
+            }
+
+            var query = "SELECT * FROM dbo.BuildCloneTime WHERE BuildId = @BuildId";
+            using var command = new SqlCommand(query, SqlConnection);
+            command.Parameters.AddWithValue("@BuildId", buildId);
+            using var reader = await command.ExecuteReaderAsync();
+            return reader.HasRows;
+        }
+
+        public async Task UploadBuildAsync(int buildId)
         {
             var build = await DevOpsServer.GetBuildAsync(ProjectName, buildId);
             await UploadBuild(build);
@@ -55,6 +76,12 @@ namespace DevOps.Util.DotNet
             try
             {
                 var uri = Util.GetUri(build);
+                if (await IsBuildUploadedAsync(build.Id))
+                {
+                    Logger.LogInformation($"Build already uploaded {uri}");
+                    return;
+                }
+
                 Logger.LogInformation($"Getting timeline {uri}");
                 var jobs = await GetJobCloneTimesAsync(build);
                 if (jobs.Count == 0)
@@ -81,6 +108,7 @@ namespace DevOps.Util.DotNet
             catch (Exception ex)
             {
                 Logger.LogError($"Error {ex.Message}");
+                throw;
             }
         }
 

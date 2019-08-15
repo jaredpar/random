@@ -33,10 +33,10 @@ namespace DevOps.Functions
             ILogger logger)
         {
             var buildId = int.Parse(message);
-            log.LogInformation($"Processing build {buildId}");
-            var connectionString = ConfigurationManager.AppSettings.Get("SQL_CONNECTION_STRING");
+            logger.LogInformation($"Processing build {buildId}");
+            var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
             using var cloneTimeUtil = new CloneTimeUtil(connectionString, logger);
-            await cloneTimeUtil.UpdateBuildAsync(buildId);
+            await cloneTimeUtil.UploadBuildAsync(buildId);
         }
     }
 }
