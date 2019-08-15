@@ -6,7 +6,7 @@ using System.Data.SqlClient;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DevOpsFun
+namespace DevOps.Util.DotNet
 {
     public static class Util
     {

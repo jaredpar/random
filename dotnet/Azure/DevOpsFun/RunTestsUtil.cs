@@ -11,6 +11,7 @@ using Microsoft.Azure.Documents;
 using System.Data.SqlClient;
 using System.Data;
 using System.Reflection;
+using DevOps.Util.DotNet;
 
 namespace DevOpsFun
 {

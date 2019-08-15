@@ -1,18 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.IO;
-using System.IO.Compression;
-using DevOps.Util;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
-using Microsoft.Azure.Documents;
 using System.Data.SqlClient;
 using System.Data;
-using System.Reflection;
 
-namespace DevOpsFun
+namespace DevOps.Util.DotNet
 {
     /// <summary>
     /// Utility for logging clone times
@@ -45,6 +38,12 @@ namespace DevOpsFun
             {
                 await UploadBuild(build);
             }
+        }
+
+        public async Task UpdateBuildAsync(int buildId)
+        {
+            var build = await DevOpsServer.GetBuildAsync(ProjectName, buildId);
+            await UploadBuild(build);
         }
 
         private async Task UploadBuild(Build build)

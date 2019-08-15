@@ -7,6 +7,8 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Configuration;
+using DevOps.Util.DotNet;
 
 namespace DevOps.Functions
 {
@@ -15,19 +17,25 @@ namespace DevOps.Functions
         [FunctionName("build")]
         public static async Task<IActionResult> OnBuild(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-            ILogger log)
+            ILogger log,
+            [Queue("build-complete", Connection = "AzureWebJobsStorage")] IAsyncCollector<string> queueCollector)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-
-            string name = req.Query["name"];
-
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
+            int id = data.resource.id;
+            await queueCollector.AddAsync(id.ToString());
+            return new OkResult();
+        }
 
-            return name != null
-                ? (ActionResult)new OkObjectResult($"Hello, {name}")
-                : new BadRequestObjectResult("Please pass a name on the query string or in the request body");
+        [FunctionName("build-upload")]
+        public static async Task OnBuildComplete(
+            [QueueTrigger("build-complete", Connection = "AzureWebJobsStorage")] string message,
+            ILogger log)
+        {
+            var buildId = int.Parse(message);
+            var connectionString = ConfigurationManager.AppSettings.Get("SQL_CONNECTION_STRING");
+            using var cloneTimeUtil = new CloneTimeUtil(connectionString);
+            await cloneTimeUtil.UpdateBuildAsync(buildId);
         }
     }
 }
