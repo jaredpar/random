@@ -25,11 +25,8 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-<<<<<<< HEAD
-            await ListBuildsFullAsync();
-=======
-            await UploadCloneTime();
->>>>>>> More progress on clone
+            // await ListBuildsFullAsync();
+            // await UploadCloneTime();
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // Roslyn
             // await DumpCheckoutTimes("dnceng", "public", 15, top: 200);
@@ -357,7 +354,6 @@ namespace QueryFun
                 try
                 {
                     var timeline = await server.GetTimelineAsync(project, build.Id);
-                    var timeline = await server.GetTimeline(project, build.Id);
                     if (timeline is null)
                     {
                         continue;

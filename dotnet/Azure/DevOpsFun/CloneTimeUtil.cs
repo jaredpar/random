@@ -36,7 +36,7 @@ namespace DevOpsFun
             SqlConnection.Dispose();
         }
 
-        public async Task<Build[]> ListBuildsAsync(int top) => await DevOpsServer.ListBuilds(ProjectName, new[] { BuildDefinitionId }, top: top);
+        public async Task<List<Build>> ListBuildsAsync(int top) => await DevOpsServer.ListBuildsAsync(ProjectName, new[] { BuildDefinitionId }, top: top);
 
         public async Task UpdateDatabaseAsync()
         {
@@ -45,7 +45,7 @@ namespace DevOpsFun
                 await SqlConnection.OpenAsync();
             }
 
-            var builds = await DevOpsServer.ListBuilds(ProjectName, top: 5000, definitions: new[] { 15 });
+            var builds = await DevOpsServer.ListBuildsAsync(ProjectName, top: 5000, definitions: new[] { 15 });
             foreach (var build in builds)
             {
                 await UploadBuild(build);
@@ -87,7 +87,7 @@ namespace DevOpsFun
         private async Task<List<(string JobName, TimeSpan Duration)>> GetJobCloneTimesAsync(Build build)
         {
             var list = new List<(string JobName, TimeSpan Duration)>();
-            var timeline = await DevOpsServer.GetTimeline(ProjectName, build.Id);
+            var timeline = await DevOpsServer.GetTimelineAsync(ProjectName, build.Id);
             if (timeline is null)
             {
                 return list;
