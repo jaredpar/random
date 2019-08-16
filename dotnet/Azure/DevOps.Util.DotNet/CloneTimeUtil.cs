@@ -37,7 +37,7 @@ namespace DevOps.Util.DotNet
 
         public async Task UpdateDatabaseAsync()
         {
-            var builds = await DevOpsServer.ListBuildsAsync(ProjectName, definitions: new[] { 15 });
+            var builds = await DevOpsServer.ListBuildsAsync(ProjectName);
             foreach (var build in builds)
             {
                 try
@@ -91,8 +91,13 @@ namespace DevOps.Util.DotNet
                 }
 
                 Logger.LogInformation($"Uploading {uri}");
-                var buildStartTime = DateTimeOffset.Parse(build.StartTime);
+                if (build.StartTime is null)
+                {
+                    Logger.LogError("Found no start time");
+                    return;
+                }
 
+                var buildStartTime = DateTimeOffset.Parse(build.StartTime);
                 await Util.DoWithTransactionAsync(SqlConnection, $"Upload Clone {build.Id}", async transaction =>
                 {
                     foreach (var tuple in jobs)
