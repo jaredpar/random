@@ -17,6 +17,7 @@ using DevOpsFun;
 using DevOps.Util.DotNet;
 using System.Net;
 using System.ComponentModel.DataAnnotations;
+using Octokit;
 
 namespace QueryFun
 {
@@ -26,8 +27,9 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
+            await ListStaleChecks();
             // await ListBuildsFullAsync();
-            await UploadCloneTime();
+            // await UploadCloneTime();
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
             // Roslyn
             // await DumpCheckoutTimes("dnceng", "public", 15, top: 200);
@@ -63,6 +65,65 @@ namespace QueryFun
             }
 
             throw new Exception($"Could not find token with name {name}");
+        }
+
+        private static async Task ListStaleChecks()
+        {
+            var gitHub = new GitHubClient(new ProductHeaderValue("MyAmazingApp"));
+            gitHub.Credentials = new Credentials(await GetToken("github"));
+            var apiConnection = new ApiConnection(gitHub.Connection);
+            var checksClient = new ChecksClient(apiConnection);
+            var server = new DevOpsServer("dnceng");
+            var list = new List<string>();
+            foreach (var build in await server.ListBuildsAsync("public", new[] { 196 }, top: 500))
+            {
+                if (build.Status == BuildStatus.Completed &&
+                    build.Reason == BuildReason.PullRequest &&
+                    build.FinishTime is object &&
+                    DateTimeOffset.UtcNow - DateTimeOffset.Parse(build.FinishTime) > TimeSpan.FromMinutes(5))
+                {
+                    try
+                    {
+                        Console.WriteLine($"Checking {build.Repository.Id} {build.SourceVersion}");
+                        // Build is complete for at  least five minutes. Results should be available 
+                        var name = build.Repository.Id.Split("/");
+                        var pullRequestId = int.Parse(build.SourceBranch.Split("/")[2]);
+                        var prUri = $"https://github.com/{build.Repository.Id}/pull/{pullRequestId}";
+                        var repository = await gitHub.Repository.Get(name[0], name[1]);
+
+                        var pullRequest = await gitHub.PullRequest.Get(repository.Id, pullRequestId);
+                        if (pullRequest.MergeableState.Value == MergeableState.Dirty ||
+                            pullRequest.MergeableState.Value == MergeableState.Unknown)
+                        {
+                            // There are merge conflicts. This seems to confuse things a bit below. 
+                            continue;
+                        }
+
+                        // Need to use the HEAD of the PR not Build.SourceVersion here. The Build.SourceVersion
+                        // is the HEAD of the PR merged into HEAD of the target branch. The check suites only track
+                        // the HEAD of PR
+                        var response = await checksClient.Suite.GetAllForReference(repository.Id, pullRequest.Head.Sha);
+                        var devOpsResponses = response.CheckSuites.Where(x => x.App.Name == "Azure Pipelines").ToList();
+                        var allDone = devOpsResponses.All(x => x.Status.Value == CheckStatus.Completed);
+                        if (!allDone)
+                        {
+                            // There are merge conflicts. This seems to confuse things a bit below. 
+                            Console.WriteLine($"\t{Util.GetUri(build)}");
+                            Console.WriteLine($"\t{prUri}");
+                            list.Add(prUri);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+                }
+            }
+
+            foreach (var uri in list.ToHashSet())
+            {
+                Console.WriteLine(uri);
+            }
         }
 
         private static async Task ListBuildsFullAsync()
