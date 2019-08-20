@@ -445,6 +445,8 @@ namespace DevOps.Util
     /// </summary>
     public sealed class BuildArtifact
     {
+        [JsonProperty("_links")]
+        public object Links { get; set; }
         public int Id { get; set; }
         public string Name { get; set; }
         public ArtifactResource Resource { get; set; }
@@ -456,6 +458,8 @@ namespace DevOps.Util
     /// </summary>
     public sealed class ArtifactResource
     {
+        [JsonProperty("_links")]
+        public object Links { get; set; }
         public string Data { get; set; }
         public string DownloadUrl { get; set; }
         public object Properties { get; set; }

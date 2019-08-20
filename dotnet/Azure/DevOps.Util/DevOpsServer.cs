@@ -78,12 +78,12 @@ namespace DevOps.Util
 
             static void appendList(StringBuilder builder, string name, IEnumerable<int> values)
             {
-                if (values.Any())
+                if (values is null || !values.Any())
                 {
                     return;
                 }
 
-                builder.Append("{name}=");
+                builder.Append($"{name}=");
                 var first = true;
                 foreach (var value in values)
                 {
@@ -203,14 +203,47 @@ namespace DevOps.Util
             } while (true);
         }
 
-        public async Task<List<Build>> ListBuildsAsync(string project, IEnumerable<int> definitions = null, int? top = null)
+        public async Task<List<Build>> ListBuildsAsync(
+            string project,
+            IEnumerable<int> definitions = null,
+            IEnumerable<int> queues = null,
+            string buildNumber = null,
+            DateTimeOffset? minTime = null,
+            DateTimeOffset? maxTime = null,
+            string requestedFor = null,
+            BuildReason? reasonFilter = null,
+            BuildStatus? statusFilter = null,
+            BuildResult? resultFilter = null,
+            int? top = null,
+            int? maxBuildsPerDefinition = null,
+            QueryDeletedOption? deletedFilter = null,
+            BuildQueryOrder? queryOrder = null,
+            string branchName = null,
+            IEnumerable<int> buildIds = null,
+            string repositoryId = null,
+            string repositoryType = null)
         {
             var builds = new List<Build>();
             await ListBuildsAsync(
                 processBuilds,
                 project,
                 definitions,
-                top: top);
+                queues,
+                buildNumber,
+                minTime,
+                maxTime,
+                requestedFor,
+                reasonFilter,
+                statusFilter,
+                resultFilter,
+                top,
+                maxBuildsPerDefinition,
+                deletedFilter,
+                queryOrder,
+                branchName,
+                buildIds,
+                repositoryId,
+                repositoryType);
 
             return builds;
 
@@ -305,6 +338,8 @@ namespace DevOps.Util
             return JsonConvert.DeserializeObject<Timeline>(json);
         }
 
+        public async Task<Timeline> GetTimelineAsync(Build build) => await GetTimelineAsync(build.Project.Name, build.Id);
+
         public async Task<Timeline> GetTimelineAsync(string project, int buildId, string timelineId, int? changeId = null)
         {
             var builder = GetProjectApiRootBuilder(project);
@@ -328,6 +363,8 @@ namespace DevOps.Util
             var array = (JArray)root["value"];
             return array.ToObject<BuildArtifact[]>();
         }
+
+        public async Task<BuildArtifact[]> ListArtifactsAsync(Build build) => await ListArtifactsAsync(build.Project.Name, build.Id);
 
         private string GetArtifactUri(string project, int buildId, string artifactName)
         {

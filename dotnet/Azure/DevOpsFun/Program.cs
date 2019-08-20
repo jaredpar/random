@@ -27,7 +27,8 @@ namespace QueryFun
 
         public static async Task Main(string[] args)
         {
-            await ListStaleChecks();
+            await Scratch();
+            // await ListStaleChecks();
             // await ListBuildsFullAsync();
             // await UploadCloneTime();
             // await DumpCheckoutTimes("dnceng", "public", 196, top: 200);
@@ -65,6 +66,16 @@ namespace QueryFun
             }
 
             throw new Exception($"Could not find token with name {name}");
+        }
+
+        private static async Task Scratch()
+        {
+            var server = new DevOpsServer("devdiv", await GetToken("azure-devdiv"));
+            foreach (var build in await server.ListBuildsAsync("devdiv", new[] { 8972 }, top: 10, resultFilter: BuildResult.Succeeded))
+            {
+                var artifacts = await server.ListArtifactsAsync(build);
+                var timeline = await server.GetTimelineAsync(build);
+            }
         }
 
         private static async Task ListStaleChecks()
