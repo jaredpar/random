@@ -58,6 +58,19 @@ namespace DevOps.Util
     }
 
     /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0#buildqueryorder
+    /// </summary>
+    public enum BuildQueryOrder
+    {
+        FinishTimeAscending,
+        FinishTimeDescending,
+        QueueTimeAscending,
+        QueueTimeDescending,
+        StartTimeAscending,
+        StartTimeDescending,
+    }
+
+    /// <summary>
     /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0#buildreason
     /// </summary>
     public enum BuildReason
@@ -100,6 +113,16 @@ namespace DevOps.Util
         None,
         NotStarted,
         Postponed
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0#querydeletedoption
+    /// </summary>
+    public enum QueryDeletedOption
+    {
+        excludeDeleted,
+        includeDeleted,
+        onlyDeleted
     }
 
     /// <summary>
