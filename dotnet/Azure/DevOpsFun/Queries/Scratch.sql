@@ -15,4 +15,9 @@ OrdER BY JobCount DESC
 
 */
 
-SELECT * From JobCloneTime WHERE FetchSize != NULL
+SELECT DefinitionId, AVG(FetchSize) AS FetchSize
+From JobCloneTime 
+WHERE BuildStartTime > '2019/08/20'
+GROUP BY DefinitionId
+ORDER BY FetchSize DESC
+

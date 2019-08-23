@@ -116,7 +116,10 @@ namespace DevOps.Util.DotNet
 
                     var minDuration = jobs.Min(x => x.Duration);
                     var maxDuration = jobs.Max(x => x.Duration);
-                    await UploadBuildCloneTime(transaction, build.Id, build.Definition.Id, minDuration, maxDuration, buildStartTime, uri);
+                    var totalFetchSize = jobs.Sum(x => x.FetchSize);
+                    var minFetchSpeed = jobs.Min(x => x.MinFetchSpeed);
+                    var maxFetchSpeed = jobs.Max(x => x.MaxFetchSpeed);
+                    await UploadBuildCloneTime(transaction, build.Id, build.Definition.Id, minDuration, maxDuration, buildStartTime, uri, totalFetchSize, minFetchSpeed, maxFetchSpeed);
                 });
 
                 Logger.LogInformation("Build upload complete");
@@ -258,9 +261,9 @@ namespace DevOps.Util.DotNet
             }
         }
 
-        private async Task UploadBuildCloneTime(SqlTransaction transaction, int buildId, int definitionId, TimeSpan minDuration, TimeSpan maxDuration, DateTimeOffset buildStartTime, Uri buildUri)
+        private async Task UploadBuildCloneTime(SqlTransaction transaction, int buildId, int definitionId, TimeSpan minDuration, TimeSpan maxDuration, DateTimeOffset buildStartTime, Uri buildUri, double? totalFetchSize, double? minFetchSpeed, double? maxFetchSpeed)
         {
-            var query = "INSERT INTO dbo.BuildCloneTime (BuildId, DefinitionId, MinDuration, MaxDuration, BuildStartTime, BuildUri) VALUES (@BuildId, @DefinitionId, @MinDuration, @MaxDuration, @BuildStartTime, @BuildUri)";
+            var query = "INSERT INTO dbo.BuildCloneTime (BuildId, DefinitionId, MinDuration, MaxDuration, BuildStartTime, BuildUri, TotalFetchSize, MinFetchSpeed, MaxFetchSpeed) VALUES (@BuildId, @DefinitionId, @MinDuration, @MaxDuration, @BuildStartTime, @BuildUri, @TotalFetchSize, @MinFetchSpeed, @MaxFetchSpeed))";
             using var command = new SqlCommand(query, transaction.Connection, transaction);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@DefinitionId", definitionId);
@@ -268,6 +271,9 @@ namespace DevOps.Util.DotNet
             command.Parameters.AddWithValue("@MaxDuration", maxDuration);
             command.Parameters.AddWithValue("@BuildStartTime", buildStartTime);
             command.Parameters.AddWithValue("@BuildUri", buildUri.ToString());
+            command.Parameters.AddWithValueNullable("@TotalFetchSize", totalFetchSize);
+            command.Parameters.AddWithValueNullable("@MinFetchSpeed", minFetchSpeed);
+            command.Parameters.AddWithValueNullable("@MaxFetchSpeed", maxFetchSpeed);
             var result = await command.ExecuteNonQueryAsync();
             if (result < 0)
             {
