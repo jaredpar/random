@@ -263,7 +263,7 @@ namespace DevOps.Util.DotNet
 
         private async Task UploadBuildCloneTime(SqlTransaction transaction, int buildId, int definitionId, TimeSpan minDuration, TimeSpan maxDuration, DateTimeOffset buildStartTime, Uri buildUri, double? totalFetchSize, double? minFetchSpeed, double? maxFetchSpeed)
         {
-            var query = "INSERT INTO dbo.BuildCloneTime (BuildId, DefinitionId, MinDuration, MaxDuration, BuildStartTime, BuildUri, TotalFetchSize, MinFetchSpeed, MaxFetchSpeed) VALUES (@BuildId, @DefinitionId, @MinDuration, @MaxDuration, @BuildStartTime, @BuildUri, @TotalFetchSize, @MinFetchSpeed, @MaxFetchSpeed))";
+            var query = "INSERT INTO dbo.BuildCloneTime (BuildId, DefinitionId, MinDuration, MaxDuration, BuildStartTime, BuildUri, TotalFetchSize, MinFetchSpeed, MaxFetchSpeed) VALUES (@BuildId, @DefinitionId, @MinDuration, @MaxDuration, @BuildStartTime, @BuildUri, @TotalFetchSize, @MinFetchSpeed, @MaxFetchSpeed)";
             using var command = new SqlCommand(query, transaction.Connection, transaction);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@DefinitionId", definitionId);

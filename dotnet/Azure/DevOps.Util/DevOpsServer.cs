@@ -122,7 +122,8 @@ namespace DevOps.Util
             {
                 if (value.HasValue)
                 {
-                    builder.Append($"{name}={value.Value}");
+                    builder.Append($"{name}=");
+                    builder.Append(value.Value.UtcDateTime.ToString("o"));
                 }
             }
 

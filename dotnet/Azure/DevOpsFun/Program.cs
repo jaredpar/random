@@ -71,7 +71,7 @@ namespace QueryFun
         private static async Task Scratch()
         {
             using var util = new CloneTimeUtil(await GetToken("scratch-db"));
-            foreach (var build in await util.DevOpsServer.ListBuildsAsync("public", minTime: (DateTimeOffset.Now - TimeSpan.FromHours(2)), queryOrder: BuildQueryOrder.FinishTimeAscending, top: 10))
+            foreach (var build in await util.DevOpsServer.ListBuildsAsync("public", maxTime: (DateTimeOffset.Now - TimeSpan.FromHours(2)), queryOrder: BuildQueryOrder.FinishTimeAscending))
             {
                 await util.UploadBuildAsync(build.Id);
             }
