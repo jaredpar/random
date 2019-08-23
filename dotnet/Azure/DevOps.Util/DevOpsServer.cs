@@ -278,17 +278,14 @@ namespace DevOps.Util
             return array.ToObject<BuildLog[]>();
         }
 
-        public async Task DownloadBuildLogsAsync(string project, int buildId, string filePath)
-        {
-            var uri = GetBuildLogsUri(project, buildId);
-            await DownloadFileAsync(uri, filePath);
-        }
-
         public async Task DownloadBuildLogsAsync(string project, int buildId, Stream stream)
         {
             var uri = GetBuildLogsUri(project, buildId);
             await DownloadZipFileAsync(uri, stream);
         }
+
+        public async Task<MemoryStream> DownloadBuildLogsAsync(string project, int buildId) =>
+            await WithMemoryStream(async s => await DownloadBuildLogsAsync(project, buildId));
 
         public async Task<string> GetBuildLogAsync(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
         {
@@ -381,11 +378,8 @@ namespace DevOps.Util
             return JsonConvert.DeserializeObject<BuildArtifact>(json);
         }
 
-        public async Task DownloadArtifactAsync(string project, int buildId, string artifactName, string filePath)
-        {
-            var uri = GetArtifactUri(project, buildId, artifactName);
-            await DownloadFileAsync(uri, filePath);
-        }
+        public async Task<MemoryStream> DownloadArtifactAsync(string project, int buildId, string artifactName) =>
+            await WithMemoryStream(async s => await DownloadArtifactAsync(project, buildId, artifactName, s));
 
         public async Task DownloadArtifactAsync(string project, int buildId, string artifactName, Stream stream)
         {
@@ -441,6 +435,9 @@ namespace DevOps.Util
             }
         }
 
+        public async Task<MemoryStream> DownloadFileAsync(string uri) =>
+            await WithMemoryStream(async s => await DownloadFileAsync(uri, s));
+
         public async Task DownloadZipFileAsync(string uri, Stream destinationStream)
         {
             using (var client = new HttpClient())
@@ -458,13 +455,8 @@ namespace DevOps.Util
             }
         }
 
-        private async Task DownloadFileAsync(string uri, string filePath)
-        {
-            using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
-            {
-                await DownloadZipFileAsync(uri, fileStream);
-            }
-        }
+        public async Task<MemoryStream> DownloadZipFileAsync(string uri) =>
+            await WithMemoryStream(async s => await DownloadFileAsync(uri, s));
 
         private void AddAuthentication(HttpClient client)
         {
@@ -474,6 +466,14 @@ namespace DevOps.Util
                     "Basic",
                     Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($":{PersonalAccessToken}")));
             }
+        }
+
+        private async Task<MemoryStream> WithMemoryStream(Func<MemoryStream, Task> func)
+        {
+            var stream = new MemoryStream();
+            await func(stream);
+            stream.Position = 0;
+            return stream;
         }
     }
 }

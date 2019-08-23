@@ -6,6 +6,8 @@ using System.Data.SqlClient;
 using System.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using System.IO;
+using System.Text.RegularExpressions;
 
 namespace DevOps.Util.DotNet
 {
@@ -35,9 +37,9 @@ namespace DevOps.Util.DotNet
 
         public async Task<List<Build>> ListBuildsAsync(int top) => await DevOpsServer.ListBuildsAsync(ProjectName, new[] { BuildDefinitionId }, top: top);
 
-        public async Task UpdateDatabaseAsync()
+        public async Task UpdateDatabaseAsync(int? top = null)
         {
-            var builds = await DevOpsServer.ListBuildsAsync(ProjectName);
+            var builds = await DevOpsServer.ListBuildsAsync(ProjectName, top: top);
             foreach (var build in builds)
             {
                 try
@@ -76,6 +78,13 @@ namespace DevOps.Util.DotNet
             try
             {
                 var uri = Util.GetUri(build);
+
+                if (build.Status != BuildStatus.Completed)
+                {
+                    Logger.LogInformation($"Build is not completed {uri}");
+                    return;
+                }
+
                 if (await IsBuildUploadedAsync(build.Id))
                 {
                     Logger.LogInformation($"Build already uploaded {uri}");
@@ -100,15 +109,17 @@ namespace DevOps.Util.DotNet
                 var buildStartTime = DateTimeOffset.Parse(build.StartTime);
                 await Util.DoWithTransactionAsync(SqlConnection, $"Upload Clone {build.Id}", async transaction =>
                 {
-                    foreach (var tuple in jobs)
+                    foreach (var job in jobs)
                     {
-                        await UploadJobCloneTime(transaction, build.Id, build.Definition.Id, tuple.JobName, tuple.Duration, buildStartTime, uri);
+                        await UploadJobCloneTime(transaction, build.Id, build.Definition.Id, buildStartTime, uri, job);
                     }
 
                     var minDuration = jobs.Min(x => x.Duration);
                     var maxDuration = jobs.Max(x => x.Duration);
                     await UploadBuildCloneTime(transaction, build.Id, build.Definition.Id, minDuration, maxDuration, buildStartTime, uri);
                 });
+
+                Logger.LogInformation("Build upload complete");
             }
             catch (Exception ex)
             {
@@ -117,9 +128,9 @@ namespace DevOps.Util.DotNet
             }
         }
 
-        private async Task<List<(string JobName, TimeSpan Duration)>> GetJobCloneTimesAsync(Build build)
+        public async Task<List<JobCloneTime>> GetJobCloneTimesAsync(Build build)
         {
-            var list = new List<(string JobName, TimeSpan Duration)>();
+            var list = new List<JobCloneTime>();
             var timeline = await DevOpsServer.GetTimelineAsync(ProjectName, build.Id);
             if (timeline is null)
             {
@@ -130,22 +141,116 @@ namespace DevOps.Util.DotNet
             {
                 var duration = DateTime.Parse(record.FinishTime) - DateTime.Parse(record.StartTime);
                 var parent = timeline.Records.Single(x => x.Id == record.ParentId);
-                list.Add((parent.Name, duration));
+                var (fetchSize, minFetchSpeed, maxFetchSpeed) = await GetSizesAsync(record);
+                var jobCloneTime = new JobCloneTime(
+                    parent.Name,
+                    duration,
+                    fetchSize,
+                    minFetchSpeed: minFetchSpeed,
+                    maxFetchSpeed: maxFetchSpeed);
+                list.Add(jobCloneTime);
             }
 
             return list;
         }
 
-        private async Task UploadJobCloneTime(SqlTransaction transaction, int buildId, int definitionId, string jobName, TimeSpan duration, DateTimeOffset buildStartTime, Uri buildUri)
+        private async Task<(double? fetchSize, double? minFetchSpeed, double? maxFetchSpeed)> GetSizesAsync(TimelineRecord record)
         {
-            var query = "INSERT INTO dbo.JobCloneTime (BuildId, DefinitionId, Name, Duration, BuildStartTime, BuildUri) VALUES (@BuildId, @DefinitionId, @Name, @Duration, @BuildStartTime, @BuildUri)";
+            try
+            {
+                using var stream = await DevOpsServer.DownloadFileAsync(record.Log.Url);
+                using var reader = new StreamReader(stream);
+                var sizeAtom = @"[\d.]+\s+[GMK]iB";
+                var regex = new Regex($@"Receiving objects:\s+\d+% .*,\s+({sizeAtom})\s+\|\s+({sizeAtom})/s(,\s*done)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                double? fetchSize = null;
+                double? minFetchSpeed = null;
+                double? maxFetchSpeed = null;
+
+                do
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (line is null)
+                    {
+                        break;
+                    }
+
+                    var match = regex.Match(line);
+                    if (match.Success)
+                    {
+                        var size= parseSize(match.Groups[1].Value);
+                        var speed = parseSize(match.Groups[2].Value);
+                        updateIfBigger(ref fetchSize, size);
+                        updateIfSmaller(ref minFetchSpeed, speed);
+                        updateIfBigger(ref maxFetchSpeed, speed);
+
+                        if (!string.IsNullOrEmpty(match.Groups[3].Value))
+                        {
+                            break;
+                        }
+                    }
+                } while (true);
+
+                return (fetchSize, minFetchSpeed, maxFetchSpeed);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogInformation($"Error parsing fetch times: {ex.Message}");
+                return (null, null, null);
+            }
+
+            static void updateIfBigger(ref double? storage, double? value)
+            {
+                if (value is null)
+                {
+                    return;
+                }
+
+                if (storage is null || storage.Value < value)
+                {
+                    storage = value;
+                }
+            }
+
+            static void updateIfSmaller(ref double? storage, double? value)
+            {
+                if (value is null)
+                {
+                    return;
+                }
+
+                if (storage is null || storage.Value > value)
+                {
+                    storage = value;
+                }
+            }
+
+            static double? parseSize(string size)
+            {
+                var elements = size.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var value = double.Parse(elements[0]);
+                return elements[1] switch
+                {
+                    "KiB" => value,
+                    "MiB" => value * 1024,
+                    "GiB" => value * 1024 * 1024,
+                    _ => (double?)null
+                };
+            }
+        }
+
+        private async Task UploadJobCloneTime(SqlTransaction transaction, int buildId, int definitionId, DateTimeOffset buildStartTime, Uri buildUri, JobCloneTime jobCloneTime)
+        {
+            var query = "INSERT INTO dbo.JobCloneTime (BuildId, DefinitionId, Name, Duration, BuildStartTime, BuildUri, FetchSize, MinFetchSpeed, MaxFetchSpeed) VALUES (@BuildId, @DefinitionId, @Name, @Duration, @BuildStartTime, @BuildUri, @FetchSize, @MinFetchSpeed, @MaxFetchSpeed)";
             using var command = new SqlCommand(query, transaction.Connection, transaction);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@DefinitionId", definitionId);
-            command.Parameters.AddWithValue("@Name", jobName);
-            command.Parameters.AddWithValue("@Duration", duration);
+            command.Parameters.AddWithValue("@Name", jobCloneTime.JobName);
+            command.Parameters.AddWithValue("@Duration", jobCloneTime.Duration);
             command.Parameters.AddWithValue("@BuildStartTime", buildStartTime);
             command.Parameters.AddWithValue("@BuildUri", buildUri.ToString());
+            command.Parameters.AddWithValueNullable("@FetchSize", jobCloneTime.FetchSize);
+            command.Parameters.AddWithValueNullable("@MinFetchSpeed", jobCloneTime.MinFetchSpeed);
+            command.Parameters.AddWithValueNullable("@MaxFetchSpeed", jobCloneTime.MaxFetchSpeed);
             var result = await command.ExecuteNonQueryAsync();
             if (result < 0)
             {

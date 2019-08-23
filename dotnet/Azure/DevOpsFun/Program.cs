@@ -70,12 +70,41 @@ namespace QueryFun
 
         private static async Task Scratch()
         {
-            var server = new DevOpsServer("devdiv", await GetToken("azure-devdiv"));
-            foreach (var build in await server.ListBuildsAsync("devdiv", new[] { 8972 }, top: 10, resultFilter: BuildResult.Succeeded))
+            using var util = new CloneTimeUtil(await GetToken("scratch-db"));
+            foreach (var build in await util.DevOpsServer.ListBuildsAsync("public", minTime: (DateTimeOffset.Now - TimeSpan.FromHours(2)), queryOrder: BuildQueryOrder.FinishTimeAscending, top: 10))
             {
-                var artifacts = await server.ListArtifactsAsync(build);
-                var timeline = await server.GetTimelineAsync(build);
+                await util.UploadBuildAsync(build.Id);
             }
+
+            // await util.UpdateDatabaseAsync(top: 50);
+            
+            /*
+            var server = new DevOpsServer("dnceng");
+            var totalCount = 0;
+            var prCount = 0;
+            foreach (var build in await server.ListBuildsAsync("public", new[] { 228 }, top: 5000))
+            {
+                totalCount++;
+                if (build.Reason == BuildReason.PullRequest)
+                {
+                    prCount++;
+                }
+
+                if (totalCount % 100 == 0)
+                {
+                    dumpData();
+                }
+            }
+
+            dumpData();
+            void dumpData()
+            {
+                var ciCount = totalCount - prCount;
+                Console.WriteLine($"Total {totalCount}");
+                Console.WriteLine($"PR {prCount} - {((double)prCount / totalCount) * 100}%");
+                Console.WriteLine($"CI {ciCount} - {((double)ciCount / totalCount) * 100}%");
+            }
+            */
         }
 
         private static async Task ListStaleChecks()
@@ -358,7 +387,9 @@ namespace QueryFun
             var all = await server.ListArtifactsAsync(project, buildId);
             var buildArtifact = await server.GetArtifactAsync(project, buildId, "Build Diagnostic Files");
             var filePath = @"p:\temp\data.zip";
-            await server.DownloadArtifactAsync(project, buildId, "Build Diagnostic Files", filePath);
+            var stream = await server.DownloadArtifactAsync(project, buildId, "Build Diagnostic Files");
+            using var fileStream = File.Open(filePath, System.IO.FileMode.Create);
+            await stream.CopyToAsync(fileStream);
         }
 
         private static async Task DumpTimelines(string organization, string project, int buildDefinitionId, int top)
