@@ -15,9 +15,19 @@ OrdER BY JobCount DESC
 
 */
 
-SELECT DefinitionId, AVG(FetchSize) AS FetchSize
-From JobCloneTime 
-WHERE BuildStartTime > '2019/08/20'
-GROUP BY DefinitionId
-ORDER BY FetchSize DESC
+/*
+SELECT BuildUri
+FROM JobCloneTime
+WHERE DefinitionId = 228 AND BuildStartTime > '2019/08/27' AND Duration > '00:20:00'
+GROUP BY BuildUri
+*/
 
+SELECT CAST(CAST(AVG(CAST(CAST(Duration as datetime) as float)) as datetime) as time) As Duration
+FROM JobCloneTime
+WHERE DefinitionId = 228 AND BuildStartTime > '2019/08/27' 
+
+/*
+SELECT COUNT(*)
+FROM BuildCloneTime
+WHERE DefinitionId = 228 AND BuildStartTime > '2019/08/27'
+*/

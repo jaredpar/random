@@ -102,6 +102,14 @@ namespace QueryFun
             var build = JsonConvert.DeserializeObject<Build>(responseContent);
             var message = request.EnsureSuccessStatusCode();
 
+            /*
+            var util = new NGenUtil(await GetToken("azure-devdiv"));
+            foreach (var build in await util.ListBuildsAsync(top: 100))
+            {
+                var list = await util.GetNGenAssemblyDataAsync(build);
+            }
+*/
+
 
             // await util.UpdateDatabaseAsync(top: 50);
             
@@ -230,138 +238,12 @@ namespace QueryFun
             await util.UpdateDatabaseAsync(top: 100);
         }
 
-        private static async Task UploadNgenData()
-        {
-            var documentClient = new DocumentClient(
-                new Uri("https://jaredpar-scratch.documents.azure.com:443/"),
-                await GetToken("cosmos-db"));
-            var ngenUtil = new NGenUtil(await GetToken("azure-devdiv"));
-            var collectionUri = UriFactory.CreateDocumentCollectionUri("ngen", "ngen");
-            foreach (var build in await ngenUtil.ListBuilds(top: 100))
-            {
-                if (build.Result != BuildResult.Succeeded)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    Console.Write($"Getting build {build.Id} ... ");
-                    var ngenDocument = await ngenUtil.GetNgenDocument(build);
-                    var partitionKey = new PartitionKey(ngenDocument.Branch);
-                    if (buildExists(build.Id, partitionKey))
-                    {
-                        Console.WriteLine("exists");
-                        continue;
-                    }
-
-                    Console.Write($"uploading ...");
-                    var response = await documentClient.CreateDocumentAsync(collectionUri, ngenDocument);
-                    if (response.StatusCode == HttpStatusCode.Created)
-                    {
-                        Console.WriteLine("succeeded");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"failed {response.StatusCode}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("failed");
-                    Console.WriteLine(ex.Message);
-                }
-            }
-
-            bool buildExists(int buildId, PartitionKey partitionKey)
-            {
-                try
-                {
-                    var feedOptions = new FeedOptions()
-                    {
-                        PartitionKey = partitionKey,
-                    };
-
-                    var document1 = documentClient
-                        .CreateDocumentQuery<NgenDocument>(collectionUri, feedOptions)
-                        .Where(x => x.BuildId == buildId)
-                        .AsEnumerable()
-                        .ToList();
-
-                    var document2 = documentClient
-                        .CreateDocumentQuery<NgenDocument>(collectionUri, feedOptions)
-                        .AsEnumerable()
-                        .ToList();
-
-                    var document = documentClient
-                        .CreateDocumentQuery<NgenDocument>(collectionUri, feedOptions)
-                        .Where(x => x.BuildId == buildId)
-                        .AsEnumerable()
-                        .FirstOrDefault();
-                    return document is object;
-                }
-                catch
-                {
-                    return false;
-                }
-            }
-        }
-
         private static async Task DumpNgenData(int buildId)
         {
             var list = await GetNgenData(buildId);
             foreach (var data in list.OrderBy(x => x.AssemblyName))
             {
                 Console.WriteLine($"{data.AssemblyName} - {data.MethodCount}");
-            }
-        }
-
-        private static async Task DumpNgenData()
-        {
-            var server = new DevOpsServer("devdiv", await GetToken("azure-devdiv"));
-            var project = "DevDiv";
-            var data = new Dictionary<int, List<NgenEntryData>>();
-            var comparer = StringComparer.OrdinalIgnoreCase;
-            var assemblyNames = new HashSet<string>(comparer);
-            foreach (var build in await server.ListBuildsAsync(project, new[] { 8972 }, top: 200))
-            {
-                if (build.Result == BuildResult.Succeeded && build.SourceBranch.Contains("master-vs-deps"))
-                {
-                    try
-                    {
-                        Console.WriteLine($"Getting data for {build.Uri}");
-                        var list = await GetNgenData(build.Id);
-                        data[build.Id] = list;
-                        list.ForEach(x => assemblyNames.Add(x.AssemblyName));
-                    }
-                    catch
-                    {
-                        Console.WriteLine("Failed");
-                    }
-                }
-            }
-
-            var buildIds = data.Keys.OrderBy(x => x).ToList();
-            Console.Write("Assembly Name,");
-            buildIds.ForEach(x => Console.Write($"{x},"));
-            Console.WriteLine();
-            foreach (var assemblyName in assemblyNames.OrderBy(x => x))
-            {
-                Console.Write(assemblyName);
-                Console.Write(',');
-                foreach (var buildId in buildIds)
-                {
-                    try
-                    {
-                        var methodData = data[buildId].Single(x => comparer.Equals(x.AssemblyName, assemblyName));
-                        Console.Write($"{methodData.MethodCount},");
-                    }
-                    catch
-                    { 
-                        Console.Write("N/A,");
-                    }
-                }
-                Console.WriteLine();
             }
         }
 
