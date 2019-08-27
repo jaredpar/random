@@ -473,4 +473,241 @@ namespace DevOps.Util
         /// </summary>
         public string Url { get; set; }
     }
+
+    public sealed class BuildDefinition
+    {
+        [JsonProperty("_links")]
+        public object Links { get; set; }
+        public IdentityRef AuthoredBy { get; set; }
+        public bool BadgeEnabled { get; set; }
+        public string BuildNumberFormat { get; set; }
+        public string Comment { get; set; }
+        public string CreatedDate { get; set; }
+        public Demand[] Demands { get; set; }
+        public string Description { get; set; }
+        public DefinitionReference DraftOf { get; set; }
+        public DefinitionReference[] Drafts { get; set; }
+        public string DropLocation { get; set; }
+        public int Id { get; set; }
+        public BuildAuthorizationScope JobAuthorizationScope { get; set; }
+        public int JobCancelTimeoutInMinutes { get; set; }
+        public int JobTimeoutInMinutes { get; set; }
+        public Build LatestBuild { get; set; }
+        public Build LatestCompletedBuild { get; set; }
+        public BuildMetric[] Metrics { get; set; }
+        public string Name { get; set; }
+        public BuildOption[] Options { get; set; }
+        public string Path { get; set; }
+        public BuildProcess Process { get; set; }
+        public ProcessParameters ProcessParameters { get; set; }
+        public TeamProjectReference Project { get; set; }
+        public PropertiesCollection Properties { get; set; }
+        public DefinitionQuality Quality { get; set; }
+        public AgentPoolQueue Queue { get; set; }
+        public DefinitionQueueStatus QueueStatus { get; set; }
+        public BuildRepository Repository { get; set; }
+        public RetentionPolicy[] RetentionRules { get; set; }
+        public int Revision { get; set; }
+        public string[] Tags { get; set; }
+        public BuildTrigger[] Triggers { get; set; }
+        public DefinitionType Type { get; set; }
+        public string Uri { get; set; }
+        public string Url { get; set; }
+        public VariableGroup[] VariableGroups { get; set; }
+        public Dictionary<string, BuildDefinitionVariable> Variables { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#buildauthorizationscope
+    /// </summary>
+    public enum BuildAuthorizationScope
+    {
+        Project,
+        ProjectCollection
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#buildmetric
+    /// </summary>
+    public sealed class BuildMetric
+    {
+        public string Date { get; set; }
+        public int IntValue { get; set; }
+        public string Name { get; set; }
+        public string Scope { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#buildoption
+    /// </summary>
+    public sealed class BuildOption
+    {
+        public BuildOptionDefinitionReference Definition { get; set; }
+        public bool Enabled { get; set; }
+        public object Inputs { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#buildoptiondefinitionreference
+    /// </summary>
+    public sealed class BuildOptionDefinitionReference
+    {
+        public string Id { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#buildprocess
+    /// </summary>
+    public sealed class BuildProcess
+    {
+        public string Type { get; set; }
+    }
+
+    public sealed class ProcessParameters
+    {
+        public DataSourceBindingBase[] DataSourceBindings { get; set; }
+        public TaskInputDefinitionBase[] Inputs { get; set; }
+        public TaskSourceDefinitionBase[] SourceDefinitions { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#builddefinitionvariable
+    /// </summary>
+    public sealed class DataSourceBindingBase
+    {
+        public string CallbackContextTemplate { get; set; }
+        public string CallbackRequiredTemplate { get; set; }
+        public string DataSourceName { get; set; }
+        public string EndpointId { get; set; }
+        public string EndpointUrl { get; set; }
+        public AuthorizationHeader[] Headers { get; set; }
+        public string InitialContextTemplate { get; set; }
+        public Object Parameters { get; set; }
+        public string RequestContent { get; set; }
+        public string RequestVerb { get; set; }
+        public string ResultSelector { get; set; }
+        public string ResultTemplate { get; set; }
+        public string Target { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#authorizationheader
+    /// </summary>
+    public sealed class AuthorizationHeader
+    {
+        public string Name { get; set; }
+        public string Value { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#taskinputdefinitionbase
+    /// </summary>
+    public sealed class TaskInputDefinitionBase
+    {
+        public string[] Aliases { get; set; }
+        public string DefaultValue { get; set; }
+        public string GroupName { get; set; }
+        public string HelpMarkDown { get; set; }
+        public string Label { get; set; }
+        public string Name { get; set; }
+        public Object Options { get; set; }
+        public Object Properties { get; set; }
+        public bool Required { get; set; }
+        public string Type { get; set; }
+        public TaskInputValidation Validation { get; set; }
+        public string VisibleRule { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#taskinputdefinitionbase
+    /// </summary>
+    public sealed class TaskSourceDefinitionBase
+    {
+        public string AuthKey { get; set; }
+        public string Endpoint { get; set; }   
+        public string KeySelector { get; set; }
+        public string Selector { get; set; }
+        public string Target { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#taskinputvalidation
+    /// </summary>
+    public sealed class TaskInputValidation
+    {
+        public string Expression { get; set; }
+        public string Message { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#definitionquality
+    /// </summary>
+    public enum DefinitionQuality
+    {
+        Definition,
+        Draft
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#retentionpolicy
+    /// </summary>
+    public sealed class RetentionPolicy
+    {
+        public string[] ArtifactTypesToDelete { get; set; }
+        public string[] Artifacts { get; set; }
+        public string[] Branches { get; set; }
+        public int DaysToKeep { get; set; }
+        public bool DeleteBuildRecord { get; set; }
+        public bool DeleteTestResults { get; set; }
+        public int MinimumToKeep { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#buildtrigger
+    /// </summary>
+    public sealed class BuildTrigger
+    {
+        public DefinitionTriggerType TriggerType { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#definitiontriggertype
+    /// </summary>
+    public enum DefinitionTriggerType
+    {
+        None,
+        All,
+        BatchedContinuousIntegration,
+        BatchedGatedCheckIn,
+        BuildCompletion,
+        ContinuousIntegration,
+        GatedCheckIn,
+        PullRequest,
+        Schedule,
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#variablegroup
+    /// </summary>
+    public sealed class VariableGroup
+    {
+        public string Alias { get; set; }
+        public string Description { get; set; }
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Type { get; set; }
+        public Dictionary<string,  BuildDefinitionVariable> Variables { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions/get?view=azure-devops-rest-5.1#builddefinitionvariable
+    /// </summary>
+    public sealed class BuildDefinitionVariable
+    {
+        public bool AllowOverride { get; set; }
+        public bool IsSecret { get; set; }
+        public string Value { get; set; }
+    }
+
+
 }

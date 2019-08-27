@@ -112,16 +112,24 @@ namespace DevOps.Util
         {
             var builder = new StringBuilder();
             builder.Append("https://dev.azure.com/");
-            if (Project is null)
+            if (Project is object)
             {
-                builder.Append($"{Organization}/{Project}/_apis/{ApiPath}/?");
+                builder.Append($"{Organization}/{Project}/_apis/{ApiPath}");
             }
             else
             {
-                builder.Append($"{Organization}/_apis/{ApiPath}/?");
+                builder.Append($"{Organization}/_apis/{ApiPath}");
             }
 
-            builder.Append(QueryBuilder.ToString());
+            if (QueryBuilder.Length > 0)
+            {
+                builder.Append("/?");
+                builder.Append(QueryBuilder.ToString());
+            }
+            else
+            {
+                builder.Append("?");
+            }
 
             if (!string.IsNullOrEmpty(ContinuationToken))
             {

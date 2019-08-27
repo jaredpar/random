@@ -76,6 +76,7 @@ namespace QueryFun
             var server = new DevOpsServer("dnceng", await GetToken("dnceng2"));
             var projects = await server.ListProjectsAsync();
             var publicProj = projects.Single(x => x.Name == "public");
+            var definition = await server.GetDefinitionAsync("public", 15);
             using var client = server.CreateHttpClient();
             client.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
@@ -85,11 +86,13 @@ namespace QueryFun
             body.Definition = new DefinitionReference()
             {
                 Id = 15,
+                Name = definition.Name,
+                Path = definition.Path,
+                Project = definition.Project,
+                Revision = definition.Revision,
+                Type = definition.Type
             };
-            body.Project = new TeamProjectReference()
-            {
-                Name = "public"
-            };
+            body.Project = publicProj;
             body.Reason = BuildReason.Manual;
             body.SourceBranch = "master";
             body.SourceVersion = "1bd191ea896b19e3b06a152f815f3a998e87049a";

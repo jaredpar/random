@@ -74,29 +74,19 @@ namespace DevOps.Util
         public async Task<Build> GetBuildAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}");
-            var json = await GetJsonResult(builder.ToString());
-            return JsonConvert.DeserializeObject<Build>(json);
-        }
-
-        private string GetBuildLogsUri(string project, int buildId)
-        {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
-            return builder.ToString();
+            return await GetJsonResult<Build>(builder);
         }
 
         public async Task<BuildLog[]> GetBuildLogsAsync(string project, int buildId)
         {
-            var uri = GetBuildLogsUri(project, buildId);
-            var json = await GetJsonResult(uri);
-            var root = JObject.Parse(json);
-            var array = (JArray)root["value"];
-            return array.ToObject<BuildLog[]>();
+            var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
+            return await GetJsonArrayResult<BuildLog>(builder);
         }
 
         public async Task DownloadBuildLogsAsync(string project, int buildId, Stream stream)
         {
-            var uri = GetBuildLogsUri(project, buildId);
-            await DownloadZipFileAsync(uri, stream);
+            var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
+            await DownloadZipFileAsync(builder.ToString(), stream);
         }
 
         public async Task<MemoryStream> DownloadBuildLogsAsync(string project, int buildId) =>
@@ -120,8 +110,7 @@ namespace DevOps.Util
         public async Task<Timeline> GetTimelineAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/timeline");
-            var json = await GetJsonResult(builder.ToString());
-            return JsonConvert.DeserializeObject<Timeline>(json);
+            return await GetJsonResult<Timeline>(builder);
         }
 
         public async Task<Timeline> GetTimelineAsync(Build build) => await GetTimelineAsync(build.Project.Name, build.Id);
@@ -130,8 +119,7 @@ namespace DevOps.Util
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/timeline/{timelineId}");
             builder.AppendInt("changeId", changeId);
-            var json = await GetJsonResult(builder.ToString());
-            return JsonConvert.DeserializeObject<Timeline>(json);
+            return await GetJsonResult<Timeline>(builder);
         }
 
         public async Task<List<BuildArtifact>> ListArtifactsAsync(string project, int buildId)
@@ -175,9 +163,44 @@ namespace DevOps.Util
             return await ListItemsCore<TeamProjectReference>(builder, limit: top);
         }
 
+        public async Task<List<DefinitionReference>> ListDefinitionsAsync(
+            string project,
+            IEnumerable<int> definitions = null,
+            int? top = null)
+        {
+            var builder = GetBuilder(project, "build/definitions");
+            builder.AppendList("definitionIds", definitions);
+            builder.AppendInt("$top", top);
+            return await ListItemsCore<DefinitionReference>(builder, limit: top);
+        }
+
+        public async Task<BuildDefinition> GetDefinitionAsync(
+            string project,
+            int definitionId,
+            int? revision = null)
+        {
+            var builder = GetBuilder(project, $"build//definitions/{definitionId}");
+            builder.AppendInt("revision", revision);
+            return await GetJsonResult<BuildDefinition>(builder);
+        }
+
         private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);
 
         private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url)).Body;
+
+        private async Task<T> GetJsonResult<T>(RequestBuilder builder)
+        {
+            var json = await GetJsonResult(builder.ToString());
+            return JsonConvert.DeserializeObject<T>(json);
+        }
+
+        private async Task<T[]> GetJsonArrayResult<T>(RequestBuilder builder)
+        {
+            var json = await GetJsonResult(builder.ToString());
+            var root = JObject.Parse(json);
+            var array = (JArray)root["value"];
+            return array.ToObject<T[]>();
+        }
 
         private async Task<(string Body, string ContinuationToken)> GetJsonResultAndContinuationToken(string url)
         {
