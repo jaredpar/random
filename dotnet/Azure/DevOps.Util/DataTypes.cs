@@ -12,19 +12,23 @@ namespace DevOps.Util
     /// </summary>
     public sealed class Build
     {
-        public string BuildNumber { get; set; }
-        public int BuildNumberRevision { get; set; }
-        public BuildController BuildController { get; set; }
+        [JsonProperty("_links")]
+        public ReferenceLinks Links { get; set; }
+        public AgentSpecification AgentSpecification { get; set; }
+        public string BuildNumber { get; set; }        
+        public int BuildNumberRevision { get; set; }   
+        public BuildController Controller { get; set; }
         public DefinitionReference Definition { get; set; }
         public bool Deleted { get; set; }
+        public IdentityRef DeletedBy { get; set; }
         public string DeletedDate { get; set; }
         public string DeletedReason { get; set; }
-        public Demand[] Demands { get; set; }
-        public string FinishTime { get; set; }
+        public Demand[] Demands { get; set; }    
+        public string FinishTime { get; set; }   
         public int Id { get; set; }
         public bool KeepForever { get; set; }
         public IdentityRef LastChangedBy { get; set; }
-        public string LastChangedDate { get; set; }
+        public string LastChangedDate { get; set; }   
         public BuildLogReference Logs { get; set; }
         public TaskOrchestrationPlanReference OrchestrationPlan { get; set; }
         public string Parameters { get; set; }
@@ -48,13 +52,28 @@ namespace DevOps.Util
         public string StartTime { get; set; }
         public BuildStatus Status { get; set; }
         public string[] Tags { get; set; }
-        public object TriggerInfo { get; set; }
+        public Object TriggerInfo { get; set; }
         public Build TriggeredByBuild { get; set; }
         public string Uri { get; set; }
         public string Url { get; set; }
         public BuildRequestValidationResult[] ValidationResults { get; set; }
-
         public override string ToString() => $"Id: {Id} BuildNumber: {BuildNumber}";
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/get?view=azure-devops-rest-5.1#referencelinks
+    /// </summary>
+    public sealed class ReferenceLinks
+    {
+        public object Links { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/get?view=azure-devops-rest-5.1#build
+    /// </summary>
+    public sealed class AgentSpecification
+    {
+         public string Identifier { get; set; }
     }
 
     /// <summary>

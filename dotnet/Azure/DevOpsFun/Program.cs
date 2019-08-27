@@ -99,6 +99,7 @@ namespace QueryFun
             var content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
             using var request = await client.PostAsync(uri, content);
             var responseContent = await request.Content.ReadAsStringAsync();
+            var build = JsonConvert.DeserializeObject<Build>(responseContent);
             var message = request.EnsureSuccessStatusCode();
 
 
