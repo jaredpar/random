@@ -134,16 +134,13 @@ namespace DevOps.Util
             return JsonConvert.DeserializeObject<Timeline>(json);
         }
 
-        public async Task<BuildArtifact[]> ListArtifactsAsync(string project, int buildId)
+        public async Task<List<BuildArtifact>> ListArtifactsAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/artifacts");
-            var json = await GetJsonResult(builder.ToString());
-            var root = JObject.Parse(json);
-            var array = (JArray)root["value"];
-            return array.ToObject<BuildArtifact[]>();
+            return await ListItemsCore<BuildArtifact>(builder);
         }
 
-        public async Task<BuildArtifact[]> ListArtifactsAsync(Build build) => await ListArtifactsAsync(build.Project.Name, build.Id);
+        public async Task<List<BuildArtifact>> ListArtifactsAsync(Build build) => await ListArtifactsAsync(build.Project.Name, build.Id);
 
         private string GetArtifactUri(string project, int buildId, string artifactName)
         {
