@@ -48,94 +48,32 @@ namespace DevOps.Util
             string repositoryType = null,
             string continuationToken = null)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            builder.Append("/build/builds?");
+            var builder = GetBuilder(project, "build/builds");
+            builder.ContinuationToken = continuationToken;
 
-            appendList(builder, "definitions", definitions);
-            appendList(builder, "queues", queues);
-            appendString(builder, "buildNumber", buildNumber);
-            appendDateTime(builder, "minTime", minTime);
-            appendDateTime(builder, "maxTime", maxTime);
-            appendString(builder, "requestedFor", requestedFor);
-            appendEnum(builder, "reasonFilter", reasonFilter);
-            appendEnum(builder, "statusFilter", statusFilter);
-            appendEnum(builder, "resultFilter", resultFilter);
-            appendInt(builder, "$top", top);
-            appendString(builder, "continuationToken", continuationToken);
-            appendInt(builder, "maxBuildsPerDefinition", maxBuildsPerDefinition);
-            appendEnum(builder, "deletedFilter", deletedFilter);
-            appendEnum(builder, "queryOrder", queryOrder);
-            appendString(builder, "branchName", branchName);
-            appendList(builder, "buildIds", buildIds);
-            appendString(builder, "repositoryId", repositoryId);
-            appendString(builder, "repositoryType", repositoryType);
+            builder.AppendList("definitions", definitions);
+            builder.AppendList("queues", queues);
+            builder.AppendString("buildNumber", buildNumber);
+            builder.AppendDateTime("minTime", minTime);
+            builder.AppendDateTime("maxTime", maxTime);
+            builder.AppendString("requestedFor", requestedFor);
+            builder.AppendEnum("reasonFilter", reasonFilter);
+            builder.AppendEnum("statusFilter", statusFilter);
+            builder.AppendEnum("resultFilter", resultFilter);
+            builder.AppendInt("$top", top);
+            builder.AppendString("continuationToken", continuationToken);
+            builder.AppendInt("maxBuildsPerDefinition", maxBuildsPerDefinition);
+            builder.AppendEnum("deletedFilter", deletedFilter);
+            builder.AppendEnum("queryOrder", queryOrder);
+            builder.AppendString("branchName", branchName);
+            builder.AppendList("buildIds", buildIds);
+            builder.AppendString("repositoryId", repositoryId);
+            builder.AppendString("repositoryType", repositoryType);
 
-            builder.Append("api-version=5.0");
             var (json, token) = await GetJsonResultAndContinuationToken(builder.ToString());
             var root = JObject.Parse(json);
             var array = (JArray)root["value"];
             return (array.ToObject<Build[]>(), token);
-
-            static void appendList(StringBuilder builder, string name, IEnumerable<int> values)
-            {
-                if (values is null || !values.Any())
-                {
-                    return;
-                }
-
-                builder.Append($"{name}=");
-                var first = true;
-                foreach (var value in values)
-                {
-                    if (!first)
-                    {
-                        builder.Append(",");
-                    }
-                    builder.Append(value);
-                    first = false;
-                }
-                builder.Append("&");
-            }
-
-            static void appendString(StringBuilder builder, string name, string value, bool escape = true)
-            {
-                if (!string.IsNullOrEmpty(value))
-                {
-                    if (escape)
-                    {
-                        value = Uri.EscapeDataString(value);
-                    }
-
-                    builder.Append($"{name}={value}");
-                }
-            }
-
-            static void appendInt(StringBuilder builder, string name, int? value)
-            {
-                if (value.HasValue)
-                {
-                    builder.Append($"{name}={value.Value}");
-                }
-            }
-
-            static void appendDateTime(StringBuilder builder, string name, DateTimeOffset? value)
-            {
-                if (value.HasValue)
-                {
-                    builder.Append($"{name}=");
-                    builder.Append(value.Value.UtcDateTime.ToString("o"));
-                }
-            }
-
-            static void appendEnum<T>(StringBuilder builder, string name, T? value) where T: struct, Enum
-            {
-                if (value.HasValue)
-                {
-                    var lowerValue = value.Value.ToString();
-                    lowerValue = char.ToLower(lowerValue[0]) + lowerValue.Substring(1);
-                    builder.Append($"{name}={lowerValue}&");
-                }
-            }
         }
 
         /// <summary>
@@ -257,16 +195,14 @@ namespace DevOps.Util
 
         public async Task<Build> GetBuildAsync(string project, int buildId)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            builder.Append($"/build/builds/{buildId}?api-version=5.0");
+            var builder = GetBuilder(project, $"build/builds/{buildId}");
             var json = await GetJsonResult(builder.ToString());
             return JsonConvert.DeserializeObject<Build>(json);
         }
 
         private string GetBuildLogsUri(string project, int buildId)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            builder.Append($"/build/builds/{buildId}/logs?api-version=5.0");
+            var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
             return builder.ToString();
         }
 
@@ -290,33 +226,10 @@ namespace DevOps.Util
 
         public async Task<string> GetBuildLogAsync(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            builder.Append($"/build/builds/{buildId}/logs/{logId}?");
+            var builder = GetBuilder(project, $"build/builds/{buildId}/logs/{logId}");
+            builder.AppendInt("startLine", startLine);
+            builder.AppendInt("endLine", endLine);
 
-            var first = true;
-            if (startLine.HasValue)
-            {
-                builder.Append($"startLine={startLine}");
-                first = false;
-            }
-
-            if (endLine.HasValue)
-            {
-                if (!first)
-                {
-                    builder.Append("&");
-                }
-
-                builder.Append($"endLine={endLine}");
-                first = false;
-            }
-
-            if (!first)
-            {
-                builder.Append("&");
-            }
-
-            builder.Append("api-version=5.0");
             using var client = CreateHttpClient();
             using (var response = await client.GetAsync(builder.ToString()))
             {
@@ -328,8 +241,7 @@ namespace DevOps.Util
 
         public async Task<Timeline> GetTimelineAsync(string project, int buildId)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            builder.Append($"/build/builds/{buildId}/timeline?api-version=5.0");
+            var builder = GetBuilder(project, $"build/builds/{buildId}/timeline");
             var json = await GetJsonResult(builder.ToString());
             return JsonConvert.DeserializeObject<Timeline>(json);
         }
@@ -338,22 +250,15 @@ namespace DevOps.Util
 
         public async Task<Timeline> GetTimelineAsync(string project, int buildId, string timelineId, int? changeId = null)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            builder.Append($"/build/builds/{buildId}/timeline/{timelineId}?");
-
-            if (changeId.HasValue)
-            {
-                builder.Append($"changeId={changeId}&");
-            }
-
+            var builder = GetBuilder(project, $"build/builds/{buildId}/timeline/{timelineId}");
+            builder.AppendInt("changeId", changeId);
             var json = await GetJsonResult(builder.ToString());
             return JsonConvert.DeserializeObject<Timeline>(json);
         }
 
         public async Task<BuildArtifact[]> ListArtifactsAsync(string project, int buildId)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            builder.Append($"/build/builds/{buildId}/artifacts?api-version=5.0");
+            var builder = GetBuilder(project, $"build/builds/{buildId}/artifacts");
             var json = await GetJsonResult(builder.ToString());
             var root = JObject.Parse(json);
             var array = (JArray)root["value"];
@@ -364,9 +269,8 @@ namespace DevOps.Util
 
         private string GetArtifactUri(string project, int buildId, string artifactName)
         {
-            var builder = GetProjectApiRootBuilder(project);
-            artifactName = Uri.EscapeDataString(artifactName);
-            builder.Append($"/build/builds/{buildId}/artifacts?artifactName={artifactName}&api-version=5.0");
+            var builder = GetBuilder(project, $"build/builds/{buildId}/artifacts");
+            builder.AppendString("artifactName", artifactName);
             return builder.ToString();
         }
 
@@ -386,12 +290,7 @@ namespace DevOps.Util
             await DownloadZipFileAsync(uri, stream);
         }
 
-        private StringBuilder GetProjectApiRootBuilder(string project)
-        {
-            var builder = new StringBuilder();
-            builder.Append($"https://dev.azure.com/{Organization}/{project}/_apis");
-            return builder;
-        }
+        private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);
 
         private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url)).Body;
 
@@ -401,19 +300,17 @@ namespace DevOps.Util
             client.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
-            using (var response = await client.GetAsync(url))
+            using var response = await client.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            string continuationToken = null;
+            if (response.Headers.TryGetValues("x-ms-continuationtoken", out var values))
             {
-                response.EnsureSuccessStatusCode();
-
-                string continuationToken = null;
-                if (response.Headers.TryGetValues("x-ms-continuationtoken", out var values))
-                {
-                    continuationToken = values.FirstOrDefault();
-                }
-
-                string responseBody = await response.Content.ReadAsStringAsync();
-                return (responseBody, continuationToken);
+                continuationToken = values.FirstOrDefault();
             }
+
+            string responseBody = await response.Content.ReadAsStringAsync();
+            return (responseBody, continuationToken);
         }
 
         public async Task DownloadFileAsync(string uri, Stream destinationStream)
