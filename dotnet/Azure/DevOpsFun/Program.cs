@@ -18,6 +18,9 @@ using DevOps.Util.DotNet;
 using System.Net;
 using System.ComponentModel.DataAnnotations;
 using Octokit;
+using System.Dynamic;
+using System.Net.Http;
+using System.Text;
 
 namespace QueryFun
 {
@@ -70,11 +73,29 @@ namespace QueryFun
 
         private static async Task Scratch()
         {
-            using var util = new CloneTimeUtil(await GetToken("scratch-db"));
-            foreach (var build in await util.DevOpsServer.ListBuildsAsync("public", maxTime: (DateTimeOffset.Now - TimeSpan.FromHours(2)), queryOrder: BuildQueryOrder.FinishTimeAscending))
+            var server = new DevOpsServer("dnceng", await GetToken("dnceng2"));
+            using var client = server.CreateHttpClient();
+            client.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            var uri = "https://dev.azure.com/dnceng/public/_apis/build/builds?ignoreWarnings=true&api-version=5.1";
+
+            dynamic body = new ExpandoObject();
+            body.Definition = new DefinitionReference()
             {
-                await util.UploadBuildAsync(build.Id);
-            }
+                Id = 15,
+            };
+            body.Project = new TeamProjectReference()
+            {
+                Name = "public"
+            };
+            body.Reason = BuildReason.Manual;
+            body.SourceBranch = "master";
+            body.SourceVersion = "1bd191ea896b19e3b06a152f815f3a998e87049a";
+            var content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+            using var request = await client.PostAsync(uri, content);
+            var responseContent = await request.Content.ReadAsStringAsync();
+            var message = request.EnsureSuccessStatusCode();
+
 
             // await util.UpdateDatabaseAsync(top: 50);
             

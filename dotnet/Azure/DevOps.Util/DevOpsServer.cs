@@ -317,14 +317,12 @@ namespace DevOps.Util
             }
 
             builder.Append("api-version=5.0");
-            using (var client = new HttpClient())
+            using var client = CreateHttpClient();
+            using (var response = await client.GetAsync(builder.ToString()))
             {
-                using (var response = await client.GetAsync(builder.ToString()))
-                {
-                    response.EnsureSuccessStatusCode();
-                    string responseBody = await response.Content.ReadAsStringAsync();
-                    return responseBody;
-                }
+                response.EnsureSuccessStatusCode();
+                string responseBody = await response.Content.ReadAsStringAsync();
+                return responseBody;
             }
         }
 
@@ -399,40 +397,32 @@ namespace DevOps.Util
 
         private async Task<(string Body, string ContinuationToken)> GetJsonResultAndContinuationToken(string url)
         {
-            using (var client = new HttpClient())
+            using var client = CreateHttpClient();
+            client.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            using (var response = await client.GetAsync(url))
             {
-                client.DefaultRequestHeaders.Accept.Add(
-                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+                response.EnsureSuccessStatusCode();
 
-                AddAuthentication(client);
-
-                using (var response = await client.GetAsync(url))
+                string continuationToken = null;
+                if (response.Headers.TryGetValues("x-ms-continuationtoken", out var values))
                 {
-                    response.EnsureSuccessStatusCode();
-
-                    string continuationToken = null;
-                    if (response.Headers.TryGetValues("x-ms-continuationtoken", out var values))
-                    {
-                        continuationToken = values.FirstOrDefault();
-                    }
-
-                    string responseBody = await response.Content.ReadAsStringAsync();
-                    return (responseBody, continuationToken);
+                    continuationToken = values.FirstOrDefault();
                 }
+
+                string responseBody = await response.Content.ReadAsStringAsync();
+                return (responseBody, continuationToken);
             }
         }
 
         public async Task DownloadFileAsync(string uri, Stream destinationStream)
         {
-            using (var client = new HttpClient())
+            using var client = CreateHttpClient();
+            using (var response = await client.GetAsync(uri))
             {
-                AddAuthentication(client);
-
-                using (var response = await client.GetAsync(uri))
-                {
-                    response.EnsureSuccessStatusCode();
-                    await response.Content.CopyToAsync(destinationStream);
-                }
+                response.EnsureSuccessStatusCode();
+                await response.Content.CopyToAsync(destinationStream);
             }
         }
 
@@ -441,19 +431,22 @@ namespace DevOps.Util
 
         public async Task DownloadZipFileAsync(string uri, Stream destinationStream)
         {
-            using (var client = new HttpClient())
+            using var client = CreateHttpClient();
+            client.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/zip"));
+
+            using (var response = await client.GetAsync(uri))
             {
-                client.DefaultRequestHeaders.Accept.Add(
-                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/zip"));
-
-                AddAuthentication(client);
-
-                using (var response = await client.GetAsync(uri))
-                {
-                    response.EnsureSuccessStatusCode();
-                    await response.Content.CopyToAsync(destinationStream);
-                }
+                response.EnsureSuccessStatusCode();
+                await response.Content.CopyToAsync(destinationStream);
             }
+        }
+
+        public HttpClient CreateHttpClient()
+        {
+            var client = new HttpClient();
+            AddAuthentication(client);
+            return client;
         }
 
         public async Task<MemoryStream> DownloadZipFileAsync(string uri) =>
