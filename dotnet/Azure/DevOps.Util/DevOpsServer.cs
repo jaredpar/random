@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -25,123 +26,9 @@ namespace DevOps.Util
         }
 
         /// <summary>
-        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
-        /// </summary>
-        private async Task<(Build[] Builds, string ContinuationToken)> ListBuildsCoreAsync(
-            string project,
-            IEnumerable<int> definitions = null,
-            IEnumerable<int> queues = null,
-            string buildNumber = null,
-            DateTimeOffset? minTime = null,
-            DateTimeOffset? maxTime = null,
-            string requestedFor = null,
-            BuildReason? reasonFilter = null,
-            BuildStatus? statusFilter = null,
-            BuildResult? resultFilter = null,
-            int? top = null,
-            int? maxBuildsPerDefinition = null,
-            QueryDeletedOption? deletedFilter = null,
-            BuildQueryOrder? queryOrder = null,
-            string branchName = null,
-            IEnumerable<int> buildIds = null,
-            string repositoryId = null,
-            string repositoryType = null,
-            string continuationToken = null)
-        {
-            var builder = GetBuilder(project, "build/builds");
-            builder.ContinuationToken = continuationToken;
-
-            builder.AppendList("definitions", definitions);
-            builder.AppendList("queues", queues);
-            builder.AppendString("buildNumber", buildNumber);
-            builder.AppendDateTime("minTime", minTime);
-            builder.AppendDateTime("maxTime", maxTime);
-            builder.AppendString("requestedFor", requestedFor);
-            builder.AppendEnum("reasonFilter", reasonFilter);
-            builder.AppendEnum("statusFilter", statusFilter);
-            builder.AppendEnum("resultFilter", resultFilter);
-            builder.AppendInt("$top", top);
-            builder.AppendString("continuationToken", continuationToken);
-            builder.AppendInt("maxBuildsPerDefinition", maxBuildsPerDefinition);
-            builder.AppendEnum("deletedFilter", deletedFilter);
-            builder.AppendEnum("queryOrder", queryOrder);
-            builder.AppendString("branchName", branchName);
-            builder.AppendList("buildIds", buildIds);
-            builder.AppendString("repositoryId", repositoryId);
-            builder.AppendString("repositoryType", repositoryType);
-
-            var (json, token) = await GetJsonResultAndContinuationToken(builder.ToString());
-            var root = JObject.Parse(json);
-            var array = (JArray)root["value"];
-            return (array.ToObject<Build[]>(), token);
-        }
-
-        /// <summary>
         /// List the builds that meet the provided query parameters
         /// </summary>
         /// <param name="buildNumber">Supports int based build numbers or * prefixes</param>
-        public async Task ListBuildsAsync(
-            Func<Build[], Task> processBuilds,
-            string project,
-            IEnumerable<int> definitions = null,
-            IEnumerable<int> queues = null,
-            string buildNumber = null,
-            DateTimeOffset? minTime = null,
-            DateTimeOffset? maxTime = null,
-            string requestedFor = null,
-            BuildReason? reasonFilter = null,
-            BuildStatus? statusFilter = null,
-            BuildResult? resultFilter = null,
-            int? top = null,
-            int? maxBuildsPerDefinition = null,
-            QueryDeletedOption? deletedFilter = null,
-            BuildQueryOrder? queryOrder = null,
-            string branchName = null,
-            IEnumerable<int> buildIds = null,
-            string repositoryId = null,
-            string repositoryType = null)
-        {
-            string continuationToken = null;
-            var count = 0;
-            do
-            {
-                var tuple = await ListBuildsCoreAsync(
-                    project,
-                    definitions,
-                    queues,
-                    buildNumber,
-                    minTime,
-                    maxTime,
-                    requestedFor,
-                    reasonFilter,
-                    statusFilter,
-                    resultFilter,
-                    top,
-                    maxBuildsPerDefinition,
-                    deletedFilter,
-                    queryOrder,
-                    branchName,
-                    buildIds,
-                    repositoryId,
-                    repositoryType,
-                    continuationToken);
-                await processBuilds(tuple.Builds);
-                continuationToken = tuple.ContinuationToken;
-                count += tuple.Builds.Length;
-
-                if (continuationToken is null)
-                {
-                    break;
-                }
-
-                if (top.HasValue && count > top.Value)
-                {
-                    break;
-                }
-
-            } while (true);
-        }
-
         public async Task<List<Build>> ListBuildsAsync(
             string project,
             IEnumerable<int> definitions = null,
@@ -162,35 +49,26 @@ namespace DevOps.Util
             string repositoryId = null,
             string repositoryType = null)
         {
-            var builds = new List<Build>();
-            await ListBuildsAsync(
-                processBuilds,
-                project,
-                definitions,
-                queues,
-                buildNumber,
-                minTime,
-                maxTime,
-                requestedFor,
-                reasonFilter,
-                statusFilter,
-                resultFilter,
-                top,
-                maxBuildsPerDefinition,
-                deletedFilter,
-                queryOrder,
-                branchName,
-                buildIds,
-                repositoryId,
-                repositoryType);
+            var builder = GetBuilder(project, "build/builds");
 
-            return builds;
-
-            Task processBuilds(Build[] b)
-            {
-                builds.AddRange(b);
-                return Task.CompletedTask;
-            }
+            builder.AppendList("definitions", definitions);
+            builder.AppendList("queues", queues);
+            builder.AppendString("buildNumber", buildNumber);
+            builder.AppendDateTime("minTime", minTime);
+            builder.AppendDateTime("maxTime", maxTime);
+            builder.AppendString("requestedFor", requestedFor);
+            builder.AppendEnum("reasonFilter", reasonFilter);
+            builder.AppendEnum("statusFilter", statusFilter);
+            builder.AppendEnum("resultFilter", resultFilter);
+            builder.AppendInt("$top", top);
+            builder.AppendInt("maxBuildsPerDefinition", maxBuildsPerDefinition);
+            builder.AppendEnum("deletedFilter", deletedFilter);
+            builder.AppendEnum("queryOrder", queryOrder);
+            builder.AppendString("branchName", branchName);
+            builder.AppendList("buildIds", buildIds);
+            builder.AppendString("repositoryId", repositoryId);
+            builder.AppendString("repositoryType", repositoryType);
+            return await ListItemsCore<Build>(builder, limit: top);
         }
 
         public async Task<Build> GetBuildAsync(string project, int buildId)
@@ -290,6 +168,16 @@ namespace DevOps.Util
             await DownloadZipFileAsync(uri, stream);
         }
 
+        public async Task<List<TeamProjectReference>> ListProjectsAsync(ProjectState? stateFilter = null, int? top = null, int? skip = null, bool? getDefaultTeamImageUrl = null)
+        {
+            var builder = GetBuilder(project: null, apiPath: "projects");
+            builder.AppendEnum("stateFilter", stateFilter);
+            builder.AppendInt("$top", top);
+            builder.AppendInt("$skip", skip);
+            builder.AppendBool("getDefaultTeamImageUrl", getDefaultTeamImageUrl);
+            return await ListItemsCore<TeamProjectReference>(builder, limit: top);
+        }
+
         private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);
 
         private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url)).Body;
@@ -365,6 +253,56 @@ namespace DevOps.Util
             await func(stream);
             stream.Position = 0;
             return stream;
+        }
+
+        /// <summary>
+        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
+        /// </summary>
+        private async Task<List<T>> ListItemsCore<T>(
+            RequestBuilder builder, 
+            int? limit = null)
+        {
+            var list = new List<T>();
+            await ListItemsCore<T>(
+                items =>
+                {
+                    list.AddRange(items);
+                    return default;
+                }, builder, limit);
+            return list;
+        }
+
+        /// <summary>
+        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
+        /// </summary>
+        private async Task ListItemsCore<T>(
+            Func<T[], ValueTask> processItems,
+            RequestBuilder builder, 
+            int? limit = null)
+        {
+            Debug.Assert(string.IsNullOrEmpty(builder.ContinuationToken));
+            var count = 0;
+            do
+            {
+                var (json, token) = await GetJsonResultAndContinuationToken(builder.ToString());
+                var root = JObject.Parse(json);
+                var array = (JArray)root["value"];
+                var items = array.ToObject<T[]>();
+                await processItems(items);
+
+                count += items.Length;
+                if (token is null)
+                {
+                    break;
+                }
+
+                if (limit.HasValue && count > limit.Value)
+                {
+                    break;
+                }
+
+                builder.ContinuationToken = token;
+            } while (true);
         }
     }
 }

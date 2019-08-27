@@ -74,7 +74,8 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng2"));
-            var builds = await server.ListBuildsAsync("public", top: 2000);
+            var projects = await server.ListProjectsAsync();
+            var publicProj = projects.Single(x => x.Name == "public");
             using var client = server.CreateHttpClient();
             client.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));

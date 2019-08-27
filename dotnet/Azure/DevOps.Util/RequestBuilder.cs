@@ -68,7 +68,7 @@ namespace DevOps.Util
                     value = Uri.EscapeDataString(value);
                 }
 
-                QueryBuilder.Append($"{name}={value}");
+                QueryBuilder.Append($"{name}={value}&");
             }
         }
 
@@ -76,7 +76,15 @@ namespace DevOps.Util
         {
             if (value.HasValue)
             {
-                QueryBuilder.Append($"{name}={value.Value}");
+                QueryBuilder.Append($"{name}={value.Value}&");
+            }
+        }
+
+        internal void AppendBool(string name, bool? value)
+        {
+            if (value.HasValue)
+            {
+                QueryBuilder.Append($"{name}={value}&");
             }
         }
 
@@ -86,6 +94,7 @@ namespace DevOps.Util
             {
                 QueryBuilder.Append($"{name}=");
                 QueryBuilder.Append(value.Value.UtcDateTime.ToString("o"));
+                QueryBuilder.Append("&");
             }
         }
 
@@ -103,12 +112,16 @@ namespace DevOps.Util
         {
             var builder = new StringBuilder();
             builder.Append("https://dev.azure.com/");
-            builder.Append($"{Organization}/{Project}/_apis/{ApiPath}/?");
-            builder.Append(QueryBuilder.ToString());
-            if (QueryBuilder.Length > 0)
+            if (Project is null)
             {
-                builder.Append("&");
+                builder.Append($"{Organization}/{Project}/_apis/{ApiPath}/?");
             }
+            else
+            {
+                builder.Append($"{Organization}/_apis/{ApiPath}/?");
+            }
+
+            builder.Append(QueryBuilder.ToString());
 
             if (!string.IsNullOrEmpty(ContinuationToken))
             {

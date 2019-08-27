@@ -276,6 +276,9 @@ namespace DevOps.Util
         public ProjectVisibility ProjectVisibility { get; set; }
     }
 
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/core/projects/list?view=azure-devops-rest-5.1#projectstate
+    /// </summary>
     public enum ProjectState
     {
         All,
