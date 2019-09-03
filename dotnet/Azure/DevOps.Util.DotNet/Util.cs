@@ -38,11 +38,7 @@ namespace DevOps.Util.DotNet
 
         public static async Task DoWithTransactionAsync(SqlConnection connection, string transactionName, Func<SqlTransaction, Task> process)
         {
-            if (connection.State != ConnectionState.Open)
-            {
-                await connection.OpenAsync();
-            }
-
+            await connection.EnsureOpenAsync();
             var transaction = connection.BeginTransaction(transactionName);
 
             try
@@ -64,6 +60,17 @@ namespace DevOps.Util.DotNet
 
                 throw;
             }
+        }
+
+        public static async Task DoWithTransactionAsync(SqlConnection connection, string transactionName, Func<SqlTransaction, SqlCommand, Task> process)
+        {
+            await DoWithTransactionAsync(connection, transactionName, async transaction =>
+            {
+                using var command = connection.CreateCommand();
+                command.Connection = connection;
+                command.Transaction = transaction;
+                await process(transaction, command);
+            });
         }
 
         public static ILogger CreateConsoleLogger()

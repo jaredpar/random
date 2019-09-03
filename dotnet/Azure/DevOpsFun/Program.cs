@@ -105,8 +105,20 @@ namespace QueryFun
             /*
             var util = new NGenUtil(await GetToken("azure-devdiv"));
             foreach (var build in await util.ListBuildsAsync(top: 100))
+            using var util = new NGenUtil(await GetToken("azure-devdiv"), await GetToken("scratch-db"));
+            foreach (var build in await util.ListBuildsAsync(top: 1000))
             {
-                var list = await util.GetNGenAssemblyDataAsync(build);
+                if (util.CanBeUploaded(build))
+                {
+                    try
+                    {
+                        await util.UploadBuild(build);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error: {ex.Message}");
+                    }
+                }
             }
 */
 

@@ -18,5 +18,13 @@ namespace DevOps.Util.DotNet
             var realValue = value is null ? DBNull.Value : (object)value.Value;
             collection.AddWithValue(parameterName, realValue);
         }
+
+        public static async ValueTask EnsureOpenAsync(this SqlConnection sqlConnection)
+        {
+            if (sqlConnection.State != ConnectionState.Open)
+            {
+                await sqlConnection.OpenAsync();
+            }
+        }
     }
 }
