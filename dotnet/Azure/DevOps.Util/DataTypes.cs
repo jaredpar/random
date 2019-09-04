@@ -728,5 +728,51 @@ namespace DevOps.Util
         public string Value { get; set; }
     }
 
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/hooks/notifications/create?view=azure-devops-rest-5.1#event
+    /// </summary>
+    public sealed class Event
+    {
+        public string CreatedDate { get; set; }
+        public FormattedEventMessage DetailedMessage { get; set; }
+        public string EventType { get; set; }
+        public string Id { get; set; }
+        public FormattedEventMessage Message { get; set; }
+        public string PublisherId { get; set; }
+        public object Resource { get; set; }
+        public Dictionary<string, ResourceContainer> ResourceContainers { get; set; }
+        public string ResourceVersion { get; set; }
+        public SessionToken SessionToken { get; set; }
+    }
 
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/hooks/notifications/create?view=azure-devops-rest-5.1#formattedeventmessage
+    /// </summary>
+    public sealed class FormattedEventMessage
+    {
+        public string Html { get; set; }
+        public string Markdown { get; set; }
+        public string Text { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/hooks/notifications/create?view=azure-devops-rest-5.1#resourcecontainer
+    /// </summary>
+    public sealed class ResourceContainer
+    {
+        public string BaseUrl { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Url { get; set; }
+    }
+
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/rest/api/azure/devops/hooks/notifications/create?view=azure-devops-rest-5.1#sessiontoken
+    /// </summary>
+    public sealed class SessionToken
+    {
+        public string Error { get; set; }
+        public string Token { get; set; }
+        public string ValidTo { get; set; }
+    }
 }

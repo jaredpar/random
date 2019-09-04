@@ -29,9 +29,9 @@ WHERE DefinitionId = 228 AND BuildStartTime > '2019/08/27'
 */
 
 /*
-SELECT COUNT(*)
+SELECT COUNT(*)P:\random\dotnet\Azure\DevOpsFun\Queries\Scratch.sql
 FROM BuildCloneTime
 WHERE DefinitionId = 228 AND BuildStartTime > '2019/08/27'
 */
 
-SELECT BuildId,  CAST(DECOMPRESS(Content) AS NVARCHAR(MAX)) As Content FROM BuildEvent
+SELECT BuildId From BuildEvent

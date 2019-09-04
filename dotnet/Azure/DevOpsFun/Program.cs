@@ -74,8 +74,9 @@ namespace QueryFun
         private static async Task Scratch()
         {
             using var util = new GeneralUtil(await GetToken("scratch-db").ConfigureAwait(false));
-            await util.UploadBuildEvent(100, "this is a test").ConfigureAwait(false);
-            await util.DumpBuildEvents().ConfigureAwait(false);
+            await util.DumpBuildEventsAsync().ConfigureAwait(false);
+            var list = await util.GetBuildEventsAsync().ConfigureAwait(false);
+            Console.WriteLine(list.Count);
             /*
             var server = new DevOpsServer("dnceng", await GetToken("dnceng2"));
             var projects = await server.ListProjectsAsync();

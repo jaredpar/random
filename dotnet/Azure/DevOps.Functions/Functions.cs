@@ -17,18 +17,17 @@ namespace DevOps.Functions
         [FunctionName("build")]
         public static async Task<IActionResult> OnBuild(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-            ILogger log,
+            ILogger logger,
             [Queue("build-complete", Connection = "AzureWebJobsStorage")] IAsyncCollector<string> queueCollector)
         {
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync().ConfigureAwait(false);
             var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
-            using var generalUtil = new GeneralUtil(connectionString);
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             int id = data.resource.id;
-            /*
             await queueCollector.AddAsync(id.ToString()).ConfigureAwait(false);
-            await generalUtil.UploadBuildEvent(id, requestBody).ConfigureAwait(false);
-            */
+
+            using var generalUtil = new GeneralUtil(connectionString, logger);
+            await generalUtil.UploadBuildEventAsync(id, requestBody).ConfigureAwait(false);
             return new OkResult();
         }
 
