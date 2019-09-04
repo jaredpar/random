@@ -73,6 +73,10 @@ namespace QueryFun
 
         private static async Task Scratch()
         {
+            using var util = new GeneralUtil(await GetToken("scratch-db").ConfigureAwait(false));
+            await util.UploadBuildEvent(100, "this is a test").ConfigureAwait(false);
+            await util.DumpBuildEvents().ConfigureAwait(false);
+            /*
             var server = new DevOpsServer("dnceng", await GetToken("dnceng2"));
             var projects = await server.ListProjectsAsync();
             var publicProj = projects.Single(x => x.Name == "public");
@@ -101,6 +105,7 @@ namespace QueryFun
             var responseContent = await request.Content.ReadAsStringAsync();
             var build = JsonConvert.DeserializeObject<Build>(responseContent);
             var message = request.EnsureSuccessStatusCode();
+            */
 
             /*
             var util = new NGenUtil(await GetToken("azure-devdiv"));

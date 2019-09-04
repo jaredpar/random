@@ -20,10 +20,15 @@ namespace DevOps.Functions
             ILogger log,
             [Queue("build-complete", Connection = "AzureWebJobsStorage")] IAsyncCollector<string> queueCollector)
         {
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync().ConfigureAwait(false);
+            var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
+            using var generalUtil = new GeneralUtil(connectionString);
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             int id = data.resource.id;
-            await queueCollector.AddAsync(id.ToString());
+            /*
+            await queueCollector.AddAsync(id.ToString()).ConfigureAwait(false);
+            await generalUtil.UploadBuildEvent(id, requestBody).ConfigureAwait(false);
+            */
             return new OkResult();
         }
 
