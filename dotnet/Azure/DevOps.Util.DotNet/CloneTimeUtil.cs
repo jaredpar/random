@@ -143,21 +143,24 @@ namespace DevOps.Util.DotNet
             foreach (var record in timeline.Records.Where(x => x.Name == "Checkout" && x.FinishTime is object && x.StartTime is object))
             {
                 var duration = DateTime.Parse(record.FinishTime) - DateTime.Parse(record.StartTime);
+                var startTime = DateTimeOffset.Parse(record.StartTime);
                 var parent = timeline.Records.Single(x => x.Id == record.ParentId);
-                var (fetchSize, minFetchSpeed, maxFetchSpeed) = await GetSizesAsync(record);
+                var (fetchSize, minFetchSpeed, maxFetchSpeed, averageFetchSpeed) = await GetSizesAsync(record);
                 var jobCloneTime = new JobCloneTime(
                     parent.Name,
+                    startTime,
                     duration,
                     fetchSize,
                     minFetchSpeed: minFetchSpeed,
-                    maxFetchSpeed: maxFetchSpeed);
+                    maxFetchSpeed: maxFetchSpeed,
+                    averageFetchSpeed: averageFetchSpeed);
                 list.Add(jobCloneTime);
             }
 
             return list;
         }
 
-        private async Task<(double? fetchSize, double? minFetchSpeed, double? maxFetchSpeed)> GetSizesAsync(TimelineRecord record)
+        private async Task<(double? FetchSize, double? MinFetchSpeed, double? MaxFetchSpeed, double? AverageFetchSpeed)> GetSizesAsync(TimelineRecord record)
         {
             try
             {
@@ -165,9 +168,8 @@ namespace DevOps.Util.DotNet
                 using var reader = new StreamReader(stream);
                 var sizeAtom = @"[\d.]+\s+[GMK]iB";
                 var regex = new Regex($@"Receiving objects:\s+\d+% .*,\s+({sizeAtom})\s+\|\s+({sizeAtom})/s(,\s*done)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                var fetchSpeeds = new List<double>();
                 double? fetchSize = null;
-                double? minFetchSpeed = null;
-                double? maxFetchSpeed = null;
 
                 do
                 {
@@ -182,9 +184,12 @@ namespace DevOps.Util.DotNet
                     {
                         var size= parseSize(match.Groups[1].Value);
                         var speed = parseSize(match.Groups[2].Value);
+                        if (speed.HasValue)
+                        {
+                            fetchSpeeds.Add(speed.Value);
+                        }
+
                         updateIfBigger(ref fetchSize, size);
-                        updateIfSmaller(ref minFetchSpeed, speed);
-                        updateIfBigger(ref maxFetchSpeed, speed);
 
                         if (!string.IsNullOrEmpty(match.Groups[3].Value))
                         {
@@ -193,12 +198,21 @@ namespace DevOps.Util.DotNet
                     }
                 } while (true);
 
-                return (fetchSize, minFetchSpeed, maxFetchSpeed);
+                if (fetchSpeeds.Count == 0)
+                {
+                    return (fetchSize, null, null, null);
+                }
+
+                return (
+                    fetchSize,
+                    fetchSpeeds.Min(),
+                    fetchSpeeds.Max(),
+                    fetchSpeeds.Average());
             }
             catch (Exception ex)
             {
                 Logger.LogInformation($"Error parsing fetch times: {ex.Message}");
-                return (null, null, null);
+                return (null, null, null, null);
             }
 
             static void updateIfBigger(ref double? storage, double? value)
@@ -209,19 +223,6 @@ namespace DevOps.Util.DotNet
                 }
 
                 if (storage is null || storage.Value < value)
-                {
-                    storage = value;
-                }
-            }
-
-            static void updateIfSmaller(ref double? storage, double? value)
-            {
-                if (value is null)
-                {
-                    return;
-                }
-
-                if (storage is null || storage.Value > value)
                 {
                     storage = value;
                 }
@@ -243,17 +244,19 @@ namespace DevOps.Util.DotNet
 
         private async Task UploadJobCloneTime(SqlTransaction transaction, int buildId, int definitionId, DateTimeOffset buildStartTime, Uri buildUri, JobCloneTime jobCloneTime)
         {
-            var query = "INSERT INTO dbo.JobCloneTime (BuildId, DefinitionId, Name, Duration, BuildStartTime, BuildUri, FetchSize, MinFetchSpeed, MaxFetchSpeed) VALUES (@BuildId, @DefinitionId, @Name, @Duration, @BuildStartTime, @BuildUri, @FetchSize, @MinFetchSpeed, @MaxFetchSpeed)";
+            var query = "INSERT INTO dbo.JobCloneTime (BuildId, DefinitionId, Name, Duration, BuildStartTime, JobStartTime, BuildUri, FetchSize, MinFetchSpeed, MaxFetchSpeed, AverageFetchSpeed) VALUES (@BuildId, @DefinitionId, @Name, @Duration, @BuildStartTime, @JobStartTime, @BuildUri, @FetchSize, @MinFetchSpeed, @MaxFetchSpeed, @AverageFetchSpeed)";
             using var command = new SqlCommand(query, transaction.Connection, transaction);
             command.Parameters.AddWithValue("@BuildId", buildId);
             command.Parameters.AddWithValue("@DefinitionId", definitionId);
             command.Parameters.AddWithValue("@Name", jobCloneTime.JobName);
             command.Parameters.AddWithValue("@Duration", jobCloneTime.Duration);
             command.Parameters.AddWithValue("@BuildStartTime", buildStartTime);
+            command.Parameters.AddWithValue("@JobStartTime", jobCloneTime.StartTime);
             command.Parameters.AddWithValue("@BuildUri", buildUri.ToString());
             command.Parameters.AddWithValueNullable("@FetchSize", jobCloneTime.FetchSize);
             command.Parameters.AddWithValueNullable("@MinFetchSpeed", jobCloneTime.MinFetchSpeed);
             command.Parameters.AddWithValueNullable("@MaxFetchSpeed", jobCloneTime.MaxFetchSpeed);
+            command.Parameters.AddWithValueNullable("@AverageFetchSpeed", jobCloneTime.AverageFetchSpeed);
             var result = await command.ExecuteNonQueryAsync();
             if (result < 0)
             {

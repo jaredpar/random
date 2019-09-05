@@ -73,10 +73,20 @@ namespace QueryFun
 
         private static async Task Scratch()
         {
+            using var util = new CloneTimeUtil(await GetToken("scratch-db").ConfigureAwait(false));
+            foreach (var build in await util.DevOpsServer.ListBuildsAsync("public", top: 100).ConfigureAwait(false))
+            {
+                var jobs = await util.GetJobCloneTimesAsync(build).ConfigureAwait(false);
+
+            }
+
+
+            /*
             using var util = new GeneralUtil(await GetToken("scratch-db").ConfigureAwait(false));
             await util.DumpBuildEventsAsync().ConfigureAwait(false);
             var list = await util.GetBuildEventsAsync().ConfigureAwait(false);
             Console.WriteLine(list.Count);
+            */
             /*
             var server = new DevOpsServer("dnceng", await GetToken("dnceng2"));
             var projects = await server.ListProjectsAsync();
