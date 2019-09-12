@@ -266,7 +266,8 @@ namespace DevOps.Util
     /// </summary>
     public sealed class TaskOrchestrationPlanReference
     {
-        // TODO
+        public string PlanId { get; set; }
+        public int OrchestrationType { get; set; }
     }
 
     /// <summary>

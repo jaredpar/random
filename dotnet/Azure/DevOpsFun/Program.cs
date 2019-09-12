@@ -73,12 +73,22 @@ namespace QueryFun
 
         private static async Task Scratch()
         {
+            var server = new DevOpsServer("dnceng");
+            // var definition = await server.GetDefinitionAsync("public", 15);
+            // var build = await server.GetBuildAsync("public", 350049);
+            await server.DownloadBuildLogAsync("public", 351250, 1, @"p:\temp\log.txt");
+
+
+            // await DumpTimeline("internal", 338174, await GetToken("dnceng-internal").ConfigureAwait(false));
+
+            /*
             using var util = new CloneTimeUtil(await GetToken("scratch-db").ConfigureAwait(false));
             foreach (var build in await util.DevOpsServer.ListBuildsAsync("public", top: 100).ConfigureAwait(false))
             {
                 var jobs = await util.GetJobCloneTimesAsync(build).ConfigureAwait(false);
 
             }
+            */
 
 
             /*
@@ -346,9 +356,9 @@ namespace QueryFun
             }
         }
 
-        private static async Task DumpTimeline(string project, int buildId)
+        private static async Task DumpTimeline(string project, int buildId, string personalAccessToken = null)
         {
-            var server = new DevOpsServer(Organization);
+            var server = new DevOpsServer(Organization, personalAccessToken);
 
             var timeline = await server.GetTimelineAsync(project, buildId);
             await DumpTimeline("", timeline);

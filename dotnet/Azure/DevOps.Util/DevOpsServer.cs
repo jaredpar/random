@@ -68,64 +68,80 @@ namespace DevOps.Util
             builder.AppendList("buildIds", buildIds);
             builder.AppendString("repositoryId", repositoryId);
             builder.AppendString("repositoryType", repositoryType);
-            return await ListItemsCore<Build>(builder, limit: top);
+            return await ListItemsCore<Build>(builder, limit: top).ConfigureAwait(false);
         }
 
-        public async Task<Build> GetBuildAsync(string project, int buildId)
+        public Task<Build> GetBuildAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}");
-            return await GetJsonResult<Build>(builder);
+            return GetJsonResult<Build>(builder);
         }
 
-        public async Task<BuildLog[]> GetBuildLogsAsync(string project, int buildId)
+        public Task<BuildLog[]> GetBuildLogsAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
-            return await GetJsonArrayResult<BuildLog>(builder);
+            return GetJsonArrayResult<BuildLog>(builder);
         }
 
-        public async Task DownloadBuildLogsAsync(string project, int buildId, Stream stream)
+        public Task DownloadBuildLogsAsync(string project, int buildId, Stream stream)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
-            await DownloadZipFileAsync(builder.ToString(), stream);
+            return DownloadZipFileAsync(builder.ToString(), stream);
         }
 
-        public async Task<MemoryStream> DownloadBuildLogsAsync(string project, int buildId) =>
-            await WithMemoryStream(async s => await DownloadBuildLogsAsync(project, buildId));
+        public Task<MemoryStream> DownloadBuildLogsAsync(string project, int buildId) =>
+            WithMemoryStream(s => DownloadBuildLogsAsync(project, buildId));
+
+        private RequestBuilder GetBuildLogRequestBuilder(string project, int buildId, int logId) =>
+            GetBuilder(project, $"build/builds/{buildId}/logs/{logId}");
 
         public async Task<string> GetBuildLogAsync(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
         {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/logs/{logId}");
+            var builder = GetBuildLogRequestBuilder(project, buildId, logId);
             builder.AppendInt("startLine", startLine);
             builder.AppendInt("endLine", endLine);
 
             using var client = CreateHttpClient();
-            using (var response = await client.GetAsync(builder.ToString()))
+            using (var response = await client.GetAsync(builder.ToString()).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                string responseBody = await response.Content.ReadAsStringAsync();
+                string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 return responseBody;
             }
         }
 
-        public async Task<Timeline> GetTimelineAsync(string project, int buildId)
+        public Task DownloadBuildLogAsync(string project, int buildId, int logId, Stream destinationStream) =>
+            DownloadFileAsync(
+                GetBuildLogRequestBuilder(project, buildId, logId).ToString(),
+                destinationStream);
+
+        public Task DownloadBuildLogAsync(string project, int buildId, int logId, string destinationFilePath) =>
+            WithFileStream(
+                destinationFilePath,
+                stream => DownloadBuildLogAsync(project, buildId, logId, stream));
+
+        public Task<MemoryStream> DownloadBuildLogAsync(string project, int buildId, int logId) =>
+            WithMemoryStream(stream => DownloadBuildLogAsync(project, buildId, logId, stream));
+
+        public Task<Timeline> GetTimelineAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/timeline");
-            return await GetJsonResult<Timeline>(builder);
+            return GetJsonResult<Timeline>(builder);
         }
 
-        public async Task<Timeline> GetTimelineAsync(Build build) => await GetTimelineAsync(build.Project.Name, build.Id);
+        public Task<Timeline> GetTimelineAsync(Build build) => GetTimelineAsync(build.Project.Name, build.Id);
 
-        public async Task<Timeline> GetTimelineAsync(string project, int buildId, string timelineId, int? changeId = null)
+        public Task<Timeline> GetTimelineAsync(string project, int buildId, string timelineId, int? changeId = null)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/timeline/{timelineId}");
             builder.AppendInt("changeId", changeId);
-            return await GetJsonResult<Timeline>(builder);
+            return GetJsonResult<Timeline>(builder);
         }
 
-        public async Task<List<BuildArtifact>> ListArtifactsAsync(string project, int buildId)
+        public Task<List<BuildArtifact>> ListArtifactsAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}/artifacts");
-            return await ListItemsCore<BuildArtifact>(builder);
+            return ListItemsCore<BuildArtifact>(builder);
         }
 
         public async Task<List<BuildArtifact>> ListArtifactsAsync(Build build) => await ListArtifactsAsync(build.Project.Name, build.Id);
@@ -140,30 +156,30 @@ namespace DevOps.Util
         public async Task<BuildArtifact> GetArtifactAsync(string project, int buildId, string artifactName)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
-            var json = await GetJsonResult(uri);
+            var json = await GetJsonResult(uri).ConfigureAwait(false);
             return JsonConvert.DeserializeObject<BuildArtifact>(json);
         }
 
-        public async Task<MemoryStream> DownloadArtifactAsync(string project, int buildId, string artifactName) =>
-            await WithMemoryStream(async s => await DownloadArtifactAsync(project, buildId, artifactName, s));
+        public Task<MemoryStream> DownloadArtifactAsync(string project, int buildId, string artifactName) =>
+            WithMemoryStream(s => DownloadArtifactAsync(project, buildId, artifactName, s));
 
-        public async Task DownloadArtifactAsync(string project, int buildId, string artifactName, Stream stream)
+        public Task DownloadArtifactAsync(string project, int buildId, string artifactName, Stream stream)
         {
             var uri = GetArtifactUri(project, buildId, artifactName);
-            await DownloadZipFileAsync(uri, stream);
+            return DownloadZipFileAsync(uri, stream);
         }
 
-        public async Task<List<TeamProjectReference>> ListProjectsAsync(ProjectState? stateFilter = null, int? top = null, int? skip = null, bool? getDefaultTeamImageUrl = null)
+        public Task<List<TeamProjectReference>> ListProjectsAsync(ProjectState? stateFilter = null, int? top = null, int? skip = null, bool? getDefaultTeamImageUrl = null)
         {
             var builder = GetBuilder(project: null, apiPath: "projects");
             builder.AppendEnum("stateFilter", stateFilter);
             builder.AppendInt("$top", top);
             builder.AppendInt("$skip", skip);
             builder.AppendBool("getDefaultTeamImageUrl", getDefaultTeamImageUrl);
-            return await ListItemsCore<TeamProjectReference>(builder, limit: top);
+            return ListItemsCore<TeamProjectReference>(builder, limit: top);
         }
 
-        public async Task<List<DefinitionReference>> ListDefinitionsAsync(
+        public Task<List<DefinitionReference>> ListDefinitionsAsync(
             string project,
             IEnumerable<int> definitions = null,
             int? top = null)
@@ -171,32 +187,32 @@ namespace DevOps.Util
             var builder = GetBuilder(project, "build/definitions");
             builder.AppendList("definitionIds", definitions);
             builder.AppendInt("$top", top);
-            return await ListItemsCore<DefinitionReference>(builder, limit: top);
+            return ListItemsCore<DefinitionReference>(builder, limit: top);
         }
 
-        public async Task<BuildDefinition> GetDefinitionAsync(
+        public Task<BuildDefinition> GetDefinitionAsync(
             string project,
             int definitionId,
             int? revision = null)
         {
             var builder = GetBuilder(project, $"build//definitions/{definitionId}");
             builder.AppendInt("revision", revision);
-            return await GetJsonResult<BuildDefinition>(builder);
+            return GetJsonResult<BuildDefinition>(builder);
         }
 
         private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);
 
-        private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url)).Body;
+        private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url).ConfigureAwait(false)).Body;
 
         private async Task<T> GetJsonResult<T>(RequestBuilder builder)
         {
-            var json = await GetJsonResult(builder.ToString());
+            var json = await GetJsonResult(builder.ToString()).ConfigureAwait(false);
             return JsonConvert.DeserializeObject<T>(json);
         }
 
         private async Task<T[]> GetJsonArrayResult<T>(RequestBuilder builder)
         {
-            var json = await GetJsonResult(builder.ToString());
+            var json = await GetJsonResult(builder.ToString()).ConfigureAwait(false);
             var root = JObject.Parse(json);
             var array = (JArray)root["value"];
             return array.ToObject<T[]>();
@@ -208,7 +224,7 @@ namespace DevOps.Util
             client.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
-            using var response = await client.GetAsync(url);
+            using var response = await client.GetAsync(url).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             string continuationToken = null;
@@ -217,22 +233,22 @@ namespace DevOps.Util
                 continuationToken = values.FirstOrDefault();
             }
 
-            string responseBody = await response.Content.ReadAsStringAsync();
+            string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             return (responseBody, continuationToken);
         }
 
         public async Task DownloadFileAsync(string uri, Stream destinationStream)
         {
             using var client = CreateHttpClient();
-            using (var response = await client.GetAsync(uri))
+            using (var response = await client.GetAsync(uri).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                await response.Content.CopyToAsync(destinationStream);
+                await response.Content.CopyToAsync(destinationStream).ConfigureAwait(false);
             }
         }
 
-        public async Task<MemoryStream> DownloadFileAsync(string uri) =>
-            await WithMemoryStream(async s => await DownloadFileAsync(uri, s));
+        public Task<MemoryStream> DownloadFileAsync(string uri) =>
+            WithMemoryStream(s => DownloadFileAsync(uri, s));
 
         public async Task DownloadZipFileAsync(string uri, Stream destinationStream)
         {
@@ -240,10 +256,10 @@ namespace DevOps.Util
             client.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/zip"));
 
-            using (var response = await client.GetAsync(uri))
+            using (var response = await client.GetAsync(uri).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                await response.Content.CopyToAsync(destinationStream);
+                await response.Content.CopyToAsync(destinationStream).ConfigureAwait(false);
             }
         }
 
@@ -254,8 +270,11 @@ namespace DevOps.Util
             return client;
         }
 
-        public async Task<MemoryStream> DownloadZipFileAsync(string uri) =>
-            await WithMemoryStream(async s => await DownloadFileAsync(uri, s));
+        public Task DownloadZipFileAsync(string uri, string destinationFilePath) =>
+            WithFileStream(destinationFilePath, fileStream => DownloadZipFileAsync(uri, fileStream));
+
+        public Task<MemoryStream> DownloadZipFileAsync(string uri) =>
+            WithMemoryStream(s => DownloadFileAsync(uri, s));
 
         private void AddAuthentication(HttpClient client)
         {
@@ -270,9 +289,15 @@ namespace DevOps.Util
         private async Task<MemoryStream> WithMemoryStream(Func<MemoryStream, Task> func)
         {
             var stream = new MemoryStream();
-            await func(stream);
+            await func(stream).ConfigureAwait(false);
             stream.Position = 0;
             return stream;
+        }
+
+        private async Task WithFileStream(string destinationFilePath, Func<FileStream, Task> func)
+        {
+            using var fileStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write);
+            await func(fileStream).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -288,7 +313,7 @@ namespace DevOps.Util
                 {
                     list.AddRange(items);
                     return default;
-                }, builder, limit);
+                }, builder, limit).ConfigureAwait(false);
             return list;
         }
 
@@ -304,11 +329,11 @@ namespace DevOps.Util
             var count = 0;
             do
             {
-                var (json, token) = await GetJsonResultAndContinuationToken(builder.ToString());
+                var (json, token) = await GetJsonResultAndContinuationToken(builder.ToString()).ConfigureAwait(false);
                 var root = JObject.Parse(json);
                 var array = (JArray)root["value"];
                 var items = array.ToObject<T[]>();
-                await processItems(items);
+                await processItems(items).ConfigureAwait(false);
 
                 count += items.Length;
                 if (token is null)

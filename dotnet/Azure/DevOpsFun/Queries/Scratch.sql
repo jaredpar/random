@@ -34,4 +34,7 @@ FROM BuildCloneTime
 WHERE DefinitionId = 228 AND BuildStartTime > '2019/08/27'
 */
 
-SELECT BuildId From BuildEvent
+SELECT BuildId 
+FROM JobCloneTime
+WHERE AverageFetchSpeed IS NOT NULL
+GROUP BY BuildId
