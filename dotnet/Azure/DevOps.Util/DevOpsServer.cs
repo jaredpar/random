@@ -2,13 +2,8 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,338 +11,214 @@ namespace DevOps.Util
 {
     public sealed class DevOpsServer
     {
-        private string PersonalAccessToken { get; }
         public string Organization { get; }
 
-        public DevOpsServer(string organization, string personalAccessToken = null)
+        public DevOpsServer(string organization)
         {
             Organization = organization;
-            PersonalAccessToken = personalAccessToken;
         }
 
         /// <summary>
-        /// List the builds that meet the provided query parameters
+        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
         /// </summary>
-        /// <param name="buildNumber">Supports int based build numbers or * prefixes</param>
-        public async Task<List<Build>> ListBuildsAsync(
-            string project,
-            IEnumerable<int> definitions = null,
-            IEnumerable<int> queues = null,
-            string buildNumber = null,
-            DateTimeOffset? minTime = null,
-            DateTimeOffset? maxTime = null,
-            string requestedFor = null,
-            BuildReason? reasonFilter = null,
-            BuildStatus? statusFilter = null,
-            BuildResult? resultFilter = null,
-            int? top = null,
-            int? maxBuildsPerDefinition = null,
-            QueryDeletedOption? deletedFilter = null,
-            BuildQueryOrder? queryOrder = null,
-            string branchName = null,
-            IEnumerable<int> buildIds = null,
-            string repositoryId = null,
-            string repositoryType = null)
+        public async Task<string> ListBuildRaw(string project, IEnumerable<int> definitions = null, int? top = null)
         {
-            var builder = GetBuilder(project, "build/builds");
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append("/build/builds?");
 
-            builder.AppendList("definitions", definitions);
-            builder.AppendList("queues", queues);
-            builder.AppendString("buildNumber", buildNumber);
-            builder.AppendDateTime("minTime", minTime);
-            builder.AppendDateTime("maxTime", maxTime);
-            builder.AppendString("requestedFor", requestedFor);
-            builder.AppendEnum("reasonFilter", reasonFilter);
-            builder.AppendEnum("statusFilter", statusFilter);
-            builder.AppendEnum("resultFilter", resultFilter);
-            builder.AppendInt("$top", top);
-            builder.AppendInt("maxBuildsPerDefinition", maxBuildsPerDefinition);
-            builder.AppendEnum("deletedFilter", deletedFilter);
-            builder.AppendEnum("queryOrder", queryOrder);
-            builder.AppendString("branchName", branchName);
-            builder.AppendList("buildIds", buildIds);
-            builder.AppendString("repositoryId", repositoryId);
-            builder.AppendString("repositoryType", repositoryType);
-            return await ListItemsCore<Build>(builder, limit: top).ConfigureAwait(false);
-        }
-
-        public Task<Build> GetBuildAsync(string project, int buildId)
-        {
-            var builder = GetBuilder(project, $"build/builds/{buildId}");
-            return GetJsonResult<Build>(builder);
-        }
-
-        public Task<BuildLog[]> GetBuildLogsAsync(string project, int buildId)
-        {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
-            return GetJsonArrayResult<BuildLog>(builder);
-        }
-
-        public Task DownloadBuildLogsAsync(string project, int buildId, Stream stream)
-        {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/logs");
-            return DownloadZipFileAsync(builder.ToString(), stream);
-        }
-
-        public Task<MemoryStream> DownloadBuildLogsAsync(string project, int buildId) =>
-            WithMemoryStream(s => DownloadBuildLogsAsync(project, buildId));
-
-        private RequestBuilder GetBuildLogRequestBuilder(string project, int buildId, int logId) =>
-            GetBuilder(project, $"build/builds/{buildId}/logs/{logId}");
-
-        public async Task<string> GetBuildLogAsync(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
-        {
-            var builder = GetBuildLogRequestBuilder(project, buildId, logId);
-            builder.AppendInt("startLine", startLine);
-            builder.AppendInt("endLine", endLine);
-
-            using var client = CreateHttpClient();
-            using (var response = await client.GetAsync(builder.ToString()).ConfigureAwait(false))
+            if (definitions?.Any() == true)
             {
-                response.EnsureSuccessStatusCode();
-                string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                return responseBody;
+                builder.Append("definitions=");
+                var first = true;
+                foreach (var definition in definitions)
+                {
+                    if (!first)
+                    {
+                        builder.Append(",");
+                    }
+                    builder.Append(definition);
+                    first = false;
+                }
+                builder.Append("&");
             }
+
+            if (top.HasValue)
+            {
+                builder.Append($"$top={top.Value}&");
+            }
+
+            builder.Append("api-version=5.0");
+            return await GetJsonResult(builder.ToString());
         }
 
-        public Task DownloadBuildLogAsync(string project, int buildId, int logId, Stream destinationStream) =>
-            DownloadFileAsync(
-                GetBuildLogRequestBuilder(project, buildId, logId).ToString(),
-                destinationStream);
-
-        public Task DownloadBuildLogAsync(string project, int buildId, int logId, string destinationFilePath) =>
-            WithFileStream(
-                destinationFilePath,
-                stream => DownloadBuildLogAsync(project, buildId, logId, stream));
-
-        public Task<MemoryStream> DownloadBuildLogAsync(string project, int buildId, int logId) =>
-            WithMemoryStream(stream => DownloadBuildLogAsync(project, buildId, logId, stream));
-
-        public Task<Timeline> GetTimelineAsync(string project, int buildId)
+        /// <summary>
+        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
+        /// </summary>
+        public async Task<Build[]> ListBuild(string project, IEnumerable<int> definitions = null, int? top = null)
         {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/timeline");
-            return GetJsonResult<Timeline>(builder);
-        }
-
-        public Task<Timeline> GetTimelineAsync(Build build) => GetTimelineAsync(build.Project.Name, build.Id);
-
-        public Task<Timeline> GetTimelineAsync(string project, int buildId, string timelineId, int? changeId = null)
-        {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/timeline/{timelineId}");
-            builder.AppendInt("changeId", changeId);
-            return GetJsonResult<Timeline>(builder);
-        }
-
-        public Task<List<BuildArtifact>> ListArtifactsAsync(string project, int buildId)
-        {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/artifacts");
-            return ListItemsCore<BuildArtifact>(builder);
-        }
-
-        public async Task<List<BuildArtifact>> ListArtifactsAsync(Build build) => await ListArtifactsAsync(build.Project.Name, build.Id);
-
-        private string GetArtifactUri(string project, int buildId, string artifactName)
-        {
-            var builder = GetBuilder(project, $"build/builds/{buildId}/artifacts");
-            builder.AppendString("artifactName", artifactName);
-            return builder.ToString();
-        }
-
-        public async Task<BuildArtifact> GetArtifactAsync(string project, int buildId, string artifactName)
-        {
-            var uri = GetArtifactUri(project, buildId, artifactName);
-            var json = await GetJsonResult(uri).ConfigureAwait(false);
-            return JsonConvert.DeserializeObject<BuildArtifact>(json);
-        }
-
-        public Task<MemoryStream> DownloadArtifactAsync(string project, int buildId, string artifactName) =>
-            WithMemoryStream(s => DownloadArtifactAsync(project, buildId, artifactName, s));
-
-        public Task DownloadArtifactAsync(string project, int buildId, string artifactName, Stream stream)
-        {
-            var uri = GetArtifactUri(project, buildId, artifactName);
-            return DownloadZipFileAsync(uri, stream);
-        }
-
-        public Task<List<TeamProjectReference>> ListProjectsAsync(ProjectState? stateFilter = null, int? top = null, int? skip = null, bool? getDefaultTeamImageUrl = null)
-        {
-            var builder = GetBuilder(project: null, apiPath: "projects");
-            builder.AppendEnum("stateFilter", stateFilter);
-            builder.AppendInt("$top", top);
-            builder.AppendInt("$skip", skip);
-            builder.AppendBool("getDefaultTeamImageUrl", getDefaultTeamImageUrl);
-            return ListItemsCore<TeamProjectReference>(builder, limit: top);
-        }
-
-        public Task<List<DefinitionReference>> ListDefinitionsAsync(
-            string project,
-            IEnumerable<int> definitions = null,
-            int? top = null)
-        {
-            var builder = GetBuilder(project, "build/definitions");
-            builder.AppendList("definitionIds", definitions);
-            builder.AppendInt("$top", top);
-            return ListItemsCore<DefinitionReference>(builder, limit: top);
-        }
-
-        public Task<BuildDefinition> GetDefinitionAsync(
-            string project,
-            int definitionId,
-            int? revision = null)
-        {
-            var builder = GetBuilder(project, $"build//definitions/{definitionId}");
-            builder.AppendInt("revision", revision);
-            return GetJsonResult<BuildDefinition>(builder);
-        }
-
-        private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);
-
-        private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url).ConfigureAwait(false)).Body;
-
-        private async Task<T> GetJsonResult<T>(RequestBuilder builder)
-        {
-            var json = await GetJsonResult(builder.ToString()).ConfigureAwait(false);
-            return JsonConvert.DeserializeObject<T>(json);
-        }
-
-        private async Task<T[]> GetJsonArrayResult<T>(RequestBuilder builder)
-        {
-            var json = await GetJsonResult(builder.ToString()).ConfigureAwait(false);
-            var root = JObject.Parse(json);
+            var root = JObject.Parse(await ListBuildRaw(project, definitions, top));
             var array = (JArray)root["value"];
-            return array.ToObject<T[]>();
+            return array.ToObject<Build[]>();
         }
 
-        private async Task<(string Body, string ContinuationToken)> GetJsonResultAndContinuationToken(string url)
+        public async Task<string> GetBuildLogsRaw(string project, int buildId)
         {
-            using var client = CreateHttpClient();
-            client.DefaultRequestHeaders.Accept.Add(
-                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/logs?api-version=5.0");
+            return await GetJsonResult(builder.ToString());
+        }
 
-            using var response = await client.GetAsync(url).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+        public async Task<BuildLog[]> GetBuildLogs(string project, int buildId)
+        {
+            var root = JObject.Parse(await GetBuildLogsRaw(project, buildId));
+            var array = (JArray)root["value"];
+            return array.ToObject<BuildLog[]>();
+        }
 
-            string continuationToken = null;
-            if (response.Headers.TryGetValues("x-ms-continuationtoken", out var values))
+        public async Task<string> GetBuildLog(string project, int buildId, int logId, int? startLine = null, int? endLine = null)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/logs/{logId}?");
+
+            var first = true;
+            if (startLine.HasValue)
             {
-                continuationToken = values.FirstOrDefault();
+                builder.Append($"startLine={startLine}");
+                first = false;
             }
 
-            string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            return (responseBody, continuationToken);
-        }
-
-        public async Task DownloadFileAsync(string uri, Stream destinationStream)
-        {
-            using var client = CreateHttpClient();
-            using (var response = await client.GetAsync(uri).ConfigureAwait(false))
+            if (endLine.HasValue)
             {
-                response.EnsureSuccessStatusCode();
-                await response.Content.CopyToAsync(destinationStream).ConfigureAwait(false);
-            }
-        }
-
-        public Task<MemoryStream> DownloadFileAsync(string uri) =>
-            WithMemoryStream(s => DownloadFileAsync(uri, s));
-
-        public async Task DownloadZipFileAsync(string uri, Stream destinationStream)
-        {
-            using var client = CreateHttpClient();
-            client.DefaultRequestHeaders.Accept.Add(
-                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/zip"));
-
-            using (var response = await client.GetAsync(uri).ConfigureAwait(false))
-            {
-                response.EnsureSuccessStatusCode();
-                await response.Content.CopyToAsync(destinationStream).ConfigureAwait(false);
-            }
-        }
-
-        public HttpClient CreateHttpClient()
-        {
-            var client = new HttpClient();
-            AddAuthentication(client);
-            return client;
-        }
-
-        public Task DownloadZipFileAsync(string uri, string destinationFilePath) =>
-            WithFileStream(destinationFilePath, fileStream => DownloadZipFileAsync(uri, fileStream));
-
-        public Task<MemoryStream> DownloadZipFileAsync(string uri) =>
-            WithMemoryStream(s => DownloadFileAsync(uri, s));
-
-        private void AddAuthentication(HttpClient client)
-        {
-            if (!string.IsNullOrEmpty(PersonalAccessToken))
-            {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-                    "Basic",
-                    Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($":{PersonalAccessToken}")));
-            }
-        }
-
-        private async Task<MemoryStream> WithMemoryStream(Func<MemoryStream, Task> func)
-        {
-            var stream = new MemoryStream();
-            await func(stream).ConfigureAwait(false);
-            stream.Position = 0;
-            return stream;
-        }
-
-        private async Task WithFileStream(string destinationFilePath, Func<FileStream, Task> func)
-        {
-            using var fileStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write);
-            await func(fileStream).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
-        /// </summary>
-        private async Task<List<T>> ListItemsCore<T>(
-            RequestBuilder builder, 
-            int? limit = null)
-        {
-            var list = new List<T>();
-            await ListItemsCore<T>(
-                items =>
+                if (!first)
                 {
-                    list.AddRange(items);
-                    return default;
-                }, builder, limit).ConfigureAwait(false);
-            return list;
-        }
-
-        /// <summary>
-        /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
-        /// </summary>
-        private async Task ListItemsCore<T>(
-            Func<T[], ValueTask> processItems,
-            RequestBuilder builder, 
-            int? limit = null)
-        {
-            Debug.Assert(string.IsNullOrEmpty(builder.ContinuationToken));
-            var count = 0;
-            do
-            {
-                var (json, token) = await GetJsonResultAndContinuationToken(builder.ToString()).ConfigureAwait(false);
-                var root = JObject.Parse(json);
-                var array = (JArray)root["value"];
-                var items = array.ToObject<T[]>();
-                await processItems(items).ConfigureAwait(false);
-
-                count += items.Length;
-                if (token is null)
-                {
-                    break;
+                    builder.Append("&");
                 }
 
-                if (limit.HasValue && count > limit.Value)
-                {
-                    break;
-                }
+                builder.Append($"endLine={endLine}");
+                first = false;
+            }
 
-                builder.ContinuationToken = token;
-            } while (true);
+            if (!first)
+            {
+                builder.Append("&");
+            }
+
+            builder.Append("api-version=5.0");
+            using (var client = new HttpClient())
+            {
+                using (var response = await client.GetAsync(builder.ToString()))
+                {
+                    response.EnsureSuccessStatusCode();
+                    string responseBody = await response.Content.ReadAsStringAsync();
+                    return responseBody;
+                }
+            }
+        }
+
+        public async Task<string> GetTimelineRaw(string project, int buildId)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/timeline?api-version=5.0");
+            return await GetJsonResult(builder.ToString());
+        }
+
+        public async Task<string> GetTimelineRaw(string project, int buildId, string timelineId, int? changeId = null)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/timeline/{timelineId}?");
+
+            if (changeId.HasValue)
+            {
+                builder.Append($"changeId={changeId}&");
+            }
+
+            return await GetJsonResult(builder.ToString());
+        }
+
+        public async Task<Timeline> GetTimeline(string project, int buildId)
+        {
+            var json = await GetTimelineRaw(project, buildId);
+            return JsonConvert.DeserializeObject<Timeline>(json);
+        }
+
+        public async Task<Timeline> GetTimeline(string project, int buildId, string timelineId, int? changeId = null)
+        {
+            var json = await GetTimelineRaw(project, buildId, timelineId, changeId);
+            return JsonConvert.DeserializeObject<Timeline>(json);
+        }
+
+        public async Task<string> ListArtifactsRaw(string project, int buildId)
+        {
+            var builder = GetProjectApiRootBuilder(project);
+            builder.Append($"/build/builds/{buildId}/artifacts?api-version=5.0");
+            return await GetJsonResult(builder.ToString());
+        }
+
+        public async Task<BuildArtifact[]> ListArtifacts(string project, int buildId)
+        {
+            var root = JObject.Parse(await ListArtifactsRaw(project, buildId));
+            var array = (JArray)root["value"];
+            return array.ToObject<BuildArtifact[]>();
+        }
+
+        private StringBuilder GetProjectApiRootBuilder(string project)
+        {
+            var builder = new StringBuilder();
+            builder.Append($"https://dev.azure.com/{Organization}/{project}/_apis");
+            return builder;
+        }
+
+        private async Task<string> GetJsonResult(string uri)
+        {
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+                using (var response = await client.GetAsync(uri))
+                {
+                    response.EnsureSuccessStatusCode();
+                    string responseBody = await response.Content.ReadAsStringAsync();
+                    return responseBody;
+                }
+            }
+        }
+
+        private void Test()
+        {
+            var a =𠀀𠀁𠀂𠀃𪛑𪛒𪛓𪛔𪛕𪛖;
+            Console.WriteLine(a);
         }
     }
+
+
+    /*
+	try
+	{
+		var personalaccesstoken = "PAT_FROM_WEBSITE";
+
+		using (HttpClient client = new HttpClient())
+		{
+			client.DefaultRequestHeaders.Accept.Add(
+				new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic",
+				Convert.ToBase64String(
+					System.Text.ASCIIEncoding.ASCII.GetBytes(
+						string.Format("{0}:{1}", "", personalaccesstoken))));
+
+			using (HttpResponseMessage response = await client.GetAsync(
+						"https://dev.azure.com/{organization}/_apis/projects"))
+			{
+				response.EnsureSuccessStatusCode();
+				string responseBody = await response.Content.ReadAsStringAsync();
+				Console.WriteLine(responseBody);
+			}
+		}
+	}
+	catch (Exception ex)
+	{
+		Console.WriteLine(ex.ToString());
+	}
+    */
 }

@@ -74,9 +74,45 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng");
+            var definitions = new[] { 196 };
+            var yesterday = DateTime.Parse("2019/10/1");
+            var builds = (await server.ListBuildsAsync("public", definitions)).Where(x =>
+            {
+                if (x.StartTime is object)
+                {
+                    var dt = DateTime.Parse(x.StartTime);
+                    return dt.Date == yesterday;
+                }
+
+                return false;
+            }).ToList();
+            var count = 0;
+            foreach (var build in builds)
+            {
+                try
+                {
+                    var timeline = await server.GetTimelineAsync(build).ConfigureAwait(false);
+                    if (timeline is null)
+                    {
+                        continue;
+                    }
+
+                    var cloneCount = timeline.Records.Count(x => x.Name == "Checkout");
+                    count += cloneCount;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+            }
+
+            Console.WriteLine($"Total: {builds.Count}");
+            Console.WriteLine($"Retries: {count}");
+            Console.WriteLine($"Retries: {(double)count / builds.Count}%");
+            Console.WriteLine();
+
             // var definition = await server.GetDefinitionAsync("public", 15);
             // var build = await server.GetBuildAsync("public", 350049);
-            await server.DownloadBuildLogAsync("public", 351250, 1, @"p:\temp\log.txt");
 
 
             // await DumpTimeline("internal", 338174, await GetToken("dnceng-internal").ConfigureAwait(false));
