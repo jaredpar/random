@@ -1,7 +1,6 @@
 <Project>
   <PropertyGroup>
     <RepoPath>$(MSBuildThisFileDirectory)</RepoPath>
-    <DebugType>full</DebugType>
     <LangVersion>8.0</LangVersion>
     <BinariesPath>$(RepoPath)Binaries\</BinariesPath>
     <OutputPath>$(BinariesPath)$(Configuration)\$(MSBuildProjectName)</OutputPath>
