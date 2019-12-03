@@ -5,9 +5,11 @@
   "tasks": [
     {
         "label": "build",
-        "command": "dotnet build",
+        "command": "dotnet",
         "type": "shell",
         "args": [
+            "build",
+            "/p:GenerateFullPaths=true"
         ],
         "problemMatcher": "$msCompile",
         "group": "build"

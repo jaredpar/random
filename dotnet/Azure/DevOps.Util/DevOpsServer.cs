@@ -183,14 +183,7 @@ namespace DevOps.Util
                 }
             }
         }
-
-        private void Test()
-        {
-            var a =𠀀𠀁𠀂𠀃𪛑𪛒𪛓𪛔𪛕𪛖;
-            Console.WriteLine(a);
-        }
     }
-
 
     /*
 	try
