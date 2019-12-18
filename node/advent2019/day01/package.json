@@ -1,0 +1,18 @@
+{
+  "name": "day01",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "dependencies": {
+    "@types/line-reader": "0.0.28",
+    "@types/node": "^12.12.21",
+    "line-reader": "^0.4.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
