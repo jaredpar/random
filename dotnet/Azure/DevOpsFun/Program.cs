@@ -71,42 +71,12 @@ namespace QueryFun
             throw new Exception($"Could not find token with name {name}");
         }
 
-        private static async Task<string> GetYaml(string project, int buildId)
-        {
-            var server = new DevOpsServer("dnceng");
-            using var stream = await server.DownloadBuildLogAsync(project, buildId, 1).ConfigureAwait(false);
-            using var reader = new StreamReader(stream);
-
-            do
-            {
-                var line = await reader.ReadLineAsync().ConfigureAwait(false);
-                if (line is null)
-                {
-                    throw new Exception("Could not find the yaml begin marker");
-                }
-
-                if (line.StartsWith("********"))
-                {
-                    // Read past the summary line after
-                    _ = await reader.ReadLineAsync().ConfigureAwait(false);
-                    break;
-                }
-            } while (true);
-
-            return await reader.ReadToEndAsync().ConfigureAwait(false);
-        }
-
         private static async Task Scratch()
         {
-            var yaml = await GetYaml("public", 445108);
-            Console.WriteLine(yaml);
-
-            //var server = new DevOpsServer("dnceng");
-            // var definition = await server.GetDefinitionAsync("public", 15);
-            // var build = await server.GetBuildAsync("public", 350049);
-            //await server.DownloadBuildLogAsync("public", 351250, 1, @"p:\temp\log.txt");
-
-
+            var server = new DevOpsServer("dnceng");
+            var build = await server.GetBuildLogAsync("public", 350049, 1);
+            var content = await server.GetBuildLogAsync("public", 350049, 1);
+            File.WriteAllText(@"p:\temp\log.txt", content);
             // await DumpTimeline("internal", 338174, await GetToken("dnceng-internal").ConfigureAwait(false));
 
             /*
