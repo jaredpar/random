@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevOps.Functions", "DevOps.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevOps.Util.DotNet", "DevOps.Util.DotNet\DevOps.Util.DotNet.csproj", "{D6BA752A-2858-43C6-B141-9A44EDE5CCFE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "runfo", "runfo\runfo.csproj", "{C6FFEDBA-31FF-4361-ACEC-B13828269755}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{D6BA752A-2858-43C6-B141-9A44EDE5CCFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6BA752A-2858-43C6-B141-9A44EDE5CCFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D6BA752A-2858-43C6-B141-9A44EDE5CCFE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6FFEDBA-31FF-4361-ACEC-B13828269755}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6FFEDBA-31FF-4361-ACEC-B13828269755}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6FFEDBA-31FF-4361-ACEC-B13828269755}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6FFEDBA-31FF-4361-ACEC-B13828269755}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
