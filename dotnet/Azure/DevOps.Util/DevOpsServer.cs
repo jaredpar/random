@@ -263,6 +263,7 @@ namespace DevOps.Util
             }
         }
 
+        // TODO: use singleton HttpClient
         public HttpClient CreateHttpClient()
         {
             var client = new HttpClient();
