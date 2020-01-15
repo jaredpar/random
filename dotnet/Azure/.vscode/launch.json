@@ -5,14 +5,27 @@
    "version": "0.2.0",
    "configurations": [
         {
-            "name": ".NET Core Launch (console)",
+            "name": "DevOpsFun",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Binaries/DevOpsFun/netcoreapp2.1/DevOpsFun.dll",
+            "program": "${workspaceFolder}/Binaries/Debug/DevOpsFun/netcoreapp2.1/DevOpsFun.dll",
             "args": [],
             "cwd": "${workspaceFolder}/DevOpsFun",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "internalConsole",
+            "stopAtEntry": true
+        },
+        {
+            "name": "runfo",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/Binaries/Debug/runfo/netcoreapp3.0/runfo.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/runfo",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
             "stopAtEntry": true
