@@ -12,6 +12,7 @@ public class Program
         var server = new DevOpsServer("dnceng");
         var definitions = new[] 
         {
+            ("pr / ci", 686),
             ("coreclr", 655),
             ("libraries", 675),
             ("libraries windows", 676),
@@ -40,9 +41,12 @@ public class Program
             new[] { definitionId },
             statusFilter: BuildStatus.Completed,
             queryOrder: BuildQueryOrder.FinishTimeDescending,
-            top: count);
+            top: count * 20);
+        var filteredBuilds = builds
+            .Where(x => x.Reason != BuildReason.PullRequest)
+            .Take(count);
         var list = new List<BuildResult>(capacity: count);
-        foreach (var build in builds.Take(count))
+        foreach (var build in filteredBuilds)
         {
             list.Add(build.Result);
         }
