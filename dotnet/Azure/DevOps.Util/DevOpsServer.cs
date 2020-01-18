@@ -231,7 +231,7 @@ namespace DevOps.Util
         public Task<TestCaseResult[]> ListTestResultsAsync(
             string project,
             int runId,
-            string[] outcomes = null,
+            TestOutcome[] outcomes = null,
             int? skip = null,
             int? top = null)
         {

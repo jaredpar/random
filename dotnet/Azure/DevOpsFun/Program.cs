@@ -75,10 +75,20 @@ namespace QueryFun
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
             // var build = await server.GetBuildLogAsync("public", 488226, 1);
-            var testRuns = await server.ListTestRunsAsync("public", 488226);
+            var testRuns = await server.ListTestRunsAsync("public", 488073);
             foreach (var testRun in testRuns)
             {
-                var all = await server.ListTestResultsAsync("public", testRun.Id);
+                var all = await server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
+                if (all.Length == 0)
+                {
+                    continue;
+                }
+
+                Console.WriteLine(testRun.Name);
+                foreach (var testCaseResult in all)
+                {
+                    Console.WriteLine($"\t{testCaseResult.TestCaseTitle}");
+                }
             }
 
 

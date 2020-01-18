@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
+// This file is for data types that appear in the DevOps REST APIs
+
 namespace DevOps.Util
 {
     /// <summary>
@@ -1412,22 +1414,16 @@ namespace DevOps.Util
         public string Url { get; set; }
     }
 
-    public sealed class ResultGroupType
+    public enum ResultGroupType
     {
-        // Hierarchy type of test result.
-        public string DataDriven { get; set; }
+        None,
+        DataDriven,
 
-        // Unknown hierarchy type.
-        public string Generic { get; set; }
+        Generic,
 
-        // Leaf node of test result.
-        public string None { get; set; }
+        OrderedTest,
 
-        // Hierarchy type of test result.
-        public string OrderedTest { get; set; }
-
-        // Hierarchy type of test result.
-        public string Rerun { get; set; }
+        Rerun,
     }
 
     public sealed class TestSubResult
