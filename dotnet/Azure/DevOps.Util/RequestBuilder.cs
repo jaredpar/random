@@ -38,7 +38,7 @@ namespace DevOps.Util
             }
         }
 
-        internal void AppendList(string name, IEnumerable<int> values)
+        internal void AppendList<T>(string name, IEnumerable<T> values)
         {
             if (values is null || !values.Any())
             {

@@ -76,6 +76,10 @@ namespace QueryFun
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
             // var build = await server.GetBuildLogAsync("public", 488226, 1);
             var testRuns = await server.ListTestRunsAsync("public", 488226);
+            foreach (var testRun in testRuns)
+            {
+                var all = await server.ListTestResultsAsync("public", testRun.Id);
+            }
 
 
             // await DumpTimeline("internal", 338174, await GetToken("dnceng-internal").ConfigureAwait(false));

@@ -1054,7 +1054,7 @@ namespace DevOps.Util
 
     public sealed class PhaseReference
     {
-        // Attempt number of the phase
+        // Attempt double of the phase
         public int Attempt { get; set; }
 
         // Name of the phase. Maximum supported length for name is 256 character.
@@ -1157,7 +1157,7 @@ namespace DevOps.Util
 
     public sealed class JobReference
     {
-        // Attempt number of the job
+        // Attempt double of the job
         public int Attempt { get; set; }
 
         // Matrixing in YAML generates copies of a job with different inputs in matrix. JobName is the name of those input. Maximum supported length for name is 256 character.
@@ -1166,7 +1166,7 @@ namespace DevOps.Util
 
     public sealed class StageReference
     {
-        // Attempt number of stage
+        // Attempt double of stage
         public int Attempt { get; set; }
 
         // Name of the stage. Maximum supported length for name is 256 character
@@ -1185,6 +1185,410 @@ namespace DevOps.Util
         // An abstracted reference to some other resource. This class is used to provide the build data contracts with a uniform way to reference other resources in a way that provides easy traversal through links.
         public ShallowReference Project { get; set; }
 
+    }
+
+    public sealed class TestCaseResult
+    {
+        // Test attachment ID of action recording.
+        public int AfnStripId { get; set; }
+
+        // Reference to area path of test.
+        public ShallowReference Area { get; set; }
+
+        // Reference to bugs linked to test result.
+        public ShallowReference[] AssociatedBugs { get; set; }
+
+        // ID representing test method in a dll.
+        public string AutomatedTestId { get; set; }
+
+        // Fully qualified name of test executed.
+        public string AutomatedTestName { get; set; }
+
+        // Container to which test belongs.
+        public string AutomatedTestStorage { get; set; }
+
+        // Type of automated test.
+        public string AutomatedTestType { get; set; }
+
+        // TypeId of automated test.
+        public string AutomatedTestTypeId { get; set; }
+
+        // Shallow reference to build associated with test result.
+        public ShallowReference Build { get; set; }
+
+        // Reference to build associated with test result.
+        public BuildReference BuildReference { get; set; }
+
+        // Comment in a test result with maxSize= 1000 chars.
+        public string Comment { get; set; }
+
+        // Time when test execution completed. Completed date should be greater than StartedDate.
+        public string CompletedDate { get; set; }
+
+        // Machine name where test executed.
+        public string ComputerName { get; set; }
+
+        // Reference to test configuration. Type ShallowReference.
+        public ShallowReference Configuration { get; set; }
+
+        // Timestamp when test result created.
+        public string CreatedDate { get; set; }
+
+        // Additional properties of test result.
+        public CustomTestField[] CustomFields { get; set; }
+
+        // Duration of test execution in milliseconds. If not provided value will be set as CompletedDate - StartedDate
+        public double DurationInMs { get; set; }
+
+        // Error message in test execution.
+        public string ErrorMessage { get; set; }
+
+        // Information when test results started failing.
+        public FailingSince FailingSince { get; set; }
+
+        // Failure type of test result. Valid Value= (Known Issue, New Issue, Regression, Unknown, None)
+        public string FailureType { get; set; }
+
+        // ID of a test result.
+        public int Id { get; set; }
+
+        // Test result details of test iterations used only for Manual Testing.
+        public TestIterationDetailsModel[] IterationDetails { get; set; }
+
+        // Reference to identity last updated test result.
+        public IdentityRef LastUpdatedBy { get; set; }
+
+        // Last updated datetime of test result.
+        public string LastUpdatedDate { get; set; }
+
+        // Test outcome of test result. Valid values = (Unspecified, None, Passed, Failed, Inconclusive, Timeout, Aborted, Blocked, NotExecuted, Warning, Error, NotApplicable, Paused, InProgress, NotImpacted)
+        public string Outcome { get; set; }
+
+        // Reference to test owner.
+        public IdentityRef Owner { get; set; }
+
+        // Priority of test executed.
+        public int Priority { get; set; }
+
+        // Reference to team project.
+        public ShallowReference Project { get; set; }
+
+        // Shallow reference to release associated with test result.
+        public ShallowReference Release { get; set; }
+
+        // Reference to release associated with test result.
+        public ReleaseReference ReleaseReference { get; set; }
+
+        // ResetCount.
+        public int ResetCount { get; set; }
+
+        // Resolution state of test result.
+        public string ResolutionState { get; set; }
+
+        // ID of resolution state.
+        public int ResolutionStateId { get; set; }
+
+        // Hierarchy type of the result, default value of None means its leaf node.
+        public ResultGroupType ResultGroupType { get; set; }
+
+        // Revision double of test result.
+        public int Revision { get; set; }
+
+        // Reference to identity executed the test.
+        public IdentityRef RunBy { get; set; }
+
+        // Stacktrace with maxSize= 1000 chars.
+        public string StackTrace { get; set; }
+
+        // Time when test execution started.
+        public string StartedDate { get; set; }
+
+        // State of test result. Type TestRunState.
+        public string State { get; set; }
+
+        // List of sub results inside a test result, if ResultGroupType is not None, it holds corresponding type sub results.
+        public TestSubResult[] SubResults { get; set; }
+
+        // Reference to the test executed.
+        public ShallowReference TestCase { get; set; }
+
+        // Reference ID of test used by test result. Type TestResultMetaData
+        public int TestCaseReferenceId { get; set; }
+
+        // TestCaseRevision Number.
+        public int TestCaseRevision { get; set; }
+
+        // Name of test.
+        public string TestCaseTitle { get; set; }
+
+        // Reference to test plan test case workitem is part of.
+        public ShallowReference TestPlan { get; set; }
+
+        // Reference to the test point executed.
+        public ShallowReference TestPoint { get; set; }
+
+        // Reference to test run.
+        public ShallowReference TestRun { get; set; }
+
+        // Reference to test suite test case workitem is part of.
+        public ShallowReference TestSuite { get; set; }
+
+        // Url of test result.
+        public string Url { get; set; }
+    }
+
+    public sealed class FailingSince
+    {
+        // Build reference since failing.
+        public BuildReference Build { get; set; }
+
+        // Time since failing.
+        public string Date { get; set; }
+
+        // Release reference since failing
+        public ReleaseReference Release { get; set; }
+
+    }
+
+    public sealed class BuildReference
+    {
+        // Branch name.
+        public string BranchName { get; set; }
+
+        // Build system.
+        public string BuildSystem { get; set; }
+
+        // Build Definition ID.
+        public int DefinitionId { get; set; }
+
+        // Build ID.
+        public int Id { get; set; }
+
+        // Build Number.
+        public string Number { get; set; }
+
+        // Repository ID.
+        public string RepositoryId { get; set; }
+
+        // Build URI.
+        public string Uri { get; set; }
+
+    }
+
+    public sealed class TestIterationDetailsModel
+    {
+
+        // Test step results in an iteration.
+        public TestActionResultModel[] ActionResults { get; set; }
+
+        // Reference to attachments in test iteration result.
+        public TestCaseResultAttachmentModel[] Attachments { get; set; }
+
+        // Comment in test iteration result.
+        public string Comment { get; set; }
+
+        // Time when execution completed.
+        public string CompletedDate { get; set; }
+
+        // Duration of execution.
+        public double DurationInMs { get; set; }
+
+        // Error message in test iteration result execution.
+        public string ErrorMessage { get; set; }
+
+        // ID of test iteration result.
+        public int Id { get; set; }
+
+        // Test outcome if test iteration result.
+        public string Outcome { get; set; }
+
+        // Test parameters in an iteration.
+        public TestResultParameterModel[] Parameters { get; set; }
+
+        // Time when execution started.
+        public string StartedDate { get; set; }
+
+        // Url to test iteration result.
+        public string Url { get; set; }
+    }
+
+    public sealed class ResultGroupType
+    {
+        // Hierarchy type of test result.
+        public string DataDriven { get; set; }
+
+        // Unknown hierarchy type.
+        public string Generic { get; set; }
+
+        // Leaf node of test result.
+        public string None { get; set; }
+
+        // Hierarchy type of test result.
+        public string OrderedTest { get; set; }
+
+        // Hierarchy type of test result.
+        public string Rerun { get; set; }
+    }
+
+    public sealed class TestSubResult
+    {
+        // Comment in sub result.
+        public string Comment { get; set; }
+
+        // Time when test execution completed.
+        public string CompletedDate { get; set; }
+
+        // Machine where test executed.
+        public string ComputerName { get; set; }
+
+        // Reference to test configuration.
+        public ShallowReference Configuration { get; set; }
+
+        // Additional properties of sub result.
+        public CustomTestField[] CustomFields { get; set; }
+
+        // Name of sub result.
+        public string DisplayName { get; set; }
+
+        // Duration of test execution.
+        public int DurationInMs { get; set; }
+
+        // Error message in sub result.
+        public string ErrorMessage { get; set; }
+
+        // ID of sub result.
+        public int Id { get; set; }
+
+        // Time when result last updated.
+        public string LastUpdatedDate { get; set; }
+
+        // Outcome of sub result.
+        public string Outcome { get; set; }
+
+        // Immediate parent ID of sub result.
+        public int ParentId { get; set; }
+
+        // Hierarchy type of the result, default value of None means its leaf node.
+        public ResultGroupType ResultGroupType { get; set; }
+
+        // Index double of sub result.
+        public int SequenceId { get; set; }
+
+        // Stacktrace.
+        public string StackTrace { get; set; }
+
+        // Time when test execution started.
+        public string StartedDate { get; set; }
+
+        // List of sub results inside a sub result, if ResultGroupType is not None, it holds corresponding type sub results.
+        public TestSubResult[] SubResults { get; set; }
+
+        // Reference to test result.
+        public TestCaseResultIdentifier TestResult { get; set; }
+
+        // Url of sub result.
+        public string Url { get; set; }
+
+    }
+
+    public sealed class TestActionResultModel
+    {
+
+        // Path identifier test step in test case workitem.
+        public string ActionPath { get; set; }
+
+        // Comment in result.
+        public string Comment { get; set; }
+
+        // Time when execution completed.
+        public string CompletedDate { get; set; }
+
+        // Duration of execution.
+        public double DurationInMs { get; set; }
+
+        // Error message in result.
+        public string ErrorMessage { get; set; }
+
+        // Iteration ID of test action result.
+        public int IterationId { get; set; }
+
+        // Test outcome of result.
+        public string Outcome { get; set; }
+
+        // Reference to shared step workitem.
+        public SharedStepModel SharedStepModel { get; set; }
+
+        // Time when execution started.
+        public string StartedDate { get; set; }
+
+        // This is step Id of test case. For shared step, it is step Id of shared step in test case workitem; step Id in shared step. Example: TestCase workitem has two steps: 1) Normal step with Id = 1 2) Shared Step with Id = 2. Inside shared step: a) Normal Step with Id = 1 Value for StepIdentifier for First step: "1" Second step: "2;1"
+        public string StepIdentifier { get; set; }
+
+        // Url of test action result.
+        public string Url { get; set; }
+    }
+
+    public sealed class TestCaseResultAttachmentModel
+    {
+
+        // Path identifier test step in test case workitem.
+        public string ActionPath { get; set; }
+
+        // Attachment ID.
+        public int Id { get; set; }
+
+        // Iteration ID.
+        public int IterationId { get; set; }
+
+        // Name of attachment.
+        public string Name { get; set; }
+
+        // Attachment size.
+        public int Size { get; set; }
+
+        // Url to attachment.
+        public string Url { get; set; }
+
+    }
+
+    public sealed class TestResultParameterModel
+    {
+        // Test step path where parameter is referenced.
+        public string ActionPath { get; set; }
+
+        // Iteration ID.
+        public int IterationId { get; set; }
+
+        // Name of parameter.
+        public string ParameterName { get; set; }
+
+        // This is step Id of test case. For shared step, it is step Id of shared step in test case workitem; step Id in shared step. Example: TestCase workitem has two steps: 1) Normal step with Id = 1 2) Shared Step with Id = 2. Inside shared step: a) Normal Step with Id = 1 Value for StepIdentifier for First step: "1" Second step: "2;1"
+        public string StepIdentifier { get; set; }
+
+        // Url of test parameter.
+        public string Url { get; set; }
+
+        // Value of parameter.
+        public string Value { get; set; }
+
+    }
+
+    public sealed class TestCaseResultIdentifier
+    {
+        // Test result ID.
+        public int TestResultId { get; set; }
+
+        // Test run ID.
+        public int TestRunId { get; set; }
+    }
+
+    public sealed class SharedStepModel
+    {
+        // WorkItem shared step ID.
+        public int Id { get; set; }
+
+        // Shared step workitem revision.
+        public int Revision { get; set; }
     }
 
 }

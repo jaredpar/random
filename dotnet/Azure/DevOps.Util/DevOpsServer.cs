@@ -206,11 +206,7 @@ namespace DevOps.Util
             int? skip = null,
             int? top = null)
         {
-            if (string.IsNullOrEmpty(PersonalAccessToken))
-            {
-                throw new InvalidOperationException("Must have a personal access token specified to view test information");
-            }
-
+            EnsurePersonalAuthorizationTokenForTests();
             var builder = GetBuilder(project, $"test/runs");
             builder.AppendUri("buildUri", buildUri);
             builder.AppendInt("$skip", top);
@@ -230,6 +226,21 @@ namespace DevOps.Util
                 new Uri(uri),
                 skip: skip,
                 top: top);
+        }
+
+        public Task<TestCaseResult[]> ListTestResultsAsync(
+            string project,
+            int runId,
+            string[] outcomes = null,
+            int? skip = null,
+            int? top = null)
+        {
+            EnsurePersonalAuthorizationTokenForTests();
+            var builder = GetBuilder(project, $"test/runs/{runId}/results");
+            builder.AppendList("outcomes", outcomes);
+            builder.AppendInt("$top", top);
+            builder.AppendInt("$skip", skip);
+            return GetJsonArrayResult<TestCaseResult>(builder);
         }
 
         private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);
@@ -381,6 +392,14 @@ namespace DevOps.Util
 
                 builder.ContinuationToken = token;
             } while (true);
+        }
+
+        private void EnsurePersonalAuthorizationTokenForTests()
+        {
+            if (string.IsNullOrEmpty(PersonalAccessToken))
+            {
+                throw new InvalidOperationException("Must have a personal access token specified to view test information");
+            }
         }
     }
 }
