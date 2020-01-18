@@ -195,9 +195,41 @@ namespace DevOps.Util
             int definitionId,
             int? revision = null)
         {
-            var builder = GetBuilder(project, $"build//definitions/{definitionId}");
+            var builder = GetBuilder(project, $"build/definitions/{definitionId}");
             builder.AppendInt("revision", revision);
             return GetJsonResult<BuildDefinition>(builder);
+        }
+
+        public Task<TestRun[]> ListTestRunsAsync(
+            string project,
+            Uri buildUri,
+            int? skip = null,
+            int? top = null)
+        {
+            if (string.IsNullOrEmpty(PersonalAccessToken))
+            {
+                throw new InvalidOperationException("Must have a personal access token specified to view test information");
+            }
+
+            var builder = GetBuilder(project, $"test/runs");
+            builder.AppendUri("buildUri", buildUri);
+            builder.AppendInt("$skip", top);
+            builder.AppendInt("$top", top);
+            return GetJsonArrayResult<TestRun>(builder);
+        }
+
+        public Task<TestRun[]> ListTestRunsAsync(
+            string project,
+            int buildId,
+            int? skip = null,
+            int? top = null)
+        {
+            var uri = $"vstfs:///Build/Build/{buildId}";
+            return ListTestRunsAsync(
+                project,
+                new Uri(uri),
+                skip: skip,
+                top: top);
         }
 
         private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);

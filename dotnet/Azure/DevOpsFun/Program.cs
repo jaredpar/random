@@ -73,10 +73,11 @@ namespace QueryFun
 
         private static async Task Scratch()
         {
-            var server = new DevOpsServer("dnceng");
-            var build = await server.GetBuildLogAsync("public", 350049, 1);
-            var content = await server.GetBuildLogAsync("public", 350049, 1);
-            File.WriteAllText(@"p:\temp\log.txt", content);
+            var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
+            // var build = await server.GetBuildLogAsync("public", 488226, 1);
+            var testRuns = await server.ListTestRunsAsync("public", 488226);
+
+
             // await DumpTimeline("internal", 338174, await GetToken("dnceng-internal").ConfigureAwait(false));
 
             /*

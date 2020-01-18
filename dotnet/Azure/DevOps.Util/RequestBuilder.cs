@@ -72,6 +72,15 @@ namespace DevOps.Util
             }
         }
 
+        internal void AppendUri(string name, Uri uri)
+        {
+            if (uri is object)
+            {
+                var data = Uri.EscapeDataString(uri.ToString());
+                QueryBuilder.Append($"{name}={data}&");
+            }
+        }
+
         internal void AppendInt(string name, int? value)
         {
             if (value.HasValue)
@@ -121,14 +130,10 @@ namespace DevOps.Util
                 builder.Append($"{Organization}/_apis/{ApiPath}");
             }
 
+            builder.Append("?");
             if (QueryBuilder.Length > 0)
             {
-                builder.Append("/?");
                 builder.Append(QueryBuilder.ToString());
-            }
-            else
-            {
-                builder.Append("?");
             }
 
             if (!string.IsNullOrEmpty(ContinuationToken))

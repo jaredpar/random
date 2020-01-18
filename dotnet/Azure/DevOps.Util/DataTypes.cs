@@ -258,7 +258,44 @@ namespace DevOps.Util
     /// </summary>
     public sealed class IdentityRef
     {
-        // TODO
+        // This field contains zero or more interesting links about the graph subject. These links may be invoked to obtain additional relationships or more detailed information about this graph subject.
+        [JsonProperty("_links")]
+        ReferenceLinks Links { get; set; }
+
+        // The descriptor is the primary way to reference the graph subject while the system is running. This field will uniquely identify the same graph subject across both Accounts and Organizations.
+        string Descriptor { get; set; }
+
+        // Deprecated - Can be retrieved by querying the Graph user referenced in the "self" entry of the IdentityRef "_links" dictionary
+        string DirectoryAlias { get; set; }
+
+        // This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider.
+        string DisplayName { get; set; }
+
+        string Id { get; set; }
+
+        // Deprecated - Available in the "avatar" entry of the IdentityRef "_links" dictionary
+        string ImageUrl { get; set; }
+
+        // Deprecated - Can be retrieved by querying the Graph membership state referenced in the "membershipState" entry of the GraphUser "_links" dictionary
+        bool Inactive { get; set; }
+
+        // Deprecated - Can be inferred from the subject type of the descriptor (Descriptor.IsAadUserType/Descriptor.IsAadGroupType)
+        bool IsAadIdentity { get; set; }
+
+        // Deprecated - Can be inferred from the subject type of the descriptor (Descriptor.IsGroupType)
+        bool IsContainer { get; set; }
+
+        bool IsDeletedInOrigin { get; set; }
+
+        // Deprecated - not in use in most preexisting implementations of ToIdentityRef
+        string ProfileUrl { get; set; }
+
+        // Deprecated - use Domain+PrincipalName instead
+        string UniqueName { get; set; }
+
+        // This url is the full route to the source resource of this graph subject.
+        string Url { get; set; }
+
     }
 
     /// <summary>
@@ -357,8 +394,7 @@ namespace DevOps.Util
     /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/timeline/get?view=azure-devops-rest-5.0#timelinerecord
     /// </summary>
     public sealed class TimelineRecord
-    {
-        public int Attempt { get; set; }
+    { public int Attempt { get; set; }
         public int ChangeId { get; set; }
         public string CurrentOperation { get; set; }
         public TimelineReference Details { get; set; }
@@ -776,4 +812,379 @@ namespace DevOps.Util
         public string Token { get; set; }
         public string ValidTo { get; set; }
     }
+
+    public sealed class TestRun
+    {
+        // Build associated with this test run.
+        public ShallowReference Build { get; set; }
+
+        // Build configuration details associated with this test run.
+        public BuildConfiguration BuildConfiguration { get; set; }
+
+        // Comments entered by those analyzing the run.
+        public string Comment { get; set; }
+
+        // Completed date time of the run.
+        public string CompletedDate { get; set; }
+
+        // Test Run Controller.
+        public string Controller { get; set; }
+
+        // Test Run CreatedDate.
+        public string CreatedDate { get; set; }
+
+        // List of Custom Fields for TestRun.
+        public CustomTestField[] CustomFields { get; set; }
+
+        // Drop Location for the test Run.
+        public string DropLocation { get; set; }
+
+        // An abstracted reference to some other resource. This class is used to provide the build data contracts with a uniform way to reference other resources in a way that provides easy traversal through links.
+        public ShallowReference DtlAutEnvironment { get; set; }
+
+        // An abstracted reference to some other resource. This class is used to provide the build data contracts with a uniform way to reference other resources in a way that provides easy traversal through links.
+        public ShallowReference DtlEnvironment { get; set; }
+
+        // This is a temporary class to provide the details for the test run environment.
+        public DtlEnvironmentDetails DtlEnvironmentCreationDetails { get; set; }
+
+        // Due date and time for test run.
+        public string DueDate { get; set; }
+
+        // Error message associated with the run.
+        public string ErrorMessage { get; set; }
+
+        // This class is used to provide the filters used for discovery
+        public RunFilter Filter { get; set; }
+
+        // ID of the test run.
+        public int Id { get; set; }
+
+        // Number of Incomplete Tests.
+        public int IncompleteTests { get; set; }
+
+        // true if test run is automated, false otherwise.
+        public bool IsAutomated { get; set; }
+
+        // The iteration to which the run belongs.
+        public string Iteration { get; set; }
+
+        // Team foundation ID of the last updated the test run.
+        public IdentityRef LastUpdatedBy { get; set; }
+
+        // Last updated date and time
+        public string LastUpdatedDate { get; set; }
+
+        // Name of the test run.
+        public string Name { get; set; }
+
+        // Number of Not Applicable Tests.
+        public int NotApplicableTests { get; set; }
+
+        // Team Foundation ID of the owner of the runs.
+        public IdentityRef Owner { get; set; }
+
+        // Number of passed tests in the run
+        public int PassedTests { get; set; }
+
+        // Phase/State for the testRun.
+        public string Phase { get; set; }
+
+        // Reference of the pipeline to which this test run belongs.
+        public PipelineReference PipelineReference { get; set; }
+
+        // Test plan associated with this test run.
+        public ShallowReference Plan { get; set; }
+
+        // Post Process State.
+        public string PostProcessState { get; set; }
+
+        // Project associated with this run.
+        public ShallowReference Project { get; set; }
+
+        // Release Reference for the Test Run.
+        public ReleaseReference Release { get; set; }
+
+        // Release Environment Uri for TestRun.
+        public string ReleaseEnvironmentUri { get; set; }
+
+        // Release Uri for TestRun.
+        public string ReleaseUri { get; set; }
+
+        public int Revision { get; set; }
+
+        // RunSummary by outcome.
+        public RunStatistic[] RunStatistics { get; set; }
+
+        // Start date time of the run.
+        public string StartedDate { get; set; }
+
+        // The state of the run. Type TestRunState Valid states - Unspecified ,NotStarted, InProgress, Completed, Waiting, Aborted, NeedsInvestigation
+        public string State { get; set; }
+
+        // TestRun Substate.
+        public TestRunSubstate Substate { get; set; }
+
+        // Tags attached with this test run.
+        public TestTag[] Tags { get; set; }
+
+        // Test environment associated with the run.
+        public TestEnvironment TestEnvironment { get; set; }
+
+        public int testMessageLogId { get; set; }
+
+        // An abstracted reference to some other resource. This class is used to provide the build data contracts with a uniform way to reference other resources in a way that provides easy traversal through links.
+        public ShallowReference TestSettings { get; set; }
+
+        // Total tests in the run
+        public int TotalTests { get; set; }
+
+        // Number of failed tests in the run.
+        public int UnanalyzedTests { get; set; }
+
+        // Url of the test run
+        public string Url { get; set; }
+
+        // Web Access Url for TestRun.
+        public string WebAccessUrl { get; set; }
+
+    }
+
+    public sealed class ShallowReference
+    {
+        // ID of the resource
+        public string Id { get; set; }
+
+        // Name of the linked resource (definition name, controller name, etc.)
+        public string Name { get; set; }
+
+        // Full http link to the resource
+        public string Url { get; set; }
+
+    }
+
+    public sealed class BuildConfiguration
+    {
+        // Branch name for which build is generated.
+        public string BranchName { get; set; }
+
+        // BuildDefinitionId for build.
+        public int BuildDefinitionId { get; set; }
+
+        // Build system.
+        public string BuildSystem { get; set; }
+
+        // Build Creation Date.
+        public string CreationDate { get; set; }
+
+        // Build flavor (eg Build/Release).
+        public string Flavor { get; set; }
+
+        // BuildConfiguration Id.
+        public int Id { get; set; }
+
+        // Build Number.
+        public string Number { get; set; }
+
+        // BuildConfiguration Platform.
+        public string Platform { get; set; }
+
+        // Project associated with this BuildConfiguration.
+        public ShallowReference Project { get; set; }
+
+        // Repository Guid for the Build.
+        public string RepositoryGuid { get; set; }
+
+        // Repository Type (eg. TFSGit).
+        public string RepositoryType { get; set; }
+
+        // Source Version(/first commit) for the build was triggered.
+        public string SourceVersion { get; set; }
+
+        // Target BranchName.
+        public string TargetBranchName { get; set; }
+
+        // Build Uri.
+        public string Uri { get; set; }
+    }
+
+    public sealed class CustomTestField
+    {
+        // Field Name.
+        public string FieldName { get; set; }
+
+        // Field value.
+        public object Value { get; set; }
+    }
+
+    public sealed class DtlEnvironmentDetails
+    {
+        public string CsmContent { get; set; }
+
+        public string CsmParameters { get; set; }
+
+        public string SubscriptionName { get; set; }
+    }
+
+
+    public sealed class RunFilter
+    {
+        // filter for the test case sources (test containers)
+        public string SourceFilter { get; set; }
+
+        // filter for the test cases
+        public string TestCaseFilter { get; set; }
+
+    }
+
+    public sealed class PipelineReference
+    {
+        // Reference of the job
+        public JobReference jobReference { get; set; }
+
+        // Reference of the phase.
+        public PhaseReference PhaseReference { get; set; }
+
+        // Reference of the pipeline with which this pipeline instance is related.
+        public int PipelineId { get; set; }
+
+        // Reference of the stage.
+        public StageReference StageReference { get; set; }
+    }
+
+    public sealed class PhaseReference
+    {
+        // Attempt number of the phase
+        public int Attempt { get; set; }
+
+        // Name of the phase. Maximum supported length for name is 256 character.
+        public string PhaseName { get; set; }
+
+    }
+
+    public sealed class ReleaseReference
+    {
+        // Number of Release Attempt.
+        public int Attempt { get; set; }
+
+        // Release Creation Date.
+        public string CreationDate { get; set; }
+
+        // Release definition ID.
+        public int DefinitionId { get; set; }
+
+        // Environment creation Date.
+        public string EnvironmentCreationDate { get; set; }
+
+        // Release environment definition ID.
+        public int EnvironmentDefinitionId { get; set; }
+
+        // Release environment definition name.
+        public string EnvironmentDefinitionName { get; set; }
+
+        // Release environment ID.
+        public int EnvironmentId { get; set; }
+
+        // Release environment name.
+        public string EnvironmentName { get; set; }
+
+        // Release ID.
+        public int Id { get; set; }
+
+        // Release name.
+        public string Name { get; set; }
+    }
+
+    public sealed class RunStatistic
+    {
+        // Test result count fo the given outcome.
+        public int Count { get; set; }
+
+        // Test result outcome
+        public string Outcome { get; set; }
+
+        // Test run Resolution State.
+        public TestResolutionState ResolutionState { get; set; }
+
+        // State of the test run
+        public string State { get; set; }
+    }
+
+    public sealed class TestRunSubstate
+    {
+        // Run state when it is Aborted By the System.
+        public string AbortedBySystem { get; set; }
+
+        // Run state after being Analysed.
+        public string Analyzed { get; set; }
+
+        // Run state while Creating Environment.
+        public string CanceledByUser { get; set; }
+
+        // Run state when cancellation is in Progress.
+        public string CancellationInProgress { get; set; }
+
+        // Run state while Creating Environment.
+        public string CreatingEnvironment { get; set; }
+
+        // Run with noState.
+        public string None { get; set; }
+
+        // Run state while Pending Analysis.
+        public string PendingAnalysis { get; set; }
+
+        // Run state while Running Tests.
+        public string RunningTests { get; set; }
+
+        // Run state when run has timedOut.
+        public string TimedOut { get; set; }
+    }
+
+    public sealed class TestTag
+    {
+        public string Name { get; set; }
+    }
+
+    public sealed class TestEnvironment
+    {
+        // Test Environment Id.
+        public string EnvironmentId	{ get; set; }
+
+        // Test Environment Name.
+        public string EnvironmentName { get; set; }
+
+    }
+
+    public sealed class JobReference
+    {
+        // Attempt number of the job
+        public int Attempt { get; set; }
+
+        // Matrixing in YAML generates copies of a job with different inputs in matrix. JobName is the name of those input. Maximum supported length for name is 256 character.
+        public string JobName { get; set; }
+    }
+
+    public sealed class StageReference
+    {
+        // Attempt number of stage
+        public int Attempt { get; set; }
+
+        // Name of the stage. Maximum supported length for name is 256 character
+        public string StageName { get; set; }
+
+    }
+
+    public sealed class TestResolutionState
+    {
+        // Test Resolution state Id.
+        public int Id { get; set; }
+
+        // Test Resolution State Name.
+        public string Name { get; set; }
+
+        // An abstracted reference to some other resource. This class is used to provide the build data contracts with a uniform way to reference other resources in a way that provides easy traversal through links.
+        public ShallowReference Project { get; set; }
+
+    }
+
 }
