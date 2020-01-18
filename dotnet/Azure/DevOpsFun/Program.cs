@@ -74,8 +74,9 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
-            // var build = await server.GetBuildLogAsync("public", 488226, 1);
-            var testRuns = await server.ListTestRunsAsync("public", 488073);
+            var builds = await server.ListBuildsAsync("public", new[] { 677 }, queryOrder: BuildQueryOrder.FinishTimeDescending, statusFilter: BuildStatus.Completed, top: 5);
+            var build = builds[0];
+            var testRuns = await server.ListTestRunsAsync("public", build.Id);
             foreach (var testRun in testRuns)
             {
                 var all = await server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
@@ -87,7 +88,16 @@ namespace QueryFun
                 Console.WriteLine(testRun.Name);
                 foreach (var testCaseResult in all)
                 {
-                    Console.WriteLine($"\t{testCaseResult.TestCaseTitle}");
+                    if (testCaseResult.TestCaseTitle.EndsWith(" Work Item"))
+                    {
+                        continue;
+                    }
+
+                    if (testCaseResult.FailingSince.Build.Id != build.Id)
+                    {
+                        var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
+                        Console.WriteLine($"\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
+                    }
                 }
             }
 
