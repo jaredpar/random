@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DevOps.Util;
+using static RuntimeInfoUtil;
 
 public class Program
 {
-    private const int ExitSuccess = 0;
-    private const int ExitFailure = 1;
-
     internal static async Task<int> Main(string[] args)
     {
         try
         {
-            var runtimeInfo = new RuntimeInfo();
+            var runtimeInfo = new RuntimeInfo(await GetPersonalAccessToken());
             if (args.Length == 0)
             {
                 await runtimeInfo.PrintBuildResults();
@@ -21,11 +20,16 @@ public class Program
             }
 
             var command = args[0].ToLower();
+            var commandArgs = args.Skip(1);
             switch (command)
             {
                 case "status":
                     await runtimeInfo.PrintBuildResults();
                     return ExitSuccess;
+                case "builds":
+                    return await runtimeInfo.PrintBuilds(commandArgs);
+                case "tests":
+                    return await runtimeInfo.PrintFailedTests(commandArgs);
                 default:
                     Console.WriteLine($"Error: {command} is not recognized as a valid command");
                     ShowHelp();
@@ -41,7 +45,33 @@ public class Program
         static void ShowHelp()
         {
             Console.WriteLine("runfo");
-            Console.WriteLine("\tstatus\tPrint build status");
+            Console.WriteLine("\tstatus\tPrint build definition status");
+            Console.WriteLine("\tbuilds\tPrint builds for a given definition");
+            Console.WriteLine("\ttests\tPrint build test failures");
         }
     }
+
+    // TODO: need to make this usable by others
+    private static async Task<string> GetPersonalAccessToken()
+    {
+        try
+        {
+            var lines = await File.ReadAllLinesAsync(@"p:\tokens.txt");
+            foreach (var line in lines)
+            {
+                var split = line.Split(':', count: 2);
+                if ("dnceng" == split[0])
+                {
+                    return split[1];
+                }
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
 }
