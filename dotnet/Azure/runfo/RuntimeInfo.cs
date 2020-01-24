@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using DevOps.Util;
@@ -57,9 +58,7 @@ internal sealed class RuntimeInfo
 
         if (!TryGetDefinitionId(definition, out int definitionId))
         {
-            Console.WriteLine($"{definition} is not a valid build definition name / id");
-            PrintDefinitions();
-            optionSet.WriteOptionDescriptions(Console.Out);
+            OptionFailureDefinition(definition, optionSet);
             return ExitFailure;
         }
 
@@ -74,26 +73,58 @@ internal sealed class RuntimeInfo
 
     internal async Task<int> PrintFailedTests(IEnumerable<string> args)
     {
-        int? buildId = 0;
+        int? buildId = null;
+        int count = 5;
+        string definition = null;
         var optionSet = new OptionSet()
         {
-            { "b|build=", "build id to print tests for", (int b) => buildId = b }
+            { "b|build=", "build id to print tests for", (int b) => buildId = b },
+            { "d|definition=", "build definition name / id", d => definition = d },
+            { "c|count=", "count of builds to show for a definition", (int c) => count = c},
         };
 
         ParseAll(optionSet, args);
 
-        if (buildId is null)
+        if (buildId is object && definition is object)
         {
-            Console.WriteLine("Need a build number");
-            optionSet.WriteOptionDescriptions(Console.Out);
+            OptionFailure("Cannot specified build and definition", optionSet);
             return ExitFailure;
         }
 
-        await PrintFailedTest(buildId.Value);
+        if (buildId is null && definition is null)
+        {
+            OptionFailure("Need either a build or definition", optionSet);
+            return ExitFailure;
+        }
+
+        if (definition is object)
+        {
+            if (!TryGetDefinitionId(definition, out int definitionId))
+            {
+                OptionFailureDefinition(definition, optionSet);
+                return ExitFailure;
+            }
+
+            await PrintFailedTestsForDefinition("public", definitionId, count);
+            return ExitSuccess;
+        }
+
+        Debug.Assert(buildId is object);
+        await PrintFailedTests(buildId.Value);
         return ExitSuccess;
     }
 
-    private async Task PrintFailedTest(int buildId)
+    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count)
+    {
+        foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
+        {
+            Console.WriteLine($"{build.Id} {Util.GetUri(build)}");
+            await PrintFailedTests(build.Id, indent: "\t");
+        }
+
+    }
+
+    private async Task PrintFailedTests(int buildId, string indent = "")
     {
         var testRuns = await Server.ListTestRunsAsync("public", buildId);
         foreach (var testRun in testRuns)
@@ -104,25 +135,16 @@ internal sealed class RuntimeInfo
                 continue;
             }
 
-            Console.WriteLine(testRun.Name);
+            Console.WriteLine($"{indent}{testRun.Name}");
             foreach (var testCaseResult in all)
             {
-                Console.WriteLine($"\t{testCaseResult.TestCaseTitle}");
+                Console.WriteLine($"{indent}\t{testCaseResult.TestCaseTitle}");
                 if (testCaseResult.FailingSince.Build.Id != buildId)
                 {
                     var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
-                    Console.WriteLine($"\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
+                    Console.WriteLine($"{indent}\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
                 }
             }
-        }
-    }
-
-    private static void PrintDefinitions()
-    {
-        Console.WriteLine("Supported definition names");
-        foreach (var (name, id) in BuildDefinitions)
-        {
-            Console.WriteLine($"{id}\t{name}");
         }
     }
 
@@ -175,4 +197,23 @@ internal sealed class RuntimeInfo
             throw new Exception($"Extra arguments: {text}");
         }
     }
+
+    private static void OptionFailure(string message, OptionSet optionSet)
+    {
+        Console.WriteLine(message);
+        optionSet.WriteOptionDescriptions(Console.Out);
+    }
+
+    private static void OptionFailureDefinition(string definition, OptionSet optionSet)
+    {
+        Console.WriteLine($"{definition} is not a valid definition name or id");
+        Console.WriteLine("Supported definition names");
+        foreach (var (name, id) in BuildDefinitions)
+        {
+            Console.WriteLine($"{id}\t{name}");
+        }
+
+        optionSet.WriteOptionDescriptions(Console.Out);
+    }
+
 }
