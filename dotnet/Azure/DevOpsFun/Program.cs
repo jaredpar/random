@@ -75,28 +75,31 @@ namespace QueryFun
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
             var builds = await server.ListBuildsAsync("public", new[] { 677 }, queryOrder: BuildQueryOrder.FinishTimeDescending, statusFilter: BuildStatus.Completed, top: 5);
-            var build = builds[0];
-            var testRuns = await server.ListTestRunsAsync("public", build.Id);
-            foreach (var testRun in testRuns)
+            foreach (var build in builds)
             {
-                var all = await server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
-                if (all.Length == 0)
+                Console.WriteLine(Util.GetUri(build));
+                var testRuns = await server.ListTestRunsAsync("public", build.Id);
+                foreach (var testRun in testRuns)
                 {
-                    continue;
-                }
-
-                Console.WriteLine(testRun.Name);
-                foreach (var testCaseResult in all)
-                {
-                    if (testCaseResult.TestCaseTitle.EndsWith(" Work Item"))
+                    var all = await server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
+                    if (all.Length == 0)
                     {
                         continue;
                     }
 
-                    if (testCaseResult.FailingSince.Build.Id != build.Id)
+                    Console.WriteLine(testRun.Name);
+                    foreach (var testCaseResult in all)
                     {
-                        var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
-                        Console.WriteLine($"\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
+                        if (testCaseResult.TestCaseTitle.EndsWith(" Work Item"))
+                        {
+                            continue;
+                        }
+
+                        if (testCaseResult.FailingSince.Build.Id != build.Id)
+                        {
+                            var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
+                            Console.WriteLine($"\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
+                        }
                     }
                 }
             }
