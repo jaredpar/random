@@ -41,7 +41,15 @@ internal sealed class RuntimeInfo
 
             Console.WriteLine();
         }
+    }
 
+    internal void PrintBuildDefinitions()
+    {
+        foreach (var (name, definitionId) in BuildDefinitions)
+        {
+            var uri = DevOpsUtil.GetBuildDefinitionUri(Server.Organization, "public", definitionId);
+            Console.WriteLine($"{name,-20}{uri}");
+        }
     }
 
     internal async Task<int> PrintBuilds(IEnumerable<string> args)
@@ -64,7 +72,7 @@ internal sealed class RuntimeInfo
 
         foreach (var build in await GetBuildResultsAsync("public", definitionId, count))
         {
-            var uri = Util.GetUri(build);
+            var uri = DevOpsUtil.GetBuildUri(build);
             Console.WriteLine($"{build.Id}\t{build.Result}\t{uri}");
         }
 
@@ -118,10 +126,9 @@ internal sealed class RuntimeInfo
     {
         foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
         {
-            Console.WriteLine($"{build.Id} {Util.GetUri(build)}");
+            Console.WriteLine($"{build.Id} {DevOpsUtil.GetBuildUri(build)}");
             await PrintFailedTests(build.Id, indent: "\t");
         }
-
     }
 
     private async Task PrintFailedTests(int buildId, string indent = "")

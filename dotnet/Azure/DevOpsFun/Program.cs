@@ -77,7 +77,7 @@ namespace QueryFun
             var builds = await server.ListBuildsAsync("public", new[] { 677 }, queryOrder: BuildQueryOrder.FinishTimeDescending, statusFilter: BuildStatus.Completed, top: 5);
             foreach (var build in builds)
             {
-                Console.WriteLine(Util.GetUri(build));
+                Console.WriteLine(DevOpsUtil.GetBuildUri(build));
                 var testRuns = await server.ListTestRunsAsync("public", build.Id);
                 foreach (var testRun in testRuns)
                 {
@@ -247,7 +247,7 @@ namespace QueryFun
                         if (!allDone)
                         {
                             // There are merge conflicts. This seems to confuse things a bit below. 
-                            Console.WriteLine($"\t{Util.GetUri(build)}");
+                            Console.WriteLine($"\t{DevOpsUtil.GetBuildUri(build)}");
                             Console.WriteLine($"\t{prUri}");
                             list.Add(prUri);
                         }
@@ -283,7 +283,7 @@ namespace QueryFun
             using var util = new RunTestsUtil(await GetToken("scratch-db"));
             foreach (var build in (await util.ListBuildsAsync(top: 20)).Where(x => x.Result == BuildResult.Succeeded))
             {
-                Console.Write(Util.GetUri(build));
+                Console.Write(DevOpsUtil.GetBuildUri(build));
                 Console.Write(" ");
                 try
                 {
@@ -424,7 +424,7 @@ namespace QueryFun
                     {
                         total++;
                         printed = true;
-                        Console.WriteLine(Util.GetUri(build));
+                        Console.WriteLine(DevOpsUtil.GetBuildUri(build));
                     }
                 }
 

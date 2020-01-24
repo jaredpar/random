@@ -77,7 +77,7 @@ namespace DevOps.Util.DotNet
         {
             try
             {
-                var uri = Util.GetUri(build);
+                var uri = DevOpsUtil.GetBuildUri(build);
 
                 if (build.Status != BuildStatus.Completed)
                 {

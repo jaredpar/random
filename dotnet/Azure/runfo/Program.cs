@@ -23,6 +23,9 @@ public class Program
             var commandArgs = args.Skip(1);
             switch (command)
             {
+                case "definitions":
+                    runtimeInfo.PrintBuildDefinitions();
+                    return ExitSuccess;
                 case "status":
                     await runtimeInfo.PrintBuildResults();
                     return ExitSuccess;
@@ -46,6 +49,7 @@ public class Program
         {
             Console.WriteLine("runfo");
             Console.WriteLine("\tstatus\tPrint build definition status");
+            Console.WriteLine("\tdefinitions\tPrint build definition info");
             Console.WriteLine("\tbuilds\tPrint builds for a given definition");
             Console.WriteLine("\ttests\tPrint build test failures");
         }
