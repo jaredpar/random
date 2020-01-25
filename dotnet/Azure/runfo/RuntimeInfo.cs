@@ -10,7 +10,7 @@ using static RuntimeInfoUtil;
 
 internal sealed class RuntimeInfo
 {
-    internal static readonly (string BuildName, int buildId)[] BuildDefinitions = new[] 
+    internal static readonly (string BuildName, int DefinitionId)[] BuildDefinitions = new[] 
         {
             ("runtime", 686),
             ("coreclr", 655),
@@ -37,10 +37,16 @@ internal sealed class RuntimeInfo
         };
 
         ParseAll(optionSet, args); 
-        foreach (var (name, definitionId) in BuildDefinitions)
+
+        var data = BuildDefinitions
+            .AsParallel()
+            .AsOrdered()
+            .Select(async t => (t.BuildName, t.DefinitionId, await GetBuildResultsAsync("public", t.DefinitionId, count)));
+
+        foreach (var task in data)
         {
+            var (name, definitionId, builds) = await task;
             Console.Write($"{name,-20}");
-            var builds = await GetBuildResultsAsync("public", definitionId, count: count);
             var percent = (builds.Count(x => x.Result == BuildResult.Succeeded) / (double)count) * 100;
             Console.Write($"{percent,4:G3}%  ");
             foreach (var build in builds)
