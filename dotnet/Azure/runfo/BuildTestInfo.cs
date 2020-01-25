@@ -25,12 +25,20 @@ internal sealed class BuildTestInfo
         .Distinct()
         .OrderBy(x => x);
 
-    internal IEnumerable<(TestRun TestRun, TestCaseResult TestCaseResult)> GetTestResults(string testCaseTitle) => _dataList
+    internal IEnumerable<TestRun> GetTestRuns() => _dataList.Select(x => x.TestRun);
+
+    internal IEnumerable<(TestRun TestRun, TestCaseResult TestCaseResult)> GetTestResultsForTestCaseTitle(string testCaseTitle) => _dataList
         .SelectMany(x => x.Failed.Select(y => (x.TestRun, y)))
         .Where(x => x.y.TestCaseTitle == testCaseTitle)
         .ToList();
 
-    public bool Contains(string testCaseTitle) => GetTestCaseTitles().Contains(testCaseTitle);
+    internal IEnumerable<TestCaseResult> GetTestResultsForTestRunName(string testRunName) => _dataList
+        .Where(x => x.TestRun.Name == testRunName)
+        .SelectMany(x => x.Failed);
+
+    public bool ContainsTestCaseTitle(string testCaseTitle) => GetTestCaseTitles().Contains(testCaseTitle);
+
+    public bool ContainsTestRunName(string testRunName) => _dataList.Exists(x => x.TestRun.Name == testRunName);
 }
 
 

@@ -107,7 +107,7 @@ internal sealed class RuntimeInfo
             { "b|build=", "build id to print tests for", (int b) => buildId = b },
             { "d|definition=", "build definition name / id", d => definition = d },
             { "c|count=", "count of builds to show for a definition", (int c) => count = c},
-            { "g|grouping=", "output grouping: tests, builds*", g => grouping = g },
+            { "g|grouping=", "output grouping: builds*, tests, jobs", g => grouping = g },
             { "v|verbose", "verobes output", d => verbose = d is object }
         };
 
@@ -152,6 +152,9 @@ internal sealed class RuntimeInfo
             case "builds":
                 await GroupByBuilds();
                 break;
+            case "jobs":
+                await GroupByJobs();
+                break;
             default:
                 throw new Exception($"{grouping} is not a valid grouping");
         }
@@ -172,14 +175,14 @@ internal sealed class RuntimeInfo
             foreach (var testCaseTitle in all)
             {
                 var testRunList = buildTestInfoList
-                    .SelectMany(x => x.GetTestResults(testCaseTitle))
+                    .SelectMany(x => x.GetTestResultsForTestCaseTitle(testCaseTitle))
                     .OrderBy(x => x.TestRun.Name)
                     .ToList();
                 Console.WriteLine($"{testCaseTitle} {testRunList.Count}");
                 if (verbose)
                 {
                     Console.WriteLine($"{GetIndent(1)}Builds");
-                    foreach (var build in buildTestInfoList.Where(x => x.Contains(testCaseTitle)).Select(x => x.Build).OrderByDescending(x => x.Id))
+                    foreach (var build in buildTestInfoList.Where(x => x.ContainsTestCaseTitle(testCaseTitle)).Select(x => x.Build).OrderByDescending(x => x.Id))
                     {
                         var uri = DevOpsUtil.GetBuildUri(build);
                         Console.WriteLine($"{GetIndent(2)}{uri}");
@@ -191,6 +194,50 @@ internal sealed class RuntimeInfo
                         var count = testRunList.Count(t => t.TestRun.Name == testRun.Name);
                         Console.WriteLine($"{GetIndent(2)}{count}\t{testRun.Name}");
                     }
+                }
+            }
+        }
+
+        async Task GroupByJobs()
+        {
+            var buildTestInfoList = await GetTestResultsAsync(project, definitionId, count);
+            var testRunNames = buildTestInfoList
+                .SelectMany(x => x.GetTestRuns().Select(x => x.Name))
+                .Distinct()
+                .OrderBy(x => x);
+            foreach (var testRunName in testRunNames)
+            {
+                var list = buildTestInfoList.Where(x => x.ContainsTestRunName(testRunName));
+                Console.WriteLine($"{testRunName}");
+                if (verbose)
+                {
+                    Console.WriteLine($"{GetIndent(1)}Builds");
+                    foreach (var build in list)
+                    {
+                        var uri = DevOpsUtil.GetBuildUri(build.Build);
+                        Console.WriteLine($"{GetIndent(2)}{uri}");
+                    }
+
+                    Console.WriteLine($"{GetIndent(1)}Test Cases");
+                    var testCaseTitles = list
+                        .SelectMany(x => x.GetTestResultsForTestRunName(testRunName))
+                        .Select(x => x.TestCaseTitle)
+                        .Distinct()
+                        .OrderBy(x => x);
+                    foreach (var testCaseTitle in testCaseTitles)
+                    {
+                        var count = list
+                            .SelectMany(x => x.GetTestResultsForTestCaseTitle(testCaseTitle))
+                            .Count(x => x.TestRun.Name == testRunName);
+                        Console.WriteLine($"{GetIndent(2)}{testCaseTitle} ({count})");
+                    }
+                }
+                else
+                {
+                    var buildCount = list.Count();
+                    var testCaseCount = list.Sum(x => x.GetTestResultsForTestRunName(testRunName).Count());
+                    Console.WriteLine($"{GetIndent(1)}Builds {buildCount}");
+                    Console.WriteLine($"{GetIndent(1)}Test Cases {testCaseCount}");
                 }
             }
         }
