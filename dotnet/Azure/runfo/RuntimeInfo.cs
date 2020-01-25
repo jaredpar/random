@@ -28,12 +28,22 @@ internal sealed class RuntimeInfo
         Server = new DevOpsServer("dnceng", personalAccessToken);
     }
 
-    internal async Task PrintBuildResults()
+    internal async Task PrintBuildResults(IEnumerable<string> args)
     {
+        int count = 5;
+        var optionSet = new OptionSet()
+        {
+            { "c|count=", "count of builds to return", (int c) => count = c }
+        };
+
+        ParseAll(optionSet, args); 
         foreach (var (name, definitionId) in BuildDefinitions)
         {
             Console.Write($"{name,-20}");
-            foreach (var build in await GetBuildResultsAsync("public", definitionId, count: 5))
+            var builds = await GetBuildResultsAsync("public", definitionId, count: count);
+            var percent = (builds.Count(x => x.Result == BuildResult.Succeeded) / (double)count) * 100;
+            Console.Write($"{percent,4:G3}%  ");
+            foreach (var build in builds)
             {
                 var c = build.Result == BuildResult.Succeeded ? 'Y' : 'N';
                 Console.Write(c);

@@ -15,7 +15,7 @@ public class Program
             var runtimeInfo = new RuntimeInfo(await GetPersonalAccessToken());
             if (args.Length == 0)
             {
-                await runtimeInfo.PrintBuildResults();
+                await runtimeInfo.PrintBuildResults(Array.Empty<string>());
                 return ExitSuccess;
             }
 
@@ -27,7 +27,7 @@ public class Program
                     runtimeInfo.PrintBuildDefinitions();
                     return ExitSuccess;
                 case "status":
-                    await runtimeInfo.PrintBuildResults();
+                    await runtimeInfo.PrintBuildResults(commandArgs);
                     return ExitSuccess;
                 case "builds":
                     return await runtimeInfo.PrintBuilds(commandArgs);
