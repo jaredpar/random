@@ -83,12 +83,16 @@ internal sealed class RuntimeInfo
     {
         int? buildId = null;
         int count = 5;
+        bool verbose = false;
         string definition = null;
+        string grouping = "builds";
         var optionSet = new OptionSet()
         {
             { "b|build=", "build id to print tests for", (int b) => buildId = b },
             { "d|definition=", "build definition name / id", d => definition = d },
             { "c|count=", "count of builds to show for a definition", (int c) => count = c},
+            { "g|grouping=", "output grouping: tests, builds*", g => grouping = g },
+            { "v|verbose", "verobes output", d => verbose = d is object }
         };
 
         ParseAll(optionSet, args);
@@ -113,7 +117,7 @@ internal sealed class RuntimeInfo
                 return ExitFailure;
             }
 
-            await PrintFailedTestsForDefinition("public", definitionId, count);
+            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, verbose);
             return ExitSuccess;
         }
 
@@ -122,12 +126,57 @@ internal sealed class RuntimeInfo
         return ExitSuccess;
     }
 
-    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count)
+    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, bool verbose)
     {
-        foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
+        switch (grouping)
         {
-            Console.WriteLine($"{build.Id} {DevOpsUtil.GetBuildUri(build)}");
-            await PrintFailedTests(build.Id, indent: "\t");
+            case "tests":
+                await GroupByTests();
+                break;
+            case "builds":
+                await GroupByBuilds();
+                break;
+            default:
+                throw new Exception($"{grouping} is not a valid grouping");
+        }
+
+        async Task GroupByBuilds()
+        {
+            foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
+            {
+                Console.WriteLine($"{build.Id} {DevOpsUtil.GetBuildUri(build)}");
+                await PrintFailedTests(build.Id, indent: "\t");
+            }
+        }
+
+        async Task GroupByTests()
+        {
+            var buildTestInfoList = await GetTestResultsAsync(project, definitionId, count);
+            var all = buildTestInfoList.SelectMany(x => x.GetTestCaseTitles()).Distinct().ToList();
+            foreach (var testCaseTitle in all)
+            {
+                var testRunList = buildTestInfoList
+                    .SelectMany(x => x.GetTestResults(testCaseTitle))
+                    .OrderBy(x => x.TestRun.Name)
+                    .ToList();
+                Console.WriteLine($"{testCaseTitle} {testRunList.Count}");
+                if (verbose)
+                {
+                    Console.WriteLine($"{GetIndent(1)}Builds");
+                    foreach (var build in buildTestInfoList.Where(x => x.Contains(testCaseTitle)).Select(x => x.Build).OrderByDescending(x => x.Id))
+                    {
+                        var uri = DevOpsUtil.GetBuildUri(build);
+                        Console.WriteLine($"{GetIndent(2)}{uri}");
+                    }
+
+                    Console.WriteLine($"{GetIndent(1)}Test Runs");
+                    foreach (var (testRun, _) in testRunList)
+                    {
+                        var count = testRunList.Count(t => t.TestRun.Name == testRun.Name);
+                        Console.WriteLine($"{GetIndent(2)}{count}\t{testRun.Name}");
+                    }
+                }
+            }
         }
     }
 
@@ -152,6 +201,47 @@ internal sealed class RuntimeInfo
                     Console.WriteLine($"{indent}\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
                 }
             }
+        }
+    }
+
+    private async Task<List<BuildTestInfo>> GetTestResultsAsync(string project, int definitionId, int count)
+    {
+        var list = new List<BuildTestInfo>();
+        foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
+        {
+            list.Add(await GetTestResultsAsync(build));
+        }
+
+        return list;
+    }
+
+    private async Task<BuildTestInfo> GetTestResultsAsync(Build build)
+    {
+        var taskList = new List<Task<(TestRun, List<TestCaseResult>)?>>();
+        var testRuns = await Server.ListTestRunsAsync("public", build.Id);
+        foreach (var testRun in testRuns)
+        {
+            var task = GetTestRunResultsAsync(testRun);
+            taskList.Add(task);
+        }
+
+        await Task.WhenAll(taskList);
+        var list = taskList
+            .Where(x => x.Result.HasValue)
+            .Select(x => x.Result.Value)
+            .OrderBy(x => x.Item1.Id)
+            .ToList();
+        return new BuildTestInfo(build, list);
+
+        async Task<(TestRun, List<TestCaseResult>)?> GetTestRunResultsAsync(TestRun testRun)
+        {
+            var all = await Server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
+            if (all.Length == 0)
+            {
+                return null;
+            }
+
+            return (testRun, all.ToList());
         }
     }
 
@@ -223,4 +313,5 @@ internal sealed class RuntimeInfo
         optionSet.WriteOptionDescriptions(Console.Out);
     }
 
+    private static string GetIndent(int level) => level == 0 ? string.Empty : new string(' ', level * 2);
 }

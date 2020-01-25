@@ -65,7 +65,7 @@ namespace DevOps.Util.DotNet
         public async Task UploadBuild(Build build)
         {
             VerifyBuild(build);
-            var uri = Util.GetUri(build).ToString();
+            var uri = DevOpsUtil.GetBuildUri(build).ToString();
             Logger.LogInformation($"Uploading {build.Id} - {uri}");
 
             if (await IsBuildUploadedAsync(build.Id))
@@ -92,7 +92,7 @@ namespace DevOps.Util.DotNet
         {
             VerifyBuild(build);
 
-            var uri = Util.GetUri(build);
+            var uri = DevOpsUtil.GetBuildUri(build);
             Logger.LogInformation($"Processing {build.Id} - {uri}");
 
             // Newer builds have the NGEN logs in a separate artifact altogether to decrease the time needed 

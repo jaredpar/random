@@ -18,24 +18,6 @@ namespace DevOps.Util.DotNet
         /// </summary>
         public static string NormalizeBranchName(string fullName) => BranchName.Parse(fullName).ShortName;
 
-        public static string GetOrganization(Build build)
-        {
-            var uri = new Uri(build.Url);
-            return uri.PathAndQuery.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)[0];
-        }
-
-        /// <summary>
-        /// Get a human readable build URI for the build
-        /// </summary>
-        /// <param name="build"></param>
-        /// <returns></returns>
-        public static Uri GetUri(Build build)
-        {
-            var organization = GetOrganization(build);
-            var uri = $"https://dev.azure.com/{organization}/{build.Project.Name}/_build/results?buildId={build.Id}";
-            return new Uri(uri);
-        }
-
         public static async Task DoWithTransactionAsync(SqlConnection connection, string transactionName, Func<SqlTransaction, Task> process)
         {
             await connection.EnsureOpenAsync();
