@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DevOps.Util;
+using Mono.Options;
 using static RuntimeInfoUtil;
 
 public class Program
@@ -53,10 +54,27 @@ public class Program
             Console.WriteLine("\tbuilds\tPrint builds for a given definition");
             Console.WriteLine("\ttests\tPrint build test failures");
         }
+
+        async Task<string> GetPersonalAccessToken()
+        { 
+            string token = Environment.GetEnvironmentVariable("RUNFO_AZURE_TOKEN");
+            var optionSet = new OptionSet()
+            {
+                { "t|token=", "The Azure DevOps personal access token", t => token = t },
+            };
+
+            args = optionSet.Parse(args).ToArray();
+            if (token is null)
+            {
+                token = await GetPersonalAccessTokenFromFile();
+            }
+            return token;
+        }
+
     }
 
     // TODO: need to make this usable by others
-    private static async Task<string> GetPersonalAccessToken()
+    private static async Task<string> GetPersonalAccessTokenFromFile()
     {
         try
         {

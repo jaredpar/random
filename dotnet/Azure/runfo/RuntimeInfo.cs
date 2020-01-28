@@ -347,17 +347,6 @@ internal sealed class RuntimeInfo
             .ToList();
     }
 
-    private static void ParseAll(OptionSet optionSet, IEnumerable<string> args)
-    {
-        var extra = optionSet.Parse(args);
-        if (extra.Count != 0)
-        {
-            optionSet.WriteOptionDescriptions(Console.Out);
-            var text = string.Join(' ', extra);
-            throw new Exception($"Extra arguments: {text}");
-        }
-    }
-
     private static void OptionFailure(string message, OptionSet optionSet)
     {
         Console.WriteLine(message);
