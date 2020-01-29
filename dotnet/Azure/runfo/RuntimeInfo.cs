@@ -138,7 +138,7 @@ internal sealed class RuntimeInfo
         }
 
         Debug.Assert(buildId is object);
-        await PrintFailedTests(buildId.Value);
+        PrintFailedTests(await GetBuildTestInfoAsync(buildId.Value));
         return ExitSuccess;
     }
 
@@ -161,16 +161,16 @@ internal sealed class RuntimeInfo
 
         async Task GroupByBuilds()
         {
-            foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
+            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
+            foreach (var buildTestInfo in buildTestInfoList)
             {
-                Console.WriteLine($"{build.Id} {DevOpsUtil.GetBuildUri(build)}");
-                await PrintFailedTests(build.Id, indent: "\t");
+                PrintFailedTests(buildTestInfo);
             }
         }
 
         async Task GroupByTests()
         {
-            var buildTestInfoList = await GetTestResultsAsync(project, definitionId, count);
+            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
             var all = buildTestInfoList.SelectMany(x => x.GetTestCaseTitles()).Distinct().ToList();
             foreach (var testCaseTitle in all)
             {
@@ -200,7 +200,7 @@ internal sealed class RuntimeInfo
 
         async Task GroupByJobs()
         {
-            var buildTestInfoList = await GetTestResultsAsync(project, definitionId, count);
+            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
             var testRunNames = buildTestInfoList
                 .SelectMany(x => x.GetTestRuns().Select(x => x.Name))
                 .Distinct()
@@ -243,42 +243,43 @@ internal sealed class RuntimeInfo
         }
     }
 
-    private async Task PrintFailedTests(int buildId, string indent = "")
+    private static void PrintFailedTests(BuildTestInfo buildTestInfo)
     {
-        var testRuns = await Server.ListTestRunsAsync("public", buildId);
-        foreach (var testRun in testRuns)
+        var build = buildTestInfo.Build;
+        Console.WriteLine($"{build.Id} {DevOpsUtil.GetBuildUri(build)}");
+        foreach (var (testRun, failedList) in buildTestInfo.DataList)
         {
-            var all = await Server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
-            if (all.Length == 0)
+            Console.WriteLine($"{GetIndent(1)}{testRun.Name}");
+            foreach (var testCaseResult in failedList)
             {
-                continue;
-            }
-
-            Console.WriteLine($"{indent}{testRun.Name}");
-            foreach (var testCaseResult in all)
-            {
-                Console.WriteLine($"{indent}\t{testCaseResult.TestCaseTitle}");
-                if (testCaseResult.FailingSince.Build.Id != buildId)
+                var suffix = "";
+                if (testCaseResult.FailingSince.Build.Id != build.Id)
                 {
-                    var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
-                    Console.WriteLine($"{indent}\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
+                    suffix = $"(since {testCaseResult.FailingSince.Build.Id})";
                 }
+                Console.WriteLine($"{GetIndent(2)}{testCaseResult.TestCaseTitle} {suffix}");
             }
         }
     }
 
-    private async Task<List<BuildTestInfo>> GetTestResultsAsync(string project, int definitionId, int count)
+    private async Task<List<BuildTestInfo>> ListBuildTestInfosAsync(string project, int definitionId, int count)
     {
         var list = new List<BuildTestInfo>();
         foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
         {
-            list.Add(await GetTestResultsAsync(build));
+            list.Add(await GetBuildTestInfoAsync(build));
         }
 
         return list;
     }
 
-    private async Task<BuildTestInfo> GetTestResultsAsync(Build build)
+    private async Task<BuildTestInfo> GetBuildTestInfoAsync(int buildId)
+    {
+        var build = await Server.GetBuildAsync("public", buildId);
+        return await GetBuildTestInfoAsync(build);
+    }
+
+    private async Task<BuildTestInfo> GetBuildTestInfoAsync(Build build)
     {
         var taskList = new List<Task<(TestRun, List<TestCaseResult>)?>>();
         var testRuns = await Server.ListTestRunsAsync("public", build.Id);
