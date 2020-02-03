@@ -62,9 +62,11 @@ internal sealed class RuntimeInfo
     internal async Task<int> PrintHelix(IEnumerable<string> args)
     {
         int? buildId = null;;
+        var verbose = false;
         var optionSet = new OptionSet()
         {
-            { "b|build=", "build to print out", (int b) => buildId = b},
+            { "b|build=", "build to print out", (int b) => buildId = b },
+            { "v|verbose", "verbose output", v => verbose = v is object },
         };
 
         ParseAll(optionSet, args); 
@@ -80,25 +82,38 @@ internal sealed class RuntimeInfo
             .DataList
             .SelectMany(x => x.Failed.Select(f => (x.TestRun, f)))
             .AsParallel()
-            .Select(async t => await HelixUtil.GetHelixDataUris(Server, "public", t.TestRun.Id, t.f.Id));
+            .Select(async t => await HelixUtil.GetHelixDataUris(Server, "public", t.TestRun.Id, t.f.Id))
+            .Select(async (Task<(string ConsoleUri, string CoreUri)> task) => {
+                var t = await task;
+                string consoleText = null;
+                if (verbose && t.ConsoleUri is object)
+                {
+                    consoleText = await HelixUtil.GetHelixConsoleText(Server, t.ConsoleUri);
+                }
+                return (t.ConsoleUri, ConsoleText: consoleText, t.CoreUri);
+            });
 
         var list = await RuntimeInfoUtil.ToList(logs);
 
         Console.WriteLine("Console Logs");
-        foreach (var (consoleUri, _) in list.Where(x => x.ConsoleUri is object))
+        foreach (var (consoleUri, consoleText, _) in list.Where(x => x.ConsoleUri is object))
         {
-            Console.WriteLine($"\t{consoleUri}");
+            Console.WriteLine($"{consoleUri}");
+            if (verbose)
+            {
+                Console.WriteLine(consoleText);
+            }
         }
 
         var wroteHeader = false;
-        foreach (var (_, coreUri) in list.Where(x => x.CoreUri is object))
+        foreach (var (_, _, coreUri) in list.Where(x => x.CoreUri is object))
         {
             if (!wroteHeader)
             {
                 Console.WriteLine("Core Logs");
                 wroteHeader = true;
             }
-            Console.WriteLine($"\t{coreUri}");
+            Console.WriteLine($"{coreUri}");
         }
         return ExitSuccess;
     }

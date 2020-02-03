@@ -98,5 +98,21 @@ namespace DevOps.Util.DotNet
 
             return await GetHelixDataUris(stream);
         }
+
+        public static async Task<string> GetHelixConsoleText(
+            DevOpsServer server,
+            string consoleUri)
+        {
+            try
+            {
+                using var stream = await server.DownloadFileAsync(consoleUri);
+                using var reader = new StreamReader(stream);
+                return await reader.ReadToEndAsync();
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+        }
     }
 }
