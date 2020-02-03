@@ -34,6 +34,8 @@ public class Program
                     return await runtimeInfo.PrintBuilds(commandArgs);
                 case "tests":
                     return await runtimeInfo.PrintFailedTests(commandArgs);
+                case "helix":
+                    return await runtimeInfo.PrintHelix(commandArgs);
                 default:
                     Console.WriteLine($"Error: {command} is not recognized as a valid command");
                     ShowHelp();
@@ -49,10 +51,11 @@ public class Program
         static void ShowHelp()
         {
             Console.WriteLine("runfo");
-            Console.WriteLine("\tstatus\tPrint build definition status");
+            Console.WriteLine("\tstatus\t\tPrint build definition status");
             Console.WriteLine("\tdefinitions\tPrint build definition info");
-            Console.WriteLine("\tbuilds\tPrint builds for a given definition");
-            Console.WriteLine("\ttests\tPrint build test failures");
+            Console.WriteLine("\tbuilds\t\tPrint builds for a given definition");
+            Console.WriteLine("\ttests\t\tPrint build test failures");
+            Console.WriteLine("\thelix\t\tPrint helix logs for build");
         }
 
         async Task<string> GetPersonalAccessToken()

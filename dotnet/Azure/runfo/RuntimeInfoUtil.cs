@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Mono.Options;
 
 internal static class RuntimeInfoUtil
@@ -16,6 +18,12 @@ internal static class RuntimeInfoUtil
             var text = string.Join(' ', extra);
             throw new Exception($"Extra arguments: {text}");
         }
+    }
+
+    internal static async Task<List<T>> ToList<T>(IEnumerable<Task<T>> e)
+    {
+        await Task.WhenAll(e);
+        return e.Select(x => x.Result).ToList();
     }
 
 }

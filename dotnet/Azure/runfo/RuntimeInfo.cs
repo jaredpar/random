@@ -59,6 +59,50 @@ internal sealed class RuntimeInfo
         }
     }
 
+    internal async Task<int> PrintHelix(IEnumerable<string> args)
+    {
+        int? buildId = null;;
+        var optionSet = new OptionSet()
+        {
+            { "b|build=", "build to print out", (int b) => buildId = b},
+        };
+
+        ParseAll(optionSet, args); 
+        if (buildId is null)
+        {
+            Console.WriteLine("Build id (-b) is required");
+            optionSet.WriteOptionDescriptions(Console.Out);
+            return ExitFailure;
+        }
+
+        var buildResultInfo = await GetBuildTestInfoAsync(buildId.Value);
+        var logs = buildResultInfo
+            .DataList
+            .SelectMany(x => x.Failed.Select(f => (x.TestRun, f)))
+            .AsParallel()
+            .Select(async t => await HelixUtil.GetHelixDataUris(Server, "public", t.TestRun.Id, t.f.Id));
+
+        var list = await RuntimeInfoUtil.ToList(logs);
+
+        Console.WriteLine("Console Logs");
+        foreach (var (consoleUri, _) in list.Where(x => x.ConsoleUri is object))
+        {
+            Console.WriteLine($"\t{consoleUri}");
+        }
+
+        var wroteHeader = false;
+        foreach (var (_, coreUri) in list.Where(x => x.CoreUri is object))
+        {
+            if (!wroteHeader)
+            {
+                Console.WriteLine("Core Logs");
+                wroteHeader = true;
+            }
+            Console.WriteLine($"\t{coreUri}");
+        }
+        return ExitSuccess;
+    }
+
     internal void PrintBuildDefinitions()
     {
         foreach (var (name, definitionId) in BuildDefinitions)
