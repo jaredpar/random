@@ -74,32 +74,33 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
-            var builds = await server.ListBuildsAsync("public", new[] { 677 }, queryOrder: BuildQueryOrder.FinishTimeDescending, statusFilter: BuildStatus.Completed, top: 5);
-            foreach (var build in builds)
+            var build = await server.GetBuildAsync("public", 505313);
+            var testRuns = await server.ListTestRunsAsync("public", build.Id);
+            foreach (var testRun in testRuns)
             {
-                Console.WriteLine(DevOpsUtil.GetBuildUri(build));
-                var testRuns = await server.ListTestRunsAsync("public", build.Id);
-                foreach (var testRun in testRuns)
+                var all = await server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
+                if (all.Length == 0)
                 {
-                    var all = await server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
-                    if (all.Length == 0)
+                    continue;
+                }
+
+                Console.WriteLine(testRun.Name);
+                foreach (var testCaseResult in all)
+                {
+                    if (HelixUtil.IsHelixTestCaseResult(testCaseResult))
+                    {
+                        var text = await HelixUtil.TryGetHelixAttachmentContent(server, "public", testRun.Id, testCaseResult.Id);
+                        Console.WriteLine(text);
+                    }
+                    if (testCaseResult.TestCaseTitle.EndsWith(" Work Item"))
                     {
                         continue;
                     }
 
-                    Console.WriteLine(testRun.Name);
-                    foreach (var testCaseResult in all)
+                    if (testCaseResult.FailingSince.Build.Id != build.Id)
                     {
-                        if (testCaseResult.TestCaseTitle.EndsWith(" Work Item"))
-                        {
-                            continue;
-                        }
-
-                        if (testCaseResult.FailingSince.Build.Id != build.Id)
-                        {
-                            var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
-                            Console.WriteLine($"\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
-                        }
+                        var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
+                        Console.WriteLine($"\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
                     }
                 }
             }

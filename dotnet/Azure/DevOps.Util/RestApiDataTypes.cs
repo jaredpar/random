@@ -1587,4 +1587,34 @@ namespace DevOps.Util
         public int Revision { get; set; }
     }
 
+    public sealed class TestAttachment
+    {
+        // Attachment type.
+        public AttachmentType AttachmentType { get; set; }
+
+        // Comment associated with attachment.
+        public string Comment { get; set; }
+
+        // Attachment created date.
+        public string CreatedDate { get; set; }
+
+        // Attachment file name
+        public string FileName { get; set; }
+
+        // ID of the attachment.
+        public int Id { get; set; }
+
+        // Attachment size.
+        public int Size { get; set; }
+
+        // Attachment Url.
+        public string Url { get; set; }
+    }
+    
+    public enum AttachmentType
+    {
+        CodeCoverage,
+        ConsoleLog,
+        GeneralAttachment,
+    }
 }

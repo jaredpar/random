@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Binaries/Debug/DevOpsFun/netcoreapp2.1/DevOpsFun.dll",
+            "program": "${workspaceFolder}/Binaries/Debug/DevOpsFun/netcoreapp3.1/DevOpsFun.dll",
             "args": [],
             "cwd": "${workspaceFolder}/DevOpsFun",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
@@ -24,7 +24,7 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/Binaries/Debug/runfo/netcoreapp3.1/runfo.dll",
-            "args": ["tests", "-d", "676", "-c", "1", "-t", "foo" ],
+            "args": ["tests", "-d", "runtime", "-grouping", "tests", "-v" ],
             "cwd": "${workspaceFolder}/runfo",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",

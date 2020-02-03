@@ -7,6 +7,8 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft;
+using Newtonsoft.Json.Linq;
 
 namespace DevOps.Util.DotNet
 {

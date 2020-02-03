@@ -17,6 +17,8 @@ namespace DevOps.Util
 
         internal string ContinuationToken { get; set; }
 
+        internal string ApiVersion { get; set; } = "5.0";
+
         /// <summary>
         /// The query parameters for the request excluding the API version and the continuation token.
         /// </summary>
@@ -141,7 +143,7 @@ namespace DevOps.Util
                 builder.Append($"continuationToken={ContinuationToken}&");
             }
 
-            builder.Append("api-version=5.0");
+            builder.Append($"api-version={ApiVersion}");
             return builder.ToString();
         }
     }

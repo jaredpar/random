@@ -243,6 +243,44 @@ namespace DevOps.Util
             return GetJsonArrayResult<TestCaseResult>(builder);
         }
 
+        public Task<TestAttachment[]> GetTestCaseResultAttachmentsAsync(
+            string project,
+            int runId,
+            int testCaseResultId)
+        {
+            EnsurePersonalAuthorizationTokenForTests();
+            var builder = GetBuilder(project, $"test/Runs/{runId}/Results/{testCaseResultId}/attachments");
+            builder.ApiVersion = "5.1-preview.1";
+            return GetJsonArrayResult<TestAttachment>(builder);
+        }
+
+        public Task DownloadTestCaseResultAttachmentZipAsync(
+            string project,
+            int runId,
+            int testCaseResultId,
+            int attachmentId,
+            Stream destinationStream)
+        {
+            EnsurePersonalAuthorizationTokenForTests();
+            var builder = GetBuilder(project, $"test/Runs/{runId}/Results/{testCaseResultId}/attachments/{attachmentId}");
+            builder.ApiVersion = "5.1-preview.1";
+            return DownloadZipFileAsync(builder.ToString(), destinationStream);
+        }
+
+        public Task<MemoryStream> DownloadTestCaseResultAttachmentZipAsync(
+            string project,
+            int runId,
+            int testCaseResultId,
+            int attachmentId) => WithMemoryStream(s => DownloadTestCaseResultAttachmentZipAsync(project, runId, testCaseResultId, attachmentId, s));
+
+        public Task DownloadTestCaseResultAttachmentZipAsync(
+            string project,
+            int runId,
+            int testCaseResultId,
+            int attachmentId,
+            string destinationFilePath) =>
+            WithFileStream(destinationFilePath, s => DownloadTestCaseResultAttachmentZipAsync(project, runId, testCaseResultId, attachmentId, s));
+
         private RequestBuilder GetBuilder(string project, string apiPath) => new RequestBuilder(Organization, project, apiPath);
 
         private async Task<string> GetJsonResult(string url) => (await GetJsonResultAndContinuationToken(url).ConfigureAwait(false)).Body;
