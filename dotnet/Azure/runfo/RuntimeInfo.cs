@@ -82,38 +82,51 @@ internal sealed class RuntimeInfo
             .DataList
             .SelectMany(x => x.Failed.Select(f => (x.TestRun, f)))
             .AsParallel()
-            .Select(async t => await HelixUtil.GetHelixDataUris(Server, "public", t.TestRun.Id, t.f.Id))
-            .Select(async (Task<(string ConsoleUri, string CoreUri)> task) => {
-                var t = await task;
+            .Select(async t => await HelixUtil.GetHelixLogInfoAsync(Server, "public", t.TestRun.Id, t.f.Id))
+            .Select(async (Task<HelixLogInfo> task) => {
+                var helixLogInfo = await task;
                 string consoleText = null;
-                if (verbose && t.ConsoleUri is object)
+                if (verbose && helixLogInfo.ConsoleUri is object)
                 {
-                    consoleText = await HelixUtil.GetHelixConsoleText(Server, t.ConsoleUri);
+                    consoleText = await HelixUtil.GetHelixConsoleText(Server, helixLogInfo.ConsoleUri);
                 }
-                return (t.ConsoleUri, ConsoleText: consoleText, t.CoreUri);
+                return (helixLogInfo, consoleText);
             });
 
         var list = await RuntimeInfoUtil.ToList(logs);
 
         Console.WriteLine("Console Logs");
-        foreach (var (consoleUri, consoleText, _) in list.Where(x => x.ConsoleUri is object))
+        foreach (var (helixLogInfo, consoleText) in list.Where(x => x.Item1.ConsoleUri is object))
         {
-            Console.WriteLine($"{consoleUri}");
+            Console.WriteLine($"{helixLogInfo.ConsoleUri}");
             if (verbose)
             {
                 Console.WriteLine(consoleText);
             }
         }
 
+        Console.WriteLine();
         var wroteHeader = false;
-        foreach (var (_, _, coreUri) in list.Where(x => x.CoreUri is object))
+        foreach (var (helixLogInfo, _) in list.Where(x => x.helixLogInfo.TestResultsUri is object))
+        {
+            if (!wroteHeader)
+            {
+                Console.WriteLine("Test Results");
+                wroteHeader = true;
+            }
+            Console.WriteLine($"{helixLogInfo.TestResultsUri}");
+        }
+
+        Console.WriteLine();
+        wroteHeader = false;
+        foreach (var (helixLogInfo, _) in list.Where(x => x.helixLogInfo.CoreDumpUri is object))
         {
             if (!wroteHeader)
             {
                 Console.WriteLine("Core Logs");
                 wroteHeader = true;
             }
-            Console.WriteLine($"{coreUri}");
+            Console.WriteLine($"{helixLogInfo.CoreDumpUri}");
         }
         return ExitSuccess;
     }

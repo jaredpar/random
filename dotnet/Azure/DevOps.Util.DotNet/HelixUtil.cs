@@ -60,10 +60,11 @@ namespace DevOps.Util.DotNet
         /// <summary>
         /// Parse out the UploadFileResults file to get the console and core URIs
         /// </summary>
-        public static async Task<(string ConsoleUri, string CoreUri)> GetHelixDataUris(Stream resultsStream)
+        public static async Task<HelixLogInfo> GetHelixLogInfoAsync(Stream resultsStream)
         {
             string consoleUri = null;
             string coreUri = null;
+            string testResultsUri = null;
 
             using var reader = new StreamReader(resultsStream);
             string line = await reader.ReadLineAsync();
@@ -77,14 +78,21 @@ namespace DevOps.Util.DotNet
                 {
                     coreUri = (await reader.ReadLineAsync()).Trim();
                 }
+                else if (Regex.IsMatch(line, @"testResults.*xml:"))
+                {
+                    testResultsUri = (await reader.ReadLineAsync()).Trim();
+                }
 
                 line = await reader.ReadLineAsync();
             }
 
-            return (consoleUri, coreUri);
+            return new HelixLogInfo(
+                consoleUri: consoleUri,
+                coreDumpUri: coreUri,
+                testResultsUri: testResultsUri);
         }
 
-        public static async Task<(string ConsoleUri, string CoreUri)> GetHelixDataUris(
+        public static async Task<HelixLogInfo> GetHelixLogInfoAsync(
             DevOpsServer server,
             string project,
             int runId,
@@ -93,10 +101,10 @@ namespace DevOps.Util.DotNet
             using var stream = await GetHelixAttachmentContentAsync(server, project, runId, testCaseResultId);
             if (stream is null)
             {
-                return (null, null);
+                return HelixLogInfo.Empty;
             }
 
-            return await GetHelixDataUris(stream);
+            return await GetHelixLogInfoAsync(stream);
         }
 
         public static async Task<string> GetHelixConsoleText(
