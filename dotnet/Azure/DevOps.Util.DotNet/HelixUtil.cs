@@ -19,11 +19,27 @@ namespace DevOps.Util.DotNet
 {
     public static class HelixUtil
     {
-        public static bool IsHelixTestCaseResult(TestCaseResult testCaseResult) => TryGetHelixJobId(testCaseResult, out var _);
 
-        public static bool TryGetHelixJobId(TestCaseResult testCaseResult, out string helixJobId)
+        public static bool IsHelixWorkItem(TestCaseResult testCaseResult) =>
+            TryGetHelixInfo(testCaseResult, out var _, out var workItemName) &&
+            testCaseResult.TestCaseTitle == $"{workItemName} Work Item";
+
+        public static bool IsHelixTestCaseResult(TestCaseResult testCaseResult) =>
+            TryGetHelixInfo(testCaseResult, out var _, out var workItemName) &&
+            testCaseResult.TestCaseTitle != $"{workItemName} Work Item";
+
+        public static bool IsHelixWorkItemAndTestCaseResult(TestCaseResult workItem, TestCaseResult test) =>
+            IsHelixWorkItem(workItem) &&
+            !IsHelixWorkItem(test) &&
+            TryGetHelixInfo(workItem, out var workItemJobId, out var name1) &&
+            TryGetHelixInfo(test, out var testJobId, out var name2) &&
+            workItemJobId == testJobId &&
+            name1 == name2;
+
+        public static bool TryGetHelixInfo(TestCaseResult testCaseResult, out string jobId, out string workItemName)
         {
-            helixJobId = null;
+            jobId = null;
+            workItemName = null;
             try
             {
                 if (testCaseResult.Comment is null)
@@ -32,8 +48,11 @@ namespace DevOps.Util.DotNet
                 }
 
                 dynamic obj = JObject.Parse(testCaseResult.Comment);
-                helixJobId = (string)obj.HelixJobId;
-                return !string.IsNullOrEmpty(helixJobId);
+                jobId = (string)obj.HelixJobId;
+                workItemName = (string)obj.HelixWorkItemName;
+                return
+                    !string.IsNullOrEmpty(jobId) &&
+                    !string.IsNullOrEmpty(workItemName);
             }
             catch
             {
