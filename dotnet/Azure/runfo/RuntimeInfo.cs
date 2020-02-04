@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DevOps.Util;
 using DevOps.Util.DotNet;
@@ -175,6 +176,7 @@ internal sealed class RuntimeInfo
         bool verbose = false;
         bool markdown = false;
         string definition = null;
+        string name = null;
         string grouping = "builds";
         var optionSet = new OptionSet()
         {
@@ -182,7 +184,8 @@ internal sealed class RuntimeInfo
             { "d|definition=", "build definition name / id", d => definition = d },
             { "c|count=", "count of builds to show for a definition", (int c) => count = c},
             { "g|grouping=", "output grouping: builds*, tests, jobs", g => grouping = g },
-            { "m|markdown", "output in markdown", m => markdown = m  is object},
+            { "m|markdown", "output in markdown", m => markdown = m  is object },
+            { "n|name=", "name regex to match in results", n => name = n },
             { "v|verbose", "verobes output", d => verbose = d is object }
         };
 
@@ -208,7 +211,7 @@ internal sealed class RuntimeInfo
                 return ExitFailure;
             }
 
-            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, verbose, markdown);
+            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, name, verbose, markdown);
             return ExitSuccess;
         }
 
@@ -217,12 +220,12 @@ internal sealed class RuntimeInfo
         return ExitSuccess;
     }
 
-    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, bool verbose, bool markdown)
+    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, string name, bool verbose, bool markdown)
     {
         switch (grouping)
         {
             case "tests":
-                await (markdown ? GroupByTestsMarkdown() : GroupByTestsConsole());
+                await GroupByTests();
                 break;
             case "builds":
                 await GroupByBuilds();
@@ -243,9 +246,27 @@ internal sealed class RuntimeInfo
             }
         }
 
-        async Task GroupByTestsConsole()
+        async Task GroupByTests()
         {
-            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
+            var collection = await ListBuildTestInfosAsync(project, definitionId, count);
+            if (!string.IsNullOrEmpty(name))
+            {
+                var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                collection = collection.FilterToTestCaseTitle(regex);
+            }
+
+            if (markdown)
+            {
+                await GroupByTestsMarkdown(collection);
+            }
+            else
+            {
+                GroupByTestsConsole(collection);
+            }
+        }
+
+        void GroupByTestsConsole(BuildTestInfoCollection buildTestInfoList)
+        {
             foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
             {
                 var testRunList = buildTestInfoList.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
@@ -270,9 +291,8 @@ internal sealed class RuntimeInfo
             }
         }
 
-        async Task GroupByTestsMarkdown()
+        async Task GroupByTestsMarkdown(BuildTestInfoCollection buildTestInfoList)
         {
-            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
             foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
             {
                 var testRunList = buildTestInfoList.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
@@ -423,7 +443,15 @@ internal sealed class RuntimeInfo
         var list = new List<BuildTestInfo>();
         foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
         {
-            list.Add(await GetBuildTestInfoAsync(build));
+            try
+            {
+                list.Add(await GetBuildTestInfoAsync(build));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Cannot get test info for {build.Id} {DevOpsUtil.GetBuildUri(build)}");
+                Console.WriteLine(ex.Message);
+            }
         }
 
         return new BuildTestInfoCollection(new ReadOnlyCollection<BuildTestInfo>(list));

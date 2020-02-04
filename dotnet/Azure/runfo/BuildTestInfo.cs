@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.RegularExpressions;
 using DevOps.Util;
 
 internal sealed class HelixTestResult
@@ -41,6 +42,8 @@ internal sealed class HelixTestRunResult
     internal TestRun TestRun { get; }
 
     internal HelixTestResult HelixTestResult { get; }
+
+    internal string TestCaseTitle => HelixTestResult.TestCaseTitle;
 
     internal HelixTestRunResult(Build build, TestRun testRun, HelixTestResult helixTestResult)
     {
@@ -101,9 +104,17 @@ internal sealed class BuildTestInfo
         })
         .OrderBy(x => x.TestRun.Id);
 
-    public bool ContainsTestCaseTitle(string testCaseTitle) => GetTestCaseTitles().Contains(testCaseTitle);
+    internal bool ContainsTestCaseTitle(string testCaseTitle) => GetTestCaseTitles().Contains(testCaseTitle);
 
-    public bool ContainsTestRunName(string testRunName) => DataList.Exists(x => x.TestRun.Name == testRunName);
+    internal bool ContainsTestRunName(string testRunName) => DataList.Exists(x => x.TestRun.Name == testRunName);
+
+    internal BuildTestInfo FilterToTestCaseTitle(Regex testCaseTitleRegex)
+    {
+        var dataList = DataList
+            .Where(x => testCaseTitleRegex.IsMatch(x.TestCaseTitle))
+            .ToList();
+        return new BuildTestInfo(Build, dataList);
+    }
 }
 
 internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
@@ -157,6 +168,12 @@ internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
         .Distinct()
         .OrderBy(x => x)
         .ToList();
+
+    internal BuildTestInfoCollection FilterToTestCaseTitle(Regex testCaseTitleRegex)
+    {
+        var buildTestInfos = BuildTestInfos.Select(x => x.FilterToTestCaseTitle(testCaseTitleRegex));
+        return new BuildTestInfoCollection(buildTestInfos);
+    }
 
     public IEnumerator<BuildTestInfo> GetEnumerator() => BuildTestInfos.GetEnumerator();
 
