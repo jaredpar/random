@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -40,6 +41,49 @@ internal sealed class BuildTestInfo
 
     public bool ContainsTestRunName(string testRunName) => DataList.Exists(x => x.TestRun.Name == testRunName);
 }
+
+internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
+{
+    public ReadOnlyCollection<BuildTestInfo> BuildTestInfos { get; }
+
+    public BuildTestInfoCollection(ReadOnlyCollection<BuildTestInfo> buildTestInfos)
+    {
+        BuildTestInfos = buildTestInfos;
+    }
+
+    public BuildTestInfoCollection(IEnumerable<BuildTestInfo> buildTestInfos)
+        : this(new ReadOnlyCollection<BuildTestInfo>(buildTestInfos.ToList()))
+    {
+
+    }
+
+    public List<string> GetTestCaseTitles() => BuildTestInfos
+        .SelectMany(x => x.GetTestCaseTitles())
+        .Distinct()
+        .ToList();
+
+    internal List<(TestRun TestRun, TestCaseResult TestCaseResult)> GetTestResultsForTestCaseTitle(string testCaseTitle) => BuildTestInfos
+        .SelectMany(x => x.GetTestResultsForTestCaseTitle(testCaseTitle))
+        .OrderBy(x => x.TestRun.Name)
+        .ToList();
+
+    internal List<Build> GetBulidsForTestCaseTitle(string testCaseTitle) => BuildTestInfos
+        .Where(x => x.ContainsTestRunName(testCaseTitle))
+        .Select(x => x.Build)
+        .OrderBy(x => x.Id)
+        .ToList();
+
+    internal List<string> GetTestRunNames() => BuildTestInfos
+        .SelectMany(x => x.GetTestRuns().Select(x => x.Name))
+        .Distinct()
+        .OrderBy(x => x)
+        .ToList();
+
+    public IEnumerator<BuildTestInfo> GetEnumerator() => BuildTestInfos.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
 
 
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -243,18 +244,14 @@ internal sealed class RuntimeInfo
         async Task GroupByTests()
         {
             var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
-            var all = buildTestInfoList.SelectMany(x => x.GetTestCaseTitles()).Distinct().ToList();
-            foreach (var testCaseTitle in all)
+            foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
             {
-                var testRunList = buildTestInfoList
-                    .SelectMany(x => x.GetTestResultsForTestCaseTitle(testCaseTitle))
-                    .OrderBy(x => x.TestRun.Name)
-                    .ToList();
+                var testRunList = buildTestInfoList.GetTestResultsForTestCaseTitle(testCaseTitle);
                 Console.WriteLine($"{testCaseTitle} {testRunList.Count}");
                 if (verbose)
                 {
                     Console.WriteLine($"{GetIndent(1)}Builds");
-                    foreach (var build in buildTestInfoList.Where(x => x.ContainsTestCaseTitle(testCaseTitle)).Select(x => x.Build).OrderByDescending(x => x.Id))
+                    foreach (var build in buildTestInfoList.GetBulidsForTestCaseTitle(testCaseTitle))
                     {
                         var uri = DevOpsUtil.GetBuildUri(build);
                         Console.WriteLine($"{GetIndent(2)}{uri}");
@@ -273,10 +270,7 @@ internal sealed class RuntimeInfo
         async Task GroupByJobs()
         {
             var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
-            var testRunNames = buildTestInfoList
-                .SelectMany(x => x.GetTestRuns().Select(x => x.Name))
-                .Distinct()
-                .OrderBy(x => x);
+            var testRunNames = buildTestInfoList.GetTestRunNames();
             foreach (var testRunName in testRunNames)
             {
                 var list = buildTestInfoList.Where(x => x.ContainsTestRunName(testRunName));
@@ -334,7 +328,7 @@ internal sealed class RuntimeInfo
         }
     }
 
-    private async Task<List<BuildTestInfo>> ListBuildTestInfosAsync(string project, int definitionId, int count)
+    private async Task<BuildTestInfoCollection> ListBuildTestInfosAsync(string project, int definitionId, int count)
     {
         var list = new List<BuildTestInfo>();
         foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
@@ -342,7 +336,7 @@ internal sealed class RuntimeInfo
             list.Add(await GetBuildTestInfoAsync(build));
         }
 
-        return list;
+        return new BuildTestInfoCollection(new ReadOnlyCollection<BuildTestInfo>(list));
     }
 
     private async Task<BuildTestInfo> GetBuildTestInfoAsync(int buildId)
