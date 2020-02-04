@@ -91,6 +91,16 @@ internal sealed class BuildTestInfo
         .Where(x => x.TestRun.Name == testRunName)
         .ToList();
 
+    internal IEnumerable<HelixTestRunResult> GetHelixWorkItems() => DataList
+        .Where(x => x.HelixTestResult.WorkItem is object)
+        .GroupBy(x => x.HelixTestResult.WorkItem.Id)
+        .Select(x => {
+            var first = x.First();
+            var result = new HelixTestResult(first.HelixTestResult.WorkItem);
+            return new HelixTestRunResult(first.Build, first.TestRun, result);
+        })
+        .OrderBy(x => x.TestRun.Id);
+
     public bool ContainsTestCaseTitle(string testCaseTitle) => GetTestCaseTitles().Contains(testCaseTitle);
 
     public bool ContainsTestRunName(string testRunName) => DataList.Exists(x => x.TestRun.Name == testRunName);

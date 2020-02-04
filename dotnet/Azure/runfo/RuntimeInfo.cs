@@ -81,9 +81,9 @@ internal sealed class RuntimeInfo
 
         var buildResultInfo = await GetBuildTestInfoAsync(buildId.Value);
         var logs = buildResultInfo
-            .DataList
+            .GetHelixWorkItems()
             .AsParallel()
-            .Select(async t => await HelixUtil.GetHelixLogInfoAsync(Server, "public", t.TestRun.Id, t.HelixTestResult.WorkItem.Id))
+            .Select(async t => await GetHelixLogInfoAsync(t))
             .Select(async (Task<HelixLogInfo> task) => {
                 var helixLogInfo = await task;
                 string consoleText = null;

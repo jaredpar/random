@@ -74,7 +74,7 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
-            var build = await server.GetBuildAsync("public", 505313);
+            var build = await server.GetBuildAsync("public", 506061);
             var testRuns = await server.ListTestRunsAsync("public", build.Id);
             foreach (var testRun in testRuns)
             {
@@ -89,9 +89,10 @@ namespace QueryFun
                 {
                     if (HelixUtil.IsHelixTestCaseResult(testCaseResult))
                     {
-                        var text = await HelixUtil.TryGetHelixAttachmentContent(server, "public", testRun.Id, testCaseResult.Id);
+                        var text = await HelixUtil.GetHelixAttachmentContentAsync(server, "public", testRun.Id, testCaseResult.Id);
                         Console.WriteLine(text);
                     }
+
                     if (testCaseResult.TestCaseTitle.EndsWith(" Work Item"))
                     {
                         continue;
