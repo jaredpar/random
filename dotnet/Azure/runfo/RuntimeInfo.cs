@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DevOps.Util;
@@ -275,11 +276,11 @@ internal sealed class RuntimeInfo
             foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
             {
                 var testRunList = buildTestInfoList.GetTestResultsForTestCaseTitle(testCaseTitle);
-                Console.WriteLine($"{testCaseTitle} {testRunList.Count}");
+                Console.WriteLine($"## {testCaseTitle}");
                 Console.WriteLine("");
-                Console.WriteLine("## Console Log Summary");
-
-                Console.WriteLine("## Builds");
+                Console.WriteLine("### Console Log Summary");
+                Console.WriteLine("");
+                Console.WriteLine("### Builds");
                 Console.WriteLine("|Build|Test Failure Count|");
                 Console.WriteLine("| --- | --- |");
                 foreach (var buildTestInfo in buildTestInfoList.GetBuildTestInfosForTestCaseTitle(testCaseTitle))
@@ -287,19 +288,54 @@ internal sealed class RuntimeInfo
                     var build = buildTestInfo.Build;
                     var uri = DevOpsUtil.GetBuildUri(build);
                     var testFailureCount = buildTestInfo.GetTestResultsForTestCaseTitle(testCaseTitle).Count();
-                    Console.WriteLine($"|#{build.Id}|{testFailureCount}|");
+                    Console.WriteLine($"|[#{build.Id}]({uri})|{testFailureCount}|");
                 }
 
-                Console.WriteLine($"## Configurations");
-                Console.WriteLine("|Configuration|Build Failure Count|");
-                Console.WriteLine("| --- | --- |");
+                Console.WriteLine($"### Configurations");
                 foreach (var testRunName in buildTestInfoList.GetTestRunNamesForTestCaseTitle(testCaseTitle))
                 {
-                    var count = buildTestInfoList
-                        .Where(x => x.GetTestRunNamesForTestCaseTitle(testCaseTitle).Contains(testRunName))
-                        .Count();
-                    Console.WriteLine($"|{testRunName}|{count}|");
+                    Console.WriteLine($"- {EscapeAtSign(testRunName)}");
                 }
+
+                Console.WriteLine($"### Helix Logs");
+                Console.WriteLine("|Build|Console|Core|Test Results|");
+                Console.WriteLine("| --- | --- | --- | --- |");
+                foreach (var (build, helixLogInfo) in await GetHelixLogs(buildTestInfoList, testCaseTitle))
+                {
+                    var uri = DevOpsUtil.GetBuildUri(build);
+                    Console.Write($"|[#{build.Id}]({uri})");
+                    PrintUri(helixLogInfo.ConsoleUri, "console");
+                    PrintUri(helixLogInfo.CoreDumpUri, "core");
+                    PrintUri(helixLogInfo.TestResultsUri, "testResults.xml");
+                    Console.WriteLine("|");
+                }
+
+                static void PrintUri(string uri, string defaultDisplayName)
+                {
+                    if (uri is null)
+                    {
+                        Console.Write("|");
+                        return;
+                    }
+                    
+                    try
+                    {
+                        if (Uri.TryCreate(uri, UriKind.Absolute, out var realUri))
+                        {
+                            var name = Path.GetFileName(realUri.LocalPath);
+                            Console.Write($"|[{name}]({uri})");
+                            return;
+                        }
+                    }
+                    catch
+                    {
+                        // Badly formatted URI
+                    }
+
+                    Console.Write($"|[{defaultDisplayName}]({uri})");
+                }
+
+                static string EscapeAtSign(string text) => text.Replace("@", "@<!-- -->");
 
                 Console.WriteLine();
             }
@@ -364,6 +400,20 @@ internal sealed class RuntimeInfo
                 Console.WriteLine($"{GetIndent(2)}{testCaseResult.TestCaseTitle} {suffix}");
             }
         }
+    }
+
+    private async Task<List<(Build, HelixLogInfo)>> GetHelixLogs(BuildTestInfoCollection collection, string testCaseTitle)
+    {
+        var query = collection
+            .SelectMany(b => b.GetTestResultsForTestCaseTitle(testCaseTitle).Select(x => (b.Build, x.TestRun, x.TestCaseResult)))
+            .ToList()
+            .AsParallel()
+            .Select(async t => {
+                var helixLogInfo = await HelixUtil.GetHelixLogInfoAsync(Server, "public", t.TestRun.Id, t.TestCaseResult.Id);
+                return (t.Build, helixLogInfo);
+            });
+        var list = await RuntimeInfoUtil.ToList(query);
+        return list;
     }
 
     private async Task<BuildTestInfoCollection> ListBuildTestInfosAsync(string project, int definitionId, int count)
