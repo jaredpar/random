@@ -93,7 +93,7 @@ namespace DevOps.Util.DotNet
                 {
                     consoleUri = (await reader.ReadLineAsync()).Trim();
                 }
-                else if (Regex.IsMatch(line, @"core\.:"))
+                else if (Regex.IsMatch(line, @"core\..*:"))
                 {
                     coreUri = (await reader.ReadLineAsync()).Trim();
                 }
