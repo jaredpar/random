@@ -173,6 +173,7 @@ internal sealed class RuntimeInfo
         int? buildId = null;
         int count = 5;
         bool verbose = false;
+        bool markdown = false;
         string definition = null;
         string grouping = "builds";
         var optionSet = new OptionSet()
@@ -181,6 +182,7 @@ internal sealed class RuntimeInfo
             { "d|definition=", "build definition name / id", d => definition = d },
             { "c|count=", "count of builds to show for a definition", (int c) => count = c},
             { "g|grouping=", "output grouping: builds*, tests, jobs", g => grouping = g },
+            { "m|markdown", "output in markdown", m => markdown = m  is object},
             { "v|verbose", "verobes output", d => verbose = d is object }
         };
 
@@ -206,7 +208,7 @@ internal sealed class RuntimeInfo
                 return ExitFailure;
             }
 
-            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, verbose);
+            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, verbose, markdown);
             return ExitSuccess;
         }
 
@@ -215,12 +217,12 @@ internal sealed class RuntimeInfo
         return ExitSuccess;
     }
 
-    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, bool verbose)
+    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, bool verbose, bool markdown)
     {
         switch (grouping)
         {
             case "tests":
-                await GroupByTests();
+                await (markdown ? GroupByTestsMarkdown() : GroupByTestsConsole());
                 break;
             case "builds":
                 await GroupByBuilds();
@@ -241,7 +243,7 @@ internal sealed class RuntimeInfo
             }
         }
 
-        async Task GroupByTests()
+        async Task GroupByTestsConsole()
         {
             var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
             foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
@@ -251,7 +253,7 @@ internal sealed class RuntimeInfo
                 if (verbose)
                 {
                     Console.WriteLine($"{GetIndent(1)}Builds");
-                    foreach (var build in buildTestInfoList.GetBulidsForTestCaseTitle(testCaseTitle))
+                    foreach (var build in buildTestInfoList.GetBuildsForTestCaseTitle(testCaseTitle))
                     {
                         var uri = DevOpsUtil.GetBuildUri(build);
                         Console.WriteLine($"{GetIndent(2)}{uri}");
@@ -264,6 +266,42 @@ internal sealed class RuntimeInfo
                         Console.WriteLine($"{GetIndent(2)}{count}\t{testRun.Name}");
                     }
                 }
+            }
+        }
+
+        async Task GroupByTestsMarkdown()
+        {
+            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
+            foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
+            {
+                var testRunList = buildTestInfoList.GetTestResultsForTestCaseTitle(testCaseTitle);
+                Console.WriteLine($"{testCaseTitle} {testRunList.Count}");
+                Console.WriteLine("");
+                Console.WriteLine("## Console Log Summary");
+
+                Console.WriteLine("## Builds");
+                Console.WriteLine("|Build|Test Failure Count|");
+                Console.WriteLine("| --- | --- |");
+                foreach (var buildTestInfo in buildTestInfoList.GetBuildTestInfosForTestCaseTitle(testCaseTitle))
+                {
+                    var build = buildTestInfo.Build;
+                    var uri = DevOpsUtil.GetBuildUri(build);
+                    var testFailureCount = buildTestInfo.GetTestResultsForTestCaseTitle(testCaseTitle).Count();
+                    Console.WriteLine($"|#{build.Id}|{testFailureCount}|");
+                }
+
+                Console.WriteLine($"## Configurations");
+                Console.WriteLine("|Configuration|Build Failure Count|");
+                Console.WriteLine("| --- | --- |");
+                foreach (var testRunName in buildTestInfoList.GetTestRunNamesForTestCaseTitle(testCaseTitle))
+                {
+                    var count = buildTestInfoList
+                        .Where(x => x.GetTestRunNamesForTestCaseTitle(testCaseTitle).Contains(testRunName))
+                        .Count();
+                    Console.WriteLine($"|{testRunName}|{count}|");
+                }
+
+                Console.WriteLine();
             }
         }
 

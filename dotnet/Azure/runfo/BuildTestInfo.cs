@@ -28,6 +28,16 @@ internal sealed class BuildTestInfo
 
     internal IEnumerable<TestRun> GetTestRuns() => DataList.Select(x => x.TestRun);
 
+    internal IEnumerable<TestRun> GetTestRunsForTestCaseTitle(string testCaseTitle) => DataList
+        .Where(x => x.Failed.Exists(x => x.TestCaseTitle == testCaseTitle))
+        .Select(x => x.TestRun);
+
+    internal IEnumerable<string> GetTestRunNamesForTestCaseTitle(string testCaseTitle) => this
+        .GetTestRunsForTestCaseTitle(testCaseTitle)
+        .Select(x => x.Name)
+        .Distinct()
+        .OrderBy(x => x);
+
     internal IEnumerable<(TestRun TestRun, TestCaseResult TestCaseResult)> GetTestResultsForTestCaseTitle(string testCaseTitle) => DataList
         .SelectMany(x => x.Failed.Select(y => (x.TestRun, y)))
         .Where(x => x.y.TestCaseTitle == testCaseTitle)
@@ -67,10 +77,25 @@ internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
         .OrderBy(x => x.TestRun.Name)
         .ToList();
 
-    internal List<Build> GetBulidsForTestCaseTitle(string testCaseTitle) => BuildTestInfos
-        .Where(x => x.ContainsTestRunName(testCaseTitle))
+    internal List<Build> GetBuildsForTestCaseTitle(string testCaseTitle) => this
+        .GetBuildTestInfosForTestCaseTitle(testCaseTitle)
         .Select(x => x.Build)
+        .ToList();
+
+    internal List<BuildTestInfo> GetBuildTestInfosForTestCaseTitle(string testCaseTitle) => BuildTestInfos
+        .Where(x => x.ContainsTestCaseTitle(testCaseTitle))
+        .OrderBy(x => x.Build.Id)
+        .ToList();
+
+    internal List<TestRun> GetTestRunsForTestCaseTitle(string testCaseTitle) => BuildTestInfos
+        .SelectMany(x => x.GetTestRunsForTestCaseTitle(testCaseTitle))
         .OrderBy(x => x.Id)
+        .ToList();
+
+    internal List<string> GetTestRunNamesForTestCaseTitle(string testCaseTitle) => BuildTestInfos
+        .SelectMany(x => x.GetTestRunNamesForTestCaseTitle(testCaseTitle))
+        .Distinct()
+        .OrderBy(x => x)
         .ToList();
 
     internal List<string> GetTestRunNames() => BuildTestInfos
