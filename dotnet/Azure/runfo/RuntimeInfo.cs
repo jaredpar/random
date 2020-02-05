@@ -193,19 +193,19 @@ internal sealed class RuntimeInfo
 
         ParseAll(optionSet, args);
 
-        if (buildId is object && definition is object)
+        BuildTestInfoCollection collection;
+        if (buildId is object)
         {
-            OptionFailure("Cannot specified build and definition", optionSet);
-            return ExitFailure;
-        }
+            if (definition is object)
+            {
+                OptionFailure("Cannot specified build and definition", optionSet);
+                return ExitFailure;
+            }
 
-        if (buildId is null && definition is null)
-        {
-            OptionFailure("Need either a build or definition", optionSet);
-            return ExitFailure;
+            var buildTestInfo = await GetBuildTestInfoAsync(buildId.Value);
+            collection = new BuildTestInfoCollection(new[] { buildTestInfo });
         }
-
-        if (definition is object)
+        else if (definition is object)
         {
             if (!TryGetDefinitionId(definition, out int definitionId))
             {
@@ -213,16 +213,29 @@ internal sealed class RuntimeInfo
                 return ExitFailure;
             }
 
-            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, name, verbose, markdown, includePullRequests);
-            return ExitSuccess;
+            collection = await ListBuildTestInfosAsync("public", definitionId, count, includePullRequests);
+        }
+        else
+        {
+            OptionFailure("Need either a build or definition", optionSet);
+            return ExitFailure;
         }
 
-        Debug.Assert(buildId is object);
-        PrintFailedTests(await GetBuildTestInfoAsync(buildId.Value));
+        if (!string.IsNullOrEmpty(name))
+        {
+            var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            collection = collection.FilterToTestCaseTitle(regex);
+        }
+
+        await PrintFailedTestsForDefinition(collection, grouping, verbose, markdown);
         return ExitSuccess;
     }
 
-    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, string name, bool verbose, bool markdown, bool includePullRequests)
+    private async Task PrintFailedTestsForDefinition(
+        BuildTestInfoCollection collection,
+        string grouping,
+        bool verbose,
+        bool markdown)
     {
         switch (grouping)
         {
@@ -230,19 +243,18 @@ internal sealed class RuntimeInfo
                 await GroupByTests();
                 break;
             case "builds":
-                await GroupByBuilds();
+                GroupByBuilds();
                 break;
             case "jobs":
-                await GroupByJobs();
+                GroupByJobs();
                 break;
             default:
                 throw new Exception($"{grouping} is not a valid grouping");
         }
 
-        async Task GroupByBuilds()
+        void GroupByBuilds()
         {
-            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count, includePullRequests);
-            foreach (var buildTestInfo in buildTestInfoList)
+            foreach (var buildTestInfo in collection)
             {
                 PrintFailedTests(buildTestInfo);
             }
@@ -250,13 +262,6 @@ internal sealed class RuntimeInfo
 
         async Task GroupByTests()
         {
-            var collection = await ListBuildTestInfosAsync(project, definitionId, count, includePullRequests);
-            if (!string.IsNullOrEmpty(name))
-            {
-                var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
-                collection = collection.FilterToTestCaseTitle(regex);
-            }
-
             if (markdown)
             {
                 await GroupByTestsMarkdown(collection);
@@ -267,16 +272,16 @@ internal sealed class RuntimeInfo
             }
         }
 
-        void GroupByTestsConsole(BuildTestInfoCollection buildTestInfoList)
+        void GroupByTestsConsole(BuildTestInfoCollection collection)
         {
-            foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
+            foreach (var testCaseTitle in collection.GetTestCaseTitles())
             {
-                var testRunList = buildTestInfoList.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
+                var testRunList = collection.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
                 Console.WriteLine($"{testCaseTitle} {testRunList.Count}");
                 if (verbose)
                 {
                     Console.WriteLine($"{GetIndent(1)}Builds");
-                    foreach (var build in buildTestInfoList.GetBuildsForTestCaseTitle(testCaseTitle))
+                    foreach (var build in collection.GetBuildsForTestCaseTitle(testCaseTitle))
                     {
                         var uri = DevOpsUtil.GetBuildUri(build);
                         Console.WriteLine($"{GetIndent(2)}{uri}");
@@ -293,11 +298,11 @@ internal sealed class RuntimeInfo
             }
         }
 
-        async Task GroupByTestsMarkdown(BuildTestInfoCollection buildTestInfoList)
+        async Task GroupByTestsMarkdown(BuildTestInfoCollection collection)
         {
-            foreach (var testCaseTitle in buildTestInfoList.GetTestCaseTitles())
+            foreach (var testCaseTitle in collection.GetTestCaseTitles())
             {
-                var testRunList = buildTestInfoList.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
+                var testRunList = collection.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
                 Console.WriteLine($"## {testCaseTitle}");
                 Console.WriteLine("");
                 Console.WriteLine("### Console Log Summary");
@@ -305,7 +310,7 @@ internal sealed class RuntimeInfo
                 Console.WriteLine("### Builds");
                 Console.WriteLine("|Build|Pull Request | Test Failure Count|");
                 Console.WriteLine("| --- | --- | --- |");
-                foreach (var buildTestInfo in buildTestInfoList.GetBuildTestInfosForTestCaseTitle(testCaseTitle))
+                foreach (var buildTestInfo in collection.GetBuildTestInfosForTestCaseTitle(testCaseTitle))
                 {
                     var build = buildTestInfo.Build;
                     var uri = DevOpsUtil.GetBuildUri(build);
@@ -315,7 +320,7 @@ internal sealed class RuntimeInfo
                 }
 
                 Console.WriteLine($"### Configurations");
-                foreach (var testRunName in buildTestInfoList.GetTestRunNamesForTestCaseTitle(testCaseTitle))
+                foreach (var testRunName in collection.GetTestRunNamesForTestCaseTitle(testCaseTitle))
                 {
                     Console.WriteLine($"- {EscapeAtSign(testRunName)}");
                 }
@@ -323,7 +328,7 @@ internal sealed class RuntimeInfo
                 Console.WriteLine($"### Helix Logs");
                 Console.WriteLine("|Build|Pull Request|Console|Core|Test Results|");
                 Console.WriteLine("| --- | --- | --- | --- | --- |");
-                foreach (var (build, helixLogInfo) in await GetHelixLogs(buildTestInfoList, testCaseTitle))
+                foreach (var (build, helixLogInfo) in await GetHelixLogs(collection, testCaseTitle))
                 {
                     var uri = DevOpsUtil.GetBuildUri(build);
                     var pr = GetPullRequestColumn(build);
@@ -376,13 +381,12 @@ internal sealed class RuntimeInfo
             }
         }
 
-        async Task GroupByJobs()
+        void GroupByJobs()
         {
-            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
-            var testRunNames = buildTestInfoList.GetTestRunNames();
+            var testRunNames = collection.GetTestRunNames();
             foreach (var testRunName in testRunNames)
             {
-                var list = buildTestInfoList.Where(x => x.ContainsTestRunName(testRunName));
+                var list = collection.Where(x => x.ContainsTestRunName(testRunName));
                 Console.WriteLine($"{testRunName}");
                 if (verbose)
                 {
