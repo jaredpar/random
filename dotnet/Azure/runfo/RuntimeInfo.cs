@@ -303,14 +303,15 @@ internal sealed class RuntimeInfo
                 Console.WriteLine("### Console Log Summary");
                 Console.WriteLine("");
                 Console.WriteLine("### Builds");
-                Console.WriteLine("|Build|Test Failure Count|");
-                Console.WriteLine("| --- | --- |");
+                Console.WriteLine("|Build|Pull Request | Test Failure Count|");
+                Console.WriteLine("| --- | --- | --- |");
                 foreach (var buildTestInfo in buildTestInfoList.GetBuildTestInfosForTestCaseTitle(testCaseTitle))
                 {
                     var build = buildTestInfo.Build;
                     var uri = DevOpsUtil.GetBuildUri(build);
+                    var pr = GetPullRequestColumn(build);
                     var testFailureCount = buildTestInfo.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle).Count();
-                    Console.WriteLine($"|[#{build.Id}]({uri})|{testFailureCount}|");
+                    Console.WriteLine($"|[#{build.Id}]({uri})|{pr}|{testFailureCount}|");
                 }
 
                 Console.WriteLine($"### Configurations");
@@ -320,12 +321,13 @@ internal sealed class RuntimeInfo
                 }
 
                 Console.WriteLine($"### Helix Logs");
-                Console.WriteLine("|Build|Console|Core|Test Results|");
-                Console.WriteLine("| --- | --- | --- | --- |");
+                Console.WriteLine("|Build|Pull Request|Console|Core|Test Results|");
+                Console.WriteLine("| --- | --- | --- | --- | --- |");
                 foreach (var (build, helixLogInfo) in await GetHelixLogs(buildTestInfoList, testCaseTitle))
                 {
                     var uri = DevOpsUtil.GetBuildUri(build);
-                    Console.Write($"|[#{build.Id}]({uri})");
+                    var pr = GetPullRequestColumn(build);
+                    Console.Write($"|[#{build.Id}]({uri})|{pr}");
                     PrintUri(helixLogInfo.ConsoleUri, "console");
                     PrintUri(helixLogInfo.CoreDumpUri, "core");
                     PrintUri(helixLogInfo.TestResultsUri, "testResults.xml");
@@ -358,6 +360,17 @@ internal sealed class RuntimeInfo
                 }
 
                 static string EscapeAtSign(string text) => text.Replace("@", "@<!-- -->");
+
+                static string GetPullRequestColumn(Build build)
+                {
+                    var prNumber = DevOpsUtil.GetPullRequestNumber(build);
+                    if (prNumber is null)
+                    {
+                        return "Rolling";
+                    }
+
+                    return $"#{prNumber.Value}";
+                }
 
                 Console.WriteLine();
             }
@@ -429,6 +442,7 @@ internal sealed class RuntimeInfo
     {
         var query = collection
             .GetHelixTestRunResultsForTestCaseTitle(testCaseTitle)
+            .OrderBy(x => x.Build.Id)
             .ToList()
             .AsParallel()
             .AsOrdered()

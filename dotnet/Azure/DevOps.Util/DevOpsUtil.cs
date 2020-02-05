@@ -1,4 +1,5 @@
 using DevOps.Util;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -38,6 +39,29 @@ namespace DevOps.Util
         {
             var uri = $"https://dev.azure.com/{organization}/{project}/_build/results?buildId={buildId}";
             return new Uri(uri);
+        }
+
+        public static int? GetPullRequestNumber(Build build)
+        {
+            if (build.Reason != BuildReason.PullRequest)
+            {
+                return null;
+            }
+
+            try
+            {
+                var items = build.SourceBranch.Split('/');
+                if (int.TryParse(items[2], out int number))
+                {
+                    return number;
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

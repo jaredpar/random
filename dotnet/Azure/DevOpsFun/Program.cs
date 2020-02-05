@@ -74,7 +74,8 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
-            var build = await server.GetBuildAsync("public", 506061);
+            var build = await server.GetBuildAsync("public", 507307);
+            var prNumber = DevOpsUtil.GetPullRequestNumber(build);
             var testRuns = await server.ListTestRunsAsync("public", build.Id);
             foreach (var testRun in testRuns)
             {
