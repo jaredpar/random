@@ -175,6 +175,7 @@ internal sealed class RuntimeInfo
         int count = 5;
         bool verbose = false;
         bool markdown = false;
+        bool includePullRequests = false;
         string definition = null;
         string name = null;
         string grouping = "builds";
@@ -184,6 +185,7 @@ internal sealed class RuntimeInfo
             { "d|definition=", "build definition name / id", d => definition = d },
             { "c|count=", "count of builds to show for a definition", (int c) => count = c},
             { "g|grouping=", "output grouping: builds*, tests, jobs", g => grouping = g },
+            { "pr", "include pull requests", p => includePullRequests = p is object },
             { "m|markdown", "output in markdown", m => markdown = m  is object },
             { "n|name=", "name regex to match in results", n => name = n },
             { "v|verbose", "verobes output", d => verbose = d is object }
@@ -211,7 +213,7 @@ internal sealed class RuntimeInfo
                 return ExitFailure;
             }
 
-            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, name, verbose, markdown);
+            await PrintFailedTestsForDefinition("public", definitionId, count, grouping, name, verbose, markdown, includePullRequests);
             return ExitSuccess;
         }
 
@@ -220,7 +222,7 @@ internal sealed class RuntimeInfo
         return ExitSuccess;
     }
 
-    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, string name, bool verbose, bool markdown)
+    private async Task PrintFailedTestsForDefinition(string project, int definitionId, int count, string grouping, string name, bool verbose, bool markdown, bool includePullRequests)
     {
         switch (grouping)
         {
@@ -239,7 +241,7 @@ internal sealed class RuntimeInfo
 
         async Task GroupByBuilds()
         {
-            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count);
+            var buildTestInfoList = await ListBuildTestInfosAsync(project, definitionId, count, includePullRequests);
             foreach (var buildTestInfo in buildTestInfoList)
             {
                 PrintFailedTests(buildTestInfo);
@@ -248,7 +250,7 @@ internal sealed class RuntimeInfo
 
         async Task GroupByTests()
         {
-            var collection = await ListBuildTestInfosAsync(project, definitionId, count);
+            var collection = await ListBuildTestInfosAsync(project, definitionId, count, includePullRequests);
             if (!string.IsNullOrEmpty(name))
             {
                 var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -438,10 +440,10 @@ internal sealed class RuntimeInfo
         return list;
     }
 
-    private async Task<BuildTestInfoCollection> ListBuildTestInfosAsync(string project, int definitionId, int count)
+    private async Task<BuildTestInfoCollection> ListBuildTestInfosAsync(string project, int definitionId, int count, bool includePullRequests = false)
     {
         var list = new List<BuildTestInfo>();
-        foreach (var build in await GetBuildResultsAsync(project, definitionId, count))
+        foreach (var build in await GetBuildResultsAsync(project, definitionId, count, includePullRequests))
         {
             try
             {
@@ -541,16 +543,21 @@ internal sealed class RuntimeInfo
         return false;
     }
 
-    private async Task<List<Build>> GetBuildResultsAsync(string project, int definitionId, int count)
+    private async Task<List<Build>> GetBuildResultsAsync(string project, int definitionId, int count, bool includePullRequests = false)
     {
-        var builds = await Server.ListBuildsAsync(
+        IEnumerable<Build> builds = await Server.ListBuildsAsync(
             project,
             new[] { definitionId },
             statusFilter: BuildStatus.Completed,
             queryOrder: BuildQueryOrder.FinishTimeDescending,
             top: count * 20);
+
+        if (!includePullRequests)
+        {
+            builds = builds.Where(x => x.Reason != BuildReason.PullRequest);
+        }
+
         return builds
-            .Where(x => x.Reason != BuildReason.PullRequest)
             .Take(count)
             .ToList();
     }
