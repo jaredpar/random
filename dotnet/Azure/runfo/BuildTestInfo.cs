@@ -115,6 +115,8 @@ internal sealed class BuildTestInfo
             .ToList();
         return new BuildTestInfo(Build, dataList);
     }
+
+    public override string ToString() => Build.Id.ToString();
 }
 
 internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
@@ -171,7 +173,9 @@ internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
 
     internal BuildTestInfoCollection FilterToTestCaseTitle(Regex testCaseTitleRegex)
     {
-        var buildTestInfos = BuildTestInfos.Select(x => x.FilterToTestCaseTitle(testCaseTitleRegex));
+        var buildTestInfos = BuildTestInfos
+            .Select(x => x.FilterToTestCaseTitle(testCaseTitleRegex))
+            .Where(x => x.DataList.Count > 0);
         return new BuildTestInfoCollection(buildTestInfos);
     }
 

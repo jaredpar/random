@@ -146,10 +146,12 @@ internal sealed class RuntimeInfo
     {
         string definition = null;
         int count = 5;
+        var includePullRequests = false;
         var optionSet = new OptionSet()
         {
             { "d|definition=", "definition to print tests for", d => definition = d },
-            { "c|count=", "count of builds to return", (int c) => count = c }
+            { "c|count=", "count of builds to return", (int c) => count = c },
+            { "pr", "include pull requests", p => includePullRequests = p is object },
         };
 
         ParseAll(optionSet, args);
@@ -160,10 +162,12 @@ internal sealed class RuntimeInfo
             return ExitFailure;
         }
 
-        foreach (var build in await GetBuildResultsAsync("public", definitionId, count))
+        foreach (var build in await GetBuildResultsAsync("public", definitionId, count, includePullRequests))
         {
             var uri = DevOpsUtil.GetBuildUri(build);
-            Console.WriteLine($"{build.Id}\t{build.Result}\t{uri}");
+            var prId = DevOpsUtil.GetPullRequestNumber(build);
+            var kind = prId.HasValue ? "PR" : "CI";
+            Console.WriteLine($"{build.Id}\t{kind}\t{build.Result,-13}\t{uri}");
         }
 
         return ExitSuccess;
@@ -302,7 +306,6 @@ internal sealed class RuntimeInfo
         {
             foreach (var testCaseTitle in collection.GetTestCaseTitles())
             {
-                var testRunList = collection.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
                 Console.WriteLine($"## {testCaseTitle}");
                 Console.WriteLine("");
                 Console.WriteLine("### Console Log Summary");
