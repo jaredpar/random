@@ -21,7 +21,8 @@ internal sealed class RuntimeInfo
             ("libraries windows", 676),
             ("libraries linux", 677),
             ("libraries osx", 678),
-            ("crossgen2", 701)
+            ("crossgen2", 701),
+            ("roslyn", 15),
         };
 
     internal DevOpsServer Server;
