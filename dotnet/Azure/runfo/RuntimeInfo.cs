@@ -23,6 +23,7 @@ internal sealed class RuntimeInfo
             ("libraries osx", 678),
             ("crossgen2", 701),
             ("roslyn", 15),
+            ("roslyn-integration", 245),
         };
 
     internal DevOpsServer Server;
