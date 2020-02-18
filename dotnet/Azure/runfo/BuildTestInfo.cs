@@ -181,6 +181,12 @@ internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
         return new BuildTestInfoCollection(buildTestInfos);
     }
 
+    internal BuildTestInfoCollection Filter(Func<BuildTestInfo, bool> predicate)
+    {
+        var buildTestInfos = BuildTestInfos.Where(predicate);
+        return new BuildTestInfoCollection(buildTestInfos);
+    }
+
     public IEnumerator<BuildTestInfo> GetEnumerator() => BuildTestInfos.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

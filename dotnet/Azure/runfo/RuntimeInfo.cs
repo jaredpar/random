@@ -185,6 +185,8 @@ internal sealed class RuntimeInfo
         string definition = null;
         string name = null;
         string grouping = "builds";
+        DateTime? before = null;
+        DateTime? after = null;
         var optionSet = new OptionSet()
         {
             { "b|build=", "build id to print tests for", (int b) => buildId = b },
@@ -194,7 +196,9 @@ internal sealed class RuntimeInfo
             { "pr", "include pull requests", p => includePullRequests = p is object },
             { "m|markdown", "output in markdown", m => markdown = m  is object },
             { "n|name=", "name regex to match in results", n => name = n },
-            { "v|verbose", "verobes output", d => verbose = d is object }
+            { "v|verbose", "verobes output", d => verbose = d is object },
+            { "before=", "filter to builds before this date", (DateTime d) => before = d},
+            { "after=", "filter to builds after this date", (DateTime d) => after = d},
         };
 
         ParseAll(optionSet, args);
@@ -231,6 +235,16 @@ internal sealed class RuntimeInfo
         {
             var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
             collection = collection.FilterToTestCaseTitle(regex);
+        }
+
+        if (before.HasValue)
+        {
+            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d <= before.Value);
+        }
+
+        if (after.HasValue)
+        {
+            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d >= after.Value);
         }
 
         await PrintFailedTestsForDefinition(collection, grouping, verbose, markdown);
