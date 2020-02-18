@@ -280,9 +280,13 @@ internal sealed class RuntimeInfo
 
         void GroupByTestsConsole(BuildTestInfoCollection collection)
         {
-            foreach (var testCaseTitle in collection.GetTestCaseTitles())
+            var all = collection
+                .GetTestCaseTitles()
+                .Select(t => (TestCaseTitle: t, Results: collection.GetHelixTestRunResultsForTestCaseTitle(t)))
+                .OrderByDescending(t => t.Results.Count);
+
+            foreach (var (testCaseTitle, testRunList) in all)
             {
-                var testRunList = collection.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle);
                 Console.WriteLine($"{testCaseTitle} {testRunList.Count}");
                 if (verbose)
                 {

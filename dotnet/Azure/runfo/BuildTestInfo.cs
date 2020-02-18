@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using DevOps.Util;
 
+// TODO: these aren't necessarily helix tests. Should use a more generic
+// name here.
 internal sealed class HelixTestResult
 {
     // The TestCaseResult representing the actual test failure

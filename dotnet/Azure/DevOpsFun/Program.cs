@@ -74,139 +74,57 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
-            var build = await server.GetBuildAsync("public", 507307);
-            var prNumber = DevOpsUtil.GetPullRequestNumber(build);
-            var testRuns = await server.ListTestRunsAsync("public", build.Id);
-            foreach (var testRun in testRuns)
+            var builds = await server.ListBuildsAsync("public", definitions: new[] { 686 }, top: 3000);
+            var buildTimes = new List<(int BuildNumber, DateTime StartTime, DateTime EndTime)>();
+            GetBuildTimes();
+
+            var firstDay = buildTimes.Min(x => x.StartTime).Date;
+            var lastDay = DateTime.UtcNow.Date;
+            var maxCapacity = GetCapacity();
+            Console.WriteLine($"Max capacity is {maxCapacity}");
+
+            void GetBuildTimes()
             {
-                var all = await server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
-                if (all.Length == 0)
+                using var writer = new StreamWriter(@"p:\temp\builds.csv", append: false);
+                writer.WriteLine("Build Number,Start Time, End Time");
+                foreach (var build in builds)
                 {
-                    continue;
-                }
-
-                Console.WriteLine(testRun.Name);
-                foreach (var testCaseResult in all)
-                {
-                    if (HelixUtil.IsHelixTestCaseResult(testCaseResult))
-                    {
-                        var text = await HelixUtil.GetHelixAttachmentContentAsync(server, "public", testRun.Id, testCaseResult.Id);
-                        Console.WriteLine(text);
-                    }
-
-                    if (testCaseResult.TestCaseTitle.EndsWith(" Work Item"))
+                    if (build.FinishTime is null)
                     {
                         continue;
                     }
 
-                    if (testCaseResult.FailingSince.Build.Id != build.Id)
+                    if (!DateTime.TryParse(build.StartTime, out var startTime) || 
+                        !DateTime.TryParse(build.FinishTime, out var endTime))
                     {
-                        var days = DateTime.UtcNow - DateTime.Parse(testCaseResult.FailingSince.Date);
-                        Console.WriteLine($"\t{testCaseResult.TestCaseTitle} {days.TotalDays}");
+                        continue;
                     }
+
+                    writer.WriteLine($"{build.Id},{build.StartTime},{build.FinishTime}");
+                    buildTimes.Add((build.Id, startTime, endTime));
                 }
             }
 
-
-            // await DumpTimeline("internal", 338174, await GetToken("dnceng-internal").ConfigureAwait(false));
-
-            /*
-            using var util = new CloneTimeUtil(await GetToken("scratch-db").ConfigureAwait(false));
-            foreach (var build in await util.DevOpsServer.ListBuildsAsync("public", top: 100).ConfigureAwait(false))
+            int GetCapacity()
             {
-                var jobs = await util.GetJobCloneTimesAsync(build).ConfigureAwait(false);
-
-            }
-            */
-
-
-            /*
-            using var util = new GeneralUtil(await GetToken("scratch-db").ConfigureAwait(false));
-            await util.DumpBuildEventsAsync().ConfigureAwait(false);
-            var list = await util.GetBuildEventsAsync().ConfigureAwait(false);
-            Console.WriteLine(list.Count);
-            */
-            /*
-            var server = new DevOpsServer("dnceng", await GetToken("dnceng2"));
-            var projects = await server.ListProjectsAsync();
-            var publicProj = projects.Single(x => x.Name == "public");
-            var definition = await server.GetDefinitionAsync("public", 15);
-            using var client = server.CreateHttpClient();
-            client.DefaultRequestHeaders.Accept.Add(
-                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-            var uri = "https://dev.azure.com/dnceng/public/_apis/build/builds?ignoreWarnings=true&api-version=5.1";
-
-            dynamic body = new ExpandoObject();
-            body.Definition = new DefinitionReference()
-            {
-                Id = 15,
-                Name = definition.Name,
-                Path = definition.Path,
-                Project = definition.Project,
-                Revision = definition.Revision,
-                Type = definition.Type
-            };
-            body.Project = publicProj;
-            body.Reason = BuildReason.Manual;
-            body.SourceBranch = "master";
-            body.SourceVersion = "1bd191ea896b19e3b06a152f815f3a998e87049a";
-            var content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-            using var request = await client.PostAsync(uri, content);
-            var responseContent = await request.Content.ReadAsStringAsync();
-            var build = JsonConvert.DeserializeObject<Build>(responseContent);
-            var message = request.EnsureSuccessStatusCode();
-            */
-
-            /*
-            var util = new NGenUtil(await GetToken("azure-devdiv"));
-            foreach (var build in await util.ListBuildsAsync(top: 100))
-            using var util = new NGenUtil(await GetToken("azure-devdiv"), await GetToken("scratch-db"));
-            foreach (var build in await util.ListBuildsAsync(top: 1000))
-            {
-                if (util.CanBeUploaded(build))
+                using var writer = new StreamWriter(@"p:\temp\capacity.csv", append: false);
+                writer.WriteLine("Time,Build Count");
+                var current = firstDay;
+                var max = 0;
+                while (current.Date <= lastDay)
                 {
-                    try
+                    var count = buildTimes.Count(x => current >= x.StartTime && current <= x.EndTime);
+                    if (count > max)
                     {
-                        await util.UploadBuild(build);
+                        max = count;
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error: {ex.Message}");
-                    }
-                }
-            }
-*/
 
-
-            // await util.UpdateDatabaseAsync(top: 50);
-            
-            /*
-            var server = new DevOpsServer("dnceng");
-            var totalCount = 0;
-            var prCount = 0;
-            foreach (var build in await server.ListBuildsAsync("public", new[] { 228 }, top: 5000))
-            {
-                totalCount++;
-                if (build.Reason == BuildReason.PullRequest)
-                {
-                    prCount++;
+                    writer.WriteLine($"{current},{count}");
+                    current = current.AddMinutes(15);
                 }
 
-                if (totalCount % 100 == 0)
-                {
-                    dumpData();
-                }
+                return max;
             }
-
-            dumpData();
-            void dumpData()
-            {
-                var ciCount = totalCount - prCount;
-                Console.WriteLine($"Total {totalCount}");
-                Console.WriteLine($"PR {prCount} - {((double)prCount / totalCount) * 100}%");
-                Console.WriteLine($"CI {ciCount} - {((double)ciCount / totalCount) * 100}%");
-            }
-            */
         }
 
         private static async Task ListStaleChecks()
