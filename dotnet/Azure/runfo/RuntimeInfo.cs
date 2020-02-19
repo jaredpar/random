@@ -179,13 +179,27 @@ internal sealed class RuntimeInfo
     {
         string repository = null;
         int? number = null;
+        string definition = null;
         var optionSet = new OptionSet()
         {
+            { "d|definition=", "definition to print tests for", d => definition = d },
             { "r|repository=", "repository name (dotnet/runtime)", r => repository = r },
             { "n|number=", "pull request number", (int n) => number = n },
         };
 
         ParseAll(optionSet, args);
+
+        IEnumerable<int> definitions = null;
+        if (definition is object)
+        {
+            if (!TryGetDefinitionId(definition, out int definitionId))
+            {
+                OptionFailureDefinition(definition, optionSet);
+                return ExitFailure;
+            }
+
+            definitions = new[] { definitionId };
+        }
 
         if (number is null || repository is null)
         {
@@ -196,12 +210,15 @@ internal sealed class RuntimeInfo
 
         IEnumerable<Build> builds = await Server.ListBuildsAsync(
             "public",
+            definitions: definitions,
             repositoryId: repository,
             branchName: $"refs/pull/{number.Value}/merge",
             repositoryType: "github");
+
+        Console.WriteLine($"Definition Build    Url");
         foreach (var build in builds)
         {
-            Console.WriteLine($"{build.Id} {DevOpsUtil.GetBuildUri(build)}");
+            Console.WriteLine($"{build.Definition.Id,-10} {build.Id,-8} {DevOpsUtil.GetBuildUri(build)}");
         }
 
         return ExitSuccess;
