@@ -175,6 +175,38 @@ internal sealed class RuntimeInfo
         return ExitSuccess;
     }
 
+    internal async Task<int> PrintPullRequestBuilds(IEnumerable<string> args)
+    {
+        string repository = null;
+        int? number = null;
+        var optionSet = new OptionSet()
+        {
+            { "r|repository=", "repository name (dotnet/runtime)", r => repository = r },
+            { "n|number=", "pull request number", (int n) => number = n },
+        };
+
+        ParseAll(optionSet, args);
+
+        if (number is null || repository is null)
+        {
+            Console.WriteLine("Must provide a repository and pull request number");
+            optionSet.WriteOptionDescriptions(Console.Out);
+            return ExitFailure;
+        }
+
+        IEnumerable<Build> builds = await Server.ListBuildsAsync(
+            "public",
+            repositoryId: repository,
+            branchName: $"refs/pull/{number.Value}/merge",
+            repositoryType: "github");
+        foreach (var build in builds)
+        {
+            Console.WriteLine($"{build.Id} {DevOpsUtil.GetBuildUri(build)}");
+        }
+
+        return ExitSuccess;
+    }
+
     internal async Task<int> PrintFailedTests(IEnumerable<string> args)
     {
         int? buildId = null;
