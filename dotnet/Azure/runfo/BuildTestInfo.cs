@@ -118,6 +118,14 @@ internal sealed class BuildTestInfo
         return new BuildTestInfo(Build, dataList);
     }
 
+    internal BuildTestInfo FilterToTestRunName(Regex testRunNameRegex)
+    {
+        var dataList = DataList
+            .Where(x => testRunNameRegex.IsMatch(x.TestRun.Name))
+            .ToList();
+        return new BuildTestInfo(Build, dataList);
+    }
+
     public override string ToString() => Build.Id.ToString();
 }
 
@@ -177,6 +185,14 @@ internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
     {
         var buildTestInfos = BuildTestInfos
             .Select(x => x.FilterToTestCaseTitle(testCaseTitleRegex))
+            .Where(x => x.DataList.Count > 0);
+        return new BuildTestInfoCollection(buildTestInfos);
+    }
+
+    internal BuildTestInfoCollection FilterToTestRunName(Regex testRunName)
+    {
+        var buildTestInfos = BuildTestInfos
+            .Select(x => x.FilterToTestRunName(testRunName))
             .Where(x => x.DataList.Count > 0);
         return new BuildTestInfoCollection(buildTestInfos);
     }

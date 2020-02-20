@@ -280,12 +280,6 @@ internal sealed class RuntimeInfo
             return ExitFailure;
         }
 
-        if (!string.IsNullOrEmpty(name))
-        {
-            var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            collection = collection.FilterToTestCaseTitle(regex);
-        }
-
         if (before.HasValue)
         {
             collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d <= before.Value);
@@ -296,22 +290,25 @@ internal sealed class RuntimeInfo
             collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d >= after.Value);
         }
 
-        await PrintFailedTestsForDefinition(collection, grouping, verbose, markdown);
+        await PrintFailureInfo(collection, grouping, name, verbose, markdown);
         return ExitSuccess;
     }
 
-    private async Task PrintFailedTestsForDefinition(
+    private async Task PrintFailureInfo(
         BuildTestInfoCollection collection,
         string grouping,
+        string name,
         bool verbose,
         bool markdown)
     {
         switch (grouping)
         {
             case "tests":
+                FilterToTestName();
                 await GroupByTests();
                 break;
             case "builds":
+                FilterToTestName();
                 GroupByBuilds();
                 break;
             case "jobs":
@@ -319,6 +316,15 @@ internal sealed class RuntimeInfo
                 break;
             default:
                 throw new Exception($"{grouping} is not a valid grouping");
+        }
+
+        void FilterToTestName()
+        {
+            if (!string.IsNullOrEmpty(name))
+            {
+                var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                collection = collection.FilterToTestCaseTitle(regex);
+            }
         }
 
         void GroupByBuilds()
@@ -455,13 +461,19 @@ internal sealed class RuntimeInfo
 
         void GroupByJobs()
         {
+            if (!string.IsNullOrEmpty(name))
+            {
+                var regex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                collection = collection.FilterToTestRunName(regex);
+            }
+
             var testRunNames = collection.GetTestRunNames();
             foreach (var testRunName in testRunNames)
             {
                 var list = collection.Where(x => x.ContainsTestRunName(testRunName));
-                Console.WriteLine($"{testRunName}");
                 if (verbose)
                 {
+                    Console.WriteLine($"{testRunName}");
                     Console.WriteLine($"{GetIndent(1)}Builds");
                     foreach (var build in list)
                     {
@@ -487,8 +499,7 @@ internal sealed class RuntimeInfo
                 {
                     var buildCount = list.Count();
                     var testCaseCount = list.Sum(x => x.GetHelixTestRunResultsForTestRunName(testRunName).Count());
-                    Console.WriteLine($"{GetIndent(1)}Builds {buildCount}");
-                    Console.WriteLine($"{GetIndent(1)}Test Cases {testCaseCount}");
+                    Console.WriteLine($"{testRunName} Builds {buildCount} Tests {testCaseCount}");
                 }
             }
         }
