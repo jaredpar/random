@@ -396,7 +396,8 @@ namespace DevOps.Util
     /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/timeline/get?view=azure-devops-rest-5.0#timelinerecord
     /// </summary>
     public sealed class TimelineRecord
-    { public int Attempt { get; set; }
+    { 
+        public int Attempt { get; set; }
         public int ChangeId { get; set; }
         public string CurrentOperation { get; set; }
         public TimelineReference Details { get; set; }

@@ -64,6 +64,143 @@ internal sealed class RuntimeInfo
         }
     }
 
+    internal async Task<int> PrintTimeline(IEnumerable<string> args)
+    {
+        int count = 5;
+        bool includePullRequests = false;
+        string definition = null;
+        string name = null;
+        string text = null;
+        var optionSet = new OptionSet()
+        {
+            { "d|definition=", "build definition name / id", d => definition = d },
+            { "c|count=", "count of builds to show for a definition", (int c) => count = c},
+            { "n|name=", "name regex to match in results", n => name = n },
+            { "v|value=", "text to search for", t => text = t },
+            { "pr", "include pull requests", p => includePullRequests = p is object },
+        };
+
+        ParseAll(optionSet, args);
+
+        if (text is null)
+        {
+            Console.WriteLine("Must provide a text argument to search for");
+            optionSet.WriteOptionDescriptions(Console.Out);
+            return ExitFailure;
+        }
+
+        if (definition is null || !TryGetDefinitionId(definition, out int definitionId))
+        {
+            OptionFailureDefinition(definition, optionSet);
+            return ExitFailure;
+        }
+
+        var builds = await GetBuildResultsAsync("public", definitionId, count, includePullRequests);
+        var textRegex = new Regex(text, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        Regex nameRegex = null;
+        if (name is object)
+        {
+            nameRegex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        }
+
+        foreach (var tuple in await SearchBuilds(Server, builds, nameRegex, textRegex))
+        {
+            Console.WriteLine($"{DevOpsUtil.GetBuildUri(tuple.Build)} {tuple.TimelineRecord.Name}");
+        }
+
+        return ExitSuccess;
+
+        static async Task<List<(Build Build, TimelineRecord TimelineRecord, string Line)>> SearchBuilds(DevOpsServer server, IEnumerable<Build> builds, Regex nameRegex, Regex textRegex)
+        {
+            var all = builds
+                .AsParallel()
+                .AsOrdered()
+                .Select(async b => {
+                    var timeline = await server.GetTimelineAsync(b.Project.Name, b.Id);
+                    var records = timeline.Records.Where(r => nameRegex is null || nameRegex.IsMatch(r.Name));
+                    return (await SearchTimelineRecords(server, records, textRegex))
+                        .Select(x => (b, x.TimelineRecord, x.Line));
+                });
+            var list = new List<(Build Build, TimelineRecord TimelineRecord, string Line)>();
+            foreach (var task in all)
+            {
+                var col = await task;
+                list.AddRange(col);
+            }
+            return list;
+        }
+
+        static async Task<IEnumerable<(TimelineRecord TimelineRecord, string Line)>> SearchTimelineRecords(DevOpsServer server, IEnumerable<TimelineRecord> timelineRecords, Regex textRegex)
+        {
+            var all = timelineRecords
+                .AsParallel()
+                .Select(async r => {
+                    var tuple = await SearchTimelineRecord(server, r, textRegex);
+                    return (tuple.IsMatch, TimelineRecord: r, tuple.Line);
+                });
+            return (await RuntimeInfoUtil.ToList(all))
+                .Where(x => x.IsMatch)
+                .Select(x => (x.TimelineRecord, x.Line));
+        }
+
+        static async Task<(bool IsMatch, string Line)> SearchTimelineRecord(DevOpsServer server, TimelineRecord record, Regex textRegex)
+        {
+            if (record.Log is null)
+            {
+                return (false, null);
+            }
+
+            try
+            {
+                using var stream = await DownloadFile();
+                using var reader = new StreamReader(stream);
+                do
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (line is null)
+                    {
+                        break;
+                    }
+
+                    if (textRegex.IsMatch(line))
+                    {
+                        return (true, line);
+                    }
+
+                } while (true);
+            }
+            catch (Exception)
+            {
+                // Handle random download fails
+            }
+
+            return (false, null);
+
+            // TODO: Have to implement some back off here for 429 responses. This is really
+            // hacky. Should centralize
+            async Task<MemoryStream> DownloadFile()
+            {
+                int count = 0;
+                while (true)
+                {
+                    try
+                    {
+                        return await server.DownloadFileAsync(record.Log.Url);
+                    }
+                    catch
+                    {
+                        count++;
+                        if (count > 5)
+                        {
+                            throw;
+                        }
+                        await Task.Delay(TimeSpan.FromSeconds(5));
+                    }
+                }
+            }
+        }
+    }
+
     internal async Task<int> PrintHelix(IEnumerable<string> args)
     {
         int? buildId = null;;
