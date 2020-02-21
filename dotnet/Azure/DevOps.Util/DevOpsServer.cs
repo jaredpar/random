@@ -16,6 +16,8 @@ namespace DevOps.Util
 {
     public class DevOpsServer
     {
+        private HttpClient HttpClient { get;}
+
         private string PersonalAccessToken { get; }
         public string Organization { get; }
 
@@ -23,6 +25,7 @@ namespace DevOps.Util
         {
             Organization = organization;
             PersonalAccessToken = personalAccessToken;
+            HttpClient = new HttpClient();
         }
 
         /// <summary>
@@ -101,8 +104,7 @@ namespace DevOps.Util
             builder.AppendInt("startLine", startLine);
             builder.AppendInt("endLine", endLine);
 
-            using var client = CreateHttpClient();
-            using (var response = await client.GetAsync(builder.ToString()).ConfigureAwait(false))
+            using (var response = await GetAsync(builder.ToString()).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
                 string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -301,11 +303,9 @@ namespace DevOps.Util
 
         private async Task<(string Body, string ContinuationToken)> GetJsonResultAndContinuationToken(string url)
         {
-            using var client = CreateHttpClient();
-            client.DefaultRequestHeaders.Accept.Add(
-                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-            using var response = await client.GetAsync(url).ConfigureAwait(false);
+            var message = CreateHttpRequestMessage(url);
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            using var response = await HttpClient.SendAsync(message).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             string continuationToken = null;
@@ -323,8 +323,7 @@ namespace DevOps.Util
 
         protected virtual async Task DownloadFileCoreAsync(string uri, Stream destinationStream)
         {
-            using var client = CreateHttpClient();
-            using (var response = await client.GetAsync(uri).ConfigureAwait(false))
+            using (var response = await GetAsync(uri).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
                 await response.Content.CopyToAsync(destinationStream).ConfigureAwait(false);
@@ -339,23 +338,14 @@ namespace DevOps.Util
 
         protected virtual async Task DownloadZipFileCoreAsync(string uri, Stream destinationStream)
         {
-            using var client = CreateHttpClient();
-            client.DefaultRequestHeaders.Accept.Add(
-                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/zip"));
+            var message = CreateHttpRequestMessage(uri);
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/zip"));
 
-            using (var response = await client.GetAsync(uri).ConfigureAwait(false))
+            using (var response = await HttpClient.SendAsync(message).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
                 await response.Content.CopyToAsync(destinationStream).ConfigureAwait(false);
             }
-        }
-
-        // TODO: use singleton HttpClient
-        public HttpClient CreateHttpClient()
-        {
-            var client = new HttpClient();
-            AddAuthentication(client);
-            return client;
         }
 
         public Task DownloadZipFileAsync(string uri, string destinationFilePath) =>
@@ -364,14 +354,23 @@ namespace DevOps.Util
         public Task<MemoryStream> DownloadZipFileAsync(string uri) =>
             WithMemoryStream(s => DownloadFileAsync(uri, s));
 
-        private void AddAuthentication(HttpClient client)
+        private HttpRequestMessage CreateHttpRequestMessage(string uri, HttpMethod method = null)
         {
+            var message = new HttpRequestMessage(method ?? HttpMethod.Get, uri);
             if (!string.IsNullOrEmpty(PersonalAccessToken))
             {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                message.Headers.Authorization =  new AuthenticationHeaderValue(
                     "Basic",
                     Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($":{PersonalAccessToken}")));
             }
+
+            return message;
+        }
+
+        private Task<HttpResponseMessage> GetAsync(string uri)
+        {
+            var message = CreateHttpRequestMessage(uri, HttpMethod.Get);
+            return HttpClient.SendAsync(message);
         }
 
         private async Task<MemoryStream> WithMemoryStream(Func<MemoryStream, Task> func)
