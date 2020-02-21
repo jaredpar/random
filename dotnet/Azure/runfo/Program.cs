@@ -38,10 +38,10 @@ public class Program
                     return await runtimeInfo.PrintFailedTests(commandArgs);
                 case "helix":
                     return await runtimeInfo.PrintHelix(commandArgs);
+                case "search-timeline":
+                    return await runtimeInfo.PrintSearchTimeline(commandArgs);
                 case "timeline":
-                    return await runtimeInfo.PrintTimelineSearch(commandArgs);
-                case "timelineinfo":
-                    return await runtimeInfo.PrintTimelineInfo(commandArgs);
+                    return await runtimeInfo.PrintTimeline(commandArgs);
                 default:
                     Console.WriteLine($"Error: {command} is not recognized as a valid command");
                     ShowHelp();
@@ -63,7 +63,8 @@ public class Program
             Console.WriteLine("\tprBuilds\t\tPrint builds for a given pull request");
             Console.WriteLine("\ttests\t\tPrint build test failures");
             Console.WriteLine("\thelix\t\tPrint helix logs for build");
-            Console.WriteLine("\ttimeline\t\tSerach timeline info");
+            Console.WriteLine("\tsearch-timeline\t\tSerach timeline info");
+            Console.WriteLine("\ttimeline\t\tdump the timeline");
         }
 
         async Task<string> GetPersonalAccessToken()

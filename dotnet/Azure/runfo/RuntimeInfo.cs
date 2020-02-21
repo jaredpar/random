@@ -30,7 +30,7 @@ internal sealed class RuntimeInfo
 
     internal RuntimeInfo(string personalAccessToken = null)
     {
-        Server = new CachingDevOpsServer("dnceng", personalAccessToken);
+        Server = new DevOpsServer("dnceng", personalAccessToken);
     }
 
     internal async Task PrintBuildResults(IEnumerable<string> args)
@@ -64,7 +64,7 @@ internal sealed class RuntimeInfo
         }
     }
 
-    internal async Task<int> PrintTimelineSearch(IEnumerable<string> args)
+    internal async Task<int> PrintSearchTimeline(IEnumerable<string> args)
     {
         int count = 5;
         bool includePullRequests = false;
@@ -332,7 +332,7 @@ internal sealed class RuntimeInfo
         return ExitSuccess;
     }
 
-    internal async Task<int> PrintTimelineInfo(IEnumerable<string> args)
+    internal async Task<int> PrintTimeline(IEnumerable<string> args)
     {
         int? buildId = null;
         var optionSet = new OptionSet()
