@@ -64,7 +64,7 @@ internal sealed class RuntimeInfo
         }
     }
 
-    internal async Task<int> PrintTimeline(IEnumerable<string> args)
+    internal async Task<int> PrintTimelineSearch(IEnumerable<string> args)
     {
         int count = 5;
         bool includePullRequests = false;
@@ -327,6 +327,95 @@ internal sealed class RuntimeInfo
             var prId = DevOpsUtil.GetPullRequestNumber(build);
             var kind = prId.HasValue ? "PR" : "CI";
             Console.WriteLine($"{build.Id}\t{kind}\t{build.Result,-13}\t{uri}");
+        }
+
+        return ExitSuccess;
+    }
+
+    internal async Task<int> PrintTimelineInfo(IEnumerable<string> args)
+    {
+        int? buildId = null;
+        var optionSet = new OptionSet()
+        {
+            { "b|build=", "build id", (int b) => buildId = b },
+        };
+
+        ParseAll(optionSet, args);
+
+        if (buildId is null)
+        {
+            optionSet.WriteOptionDescriptions(Console.Out);
+            return ExitFailure;
+        }
+
+        var timeline = await Server.GetTimelineAsync("public", buildId.Value);
+        if (timeline is null)
+        {
+            Console.WriteLine("No timeline info");
+            return ExitFailure;
+        }
+
+        DumpTimeline(Server, "", timeline);
+
+        static void DumpTimeline(DevOpsServer server, string indent, Timeline timeline)
+        {
+            var map = new Dictionary<string, List<TimelineRecord>>();
+            TimelineRecord root = null;
+            foreach (var record in timeline.Records)
+            {
+                if (string.IsNullOrEmpty(record.ParentId))
+                {
+                    Debug.Assert(root is null);
+                    root = record;
+                    continue;
+                }
+
+                if (!map.TryGetValue(record.ParentId, out var list))
+                {
+                    list = new List<TimelineRecord>();
+                    map.Add(record.ParentId, list);
+                }
+                list.Add(record);
+            }
+
+            foreach (var topRecord in timeline.Records.Where(x => x.ParentId == root.Id))
+            {
+                DumpRecord(server, indent + "  ", topRecord, timeline.Records);
+            }
+
+            static void DumpRecord(DevOpsServer server, string indent, TimelineRecord current, IEnumerable<TimelineRecord> records)
+            {
+                var duration = RuntimeInfoUtil.TryGetDuration(current.StartTime, current.FinishTime);
+                Console.WriteLine($"{indent}Record {current.Name} ({duration})");
+
+                indent += "  ";
+                foreach (var record in records.Where(x => x.ParentId == current.Id))
+                {
+                    /*
+                    if (record.Issues != null)
+                    {
+                        foreach (var issue in record.Issues)
+                        {
+                            Console.WriteLine($"{indent}{issue.Type} {issue.Category} {issue.Message}");
+                        }
+                    }
+                    */
+
+                    /*
+                    if (record.Details is object)
+                    {
+                        var subTimeline = await server.GetTimelineAsync("public", buildId.Value, record.Details.Id, record.Details.ChangeId);
+                        if (subTimeline is object)
+                        {
+                            await DumpTimeline(nextIndent, subTimeline);
+                        }
+                    }
+                    */
+
+                    DumpRecord(server, indent, record, records);
+                }
+
+            }
         }
 
         return ExitSuccess;

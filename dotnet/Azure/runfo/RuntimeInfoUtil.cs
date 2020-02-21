@@ -20,6 +20,19 @@ internal static class RuntimeInfoUtil
         }
     }
 
+    internal static TimeSpan? TryGetDuration(string startTime, string finishTime)
+    {
+        if (startTime is null ||
+            finishTime is null ||
+            !DateTime.TryParse(startTime, out var s) ||
+            !DateTime.TryParse(finishTime, out var f))
+        {
+            return null;
+        }
+
+        return f - s;
+    }
+
     internal static async Task<List<T>> ToList<T>(IEnumerable<Task<T>> e)
     {
         await Task.WhenAll(e);

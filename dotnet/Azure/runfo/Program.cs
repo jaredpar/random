@@ -39,7 +39,9 @@ public class Program
                 case "helix":
                     return await runtimeInfo.PrintHelix(commandArgs);
                 case "timeline":
-                    return await runtimeInfo.PrintTimeline(commandArgs);
+                    return await runtimeInfo.PrintTimelineSearch(commandArgs);
+                case "timelineinfo":
+                    return await runtimeInfo.PrintTimelineInfo(commandArgs);
                 default:
                     Console.WriteLine($"Error: {command} is not recognized as a valid command");
                     ShowHelp();
