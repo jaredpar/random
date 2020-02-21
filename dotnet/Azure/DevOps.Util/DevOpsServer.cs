@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace DevOps.Util
 {
-    public sealed class DevOpsServer
+    public class DevOpsServer
     {
         private string PersonalAccessToken { get; }
         public string Organization { get; }
@@ -318,7 +318,10 @@ namespace DevOps.Util
             return (responseBody, continuationToken);
         }
 
-        public async Task DownloadFileAsync(string uri, Stream destinationStream)
+        public Task DownloadFileAsync(string uri, Stream destinationStream) =>
+            DownloadFileCoreAsync(uri, destinationStream);
+
+        protected virtual async Task DownloadFileCoreAsync(string uri, Stream destinationStream)
         {
             using var client = CreateHttpClient();
             using (var response = await client.GetAsync(uri).ConfigureAwait(false))
@@ -331,7 +334,10 @@ namespace DevOps.Util
         public Task<MemoryStream> DownloadFileAsync(string uri) =>
             WithMemoryStream(s => DownloadFileAsync(uri, s));
 
-        public async Task DownloadZipFileAsync(string uri, Stream destinationStream)
+        public Task DownloadZipFileAsync(string uri, Stream destinationStream) => 
+            DownloadZipFileCoreAsync(uri, destinationStream);
+
+        protected virtual async Task DownloadZipFileCoreAsync(string uri, Stream destinationStream)
         {
             using var client = CreateHttpClient();
             client.DefaultRequestHeaders.Accept.Add(

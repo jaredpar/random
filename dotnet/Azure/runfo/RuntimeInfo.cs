@@ -30,7 +30,7 @@ internal sealed class RuntimeInfo
 
     internal RuntimeInfo(string personalAccessToken = null)
     {
-        Server = new DevOpsServer("dnceng", personalAccessToken);
+        Server = new CachingDevOpsServer("dnceng", personalAccessToken);
     }
 
     internal async Task PrintBuildResults(IEnumerable<string> args)
@@ -103,36 +103,56 @@ internal sealed class RuntimeInfo
             nameRegex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
         }
 
+        Console.WriteLine("|Build|Kind|Timeline Record|");
+        Console.WriteLine("|---|---|---|");
         foreach (var tuple in await SearchBuilds(Server, builds, nameRegex, textRegex))
         {
-            Console.WriteLine($"{DevOpsUtil.GetBuildUri(tuple.Build)} {tuple.TimelineRecord.Name}");
+            var build = tuple.Build;
+            var kind = "Rolling";
+            if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
+            {
+                kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
+            }
+            Console.WriteLine($"|{DevOpsUtil.GetBuildUri(build)}|{kind}|{tuple.TimelineRecord.Name}|");
         }
 
         return ExitSuccess;
 
         static async Task<List<(Build Build, TimelineRecord TimelineRecord, string Line)>> SearchBuilds(DevOpsServer server, IEnumerable<Build> builds, Regex nameRegex, Regex textRegex)
         {
-            var all = builds
-                .AsParallel()
-                .AsOrdered()
-                .Select(async b => {
-                    var timeline = await server.GetTimelineAsync(b.Project.Name, b.Id);
-                    var records = timeline.Records.Where(r => nameRegex is null || nameRegex.IsMatch(r.Name));
-                    return (await SearchTimelineRecords(server, records, textRegex))
-                        .Select(x => (b, x.TimelineRecord, x.Line));
-                });
+            // Deliberately iterating the build serially vs. using AsParallel because othewise we 
+            // end up sending way too many requests to AzDO. Eventually it will begin rate limiting
+            // us.
             var list = new List<(Build Build, TimelineRecord TimelineRecord, string Line)>();
-            foreach (var task in all)
+            foreach (var build in builds)
             {
-                var col = await task;
-                list.AddRange(col);
+                var timeline = await server.GetTimelineAsync(build.Project.Name, build.Id);
+                if (timeline is null)
+                {
+                    continue;
+                }
+                var records = timeline.Records.Where(r => nameRegex is null || nameRegex.IsMatch(r.Name));
+                var all = (await SearchTimelineRecords(server, records, textRegex)).Select(x => (build, x.TimelineRecord, x.Line));
+                list.AddRange(all);
             }
+
             return list;
         }
 
-        static async Task<IEnumerable<(TimelineRecord TimelineRecord, string Line)>> SearchTimelineRecords(DevOpsServer server, IEnumerable<TimelineRecord> timelineRecords, Regex textRegex)
+        static async Task<IEnumerable<(TimelineRecord TimelineRecord, string Line)>> SearchTimelineRecords(DevOpsServer server, IEnumerable<TimelineRecord> records, Regex textRegex)
         {
-            var all = timelineRecords
+            var hashSet = new HashSet<string>();
+            foreach (var record in records)
+            {
+                if (record.Log is object && !hashSet.Add(record.Log.Url))
+                {
+                    Console.WriteLine("duplicate");
+
+                }
+
+            }
+
+            var all = records
                 .AsParallel()
                 .Select(async r => {
                     var tuple = await SearchTimelineRecord(server, r, textRegex);

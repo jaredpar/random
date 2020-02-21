@@ -24,7 +24,7 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/Binaries/Debug/runfo/netcoreapp3.1/runfo.dll",
-            "args": ["timeline", "-d", "runtime", "-n", "build", "-v", "EvaluateCacheFile"],
+            "args": ["timeline", "-d", "runtime", "-n", "build", "-v", "EvaluateCacheFile", "-pr", "-c", "100"],
             "cwd": "${workspaceFolder}/runfo",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
