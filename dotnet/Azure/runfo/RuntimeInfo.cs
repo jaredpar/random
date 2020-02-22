@@ -71,12 +71,14 @@ internal sealed class RuntimeInfo
         string definition = null;
         string name = null;
         string text = null;
+        bool buildLog = false;
         var optionSet = new OptionSet()
         {
             { "d|definition=", "build definition name / id", d => definition = d },
             { "c|count=", "count of builds to show for a definition", (int c) => count = c},
             { "n|name=", "name regex to match in results", n => name = n },
             { "v|value=", "text to search for", t => text = t },
+            { "bl|buildlog", "search the build log files, not issues", (bool b) => buildLog = b},
             { "pr", "include pull requests", p => includePullRequests = p is object },
         };
 
@@ -105,7 +107,7 @@ internal sealed class RuntimeInfo
 
         Console.WriteLine("|Build|Kind|Timeline Record|");
         Console.WriteLine("|---|---|---|");
-        foreach (var tuple in await SearchBuilds(Server, builds, nameRegex, textRegex))
+        foreach (var tuple in await SearchTimelines(Server, builds, nameRegex, textRegex, buildLog))
         {
             var build = tuple.Build;
             var kind = "Rolling";
@@ -118,7 +120,66 @@ internal sealed class RuntimeInfo
 
         return ExitSuccess;
 
-        static async Task<List<(Build Build, TimelineRecord TimelineRecord, string Line)>> SearchBuilds(DevOpsServer server, IEnumerable<Build> builds, Regex nameRegex, Regex textRegex)
+        Task<List<(Build Build, TimelineRecord TimelineRecord, string Line)>> SearchTimelines(
+            DevOpsServer server,
+            IEnumerable<Build> builds,
+            Regex nameRegex,
+            Regex textRegex,
+            bool buildLogs)
+        {
+            return buildLogs
+                ? SearchBuildLogs(server, builds, nameRegex, textRegex)
+                : SearchTimelineIssues(server, builds, nameRegex, textRegex);
+        }
+
+        static async Task<List<(Build Build, TimelineRecord TimelineRecord, string Line)>> SearchTimelineIssues(
+            DevOpsServer server,
+            IEnumerable<Build> builds,
+            Regex nameRegex,
+            Regex textRegex)
+        {
+            var list = new List<(Build Build, TimelineRecord TimelineRecord, string Line)>();
+            foreach (var build in builds)
+            {
+                var timeline = await server.GetTimelineAsync(build.Project.Name, build.Id);
+                if (timeline is null)
+                {
+                    continue;
+                }
+
+                var records = timeline.Records.Where(r => nameRegex is null || nameRegex.IsMatch(r.Name));
+                foreach (var record in records)
+                {
+                    if (record.Issues is null)
+                    {
+                        continue;
+                    }
+
+                    string line = null;
+                    foreach (var issue in record.Issues)
+                    {
+                        if (textRegex.IsMatch(issue.Message))
+                        {
+                            line = issue.Message;
+                            break;
+                        }
+                    }
+
+                    if (line is object)
+                    {
+                        list.Add((build, record, line));
+                    }
+                }
+            }
+
+            return list;
+        }
+
+        static async Task<List<(Build Build, TimelineRecord TimelineRecord, string Line)>> SearchBuildLogs(
+            DevOpsServer server,
+            IEnumerable<Build> builds,
+            Regex nameRegex,
+            Regex textRegex)
         {
             // Deliberately iterating the build serially vs. using AsParallel because othewise we 
             // end up sending way too many requests to AzDO. Eventually it will begin rate limiting
@@ -335,9 +396,11 @@ internal sealed class RuntimeInfo
     internal async Task<int> PrintTimeline(IEnumerable<string> args)
     {
         int? buildId = null;
+        int? depth = null;
         var optionSet = new OptionSet()
         {
             { "b|build=", "build id", (int b) => buildId = b },
+            { "d|depth=", "depth to print to", (int d) => depth = d },
         };
 
         ParseAll(optionSet, args);
@@ -355,13 +418,14 @@ internal sealed class RuntimeInfo
             return ExitFailure;
         }
 
-        DumpTimeline(Server, "", timeline);
+        DumpTimeline(Server, timeline, depth);
 
-        static void DumpTimeline(DevOpsServer server, string indent, Timeline timeline)
+        static void DumpTimeline(DevOpsServer server, Timeline timeline, int? depthLimit)
         {
+            var records = timeline.Records;
             var map = new Dictionary<string, List<TimelineRecord>>();
             TimelineRecord root = null;
-            foreach (var record in timeline.Records)
+            foreach (var record in records)
             {
                 if (string.IsNullOrEmpty(record.ParentId))
                 {
@@ -378,13 +442,19 @@ internal sealed class RuntimeInfo
                 list.Add(record);
             }
 
-            foreach (var topRecord in timeline.Records.Where(x => x.ParentId == root.Id))
+            foreach (var topRecord in timeline.Records.Where(x => x.ParentId == root.Id).OrderBy(x => x.Name))
             {
-                DumpRecord(server, indent + "  ", topRecord, timeline.Records);
+                DumpRecord(topRecord, 1);
             }
 
-            static void DumpRecord(DevOpsServer server, string indent, TimelineRecord current, IEnumerable<TimelineRecord> records)
+            void DumpRecord(TimelineRecord current, int depth)
             {
+                if (depth > depthLimit == true)
+                {
+                    return;
+                }
+
+                var indent = GetIndent(depth);
                 var duration = RuntimeInfoUtil.TryGetDuration(current.StartTime, current.FinishTime);
                 Console.WriteLine($"{indent}Record {current.Name} ({duration})");
 
@@ -412,10 +482,12 @@ internal sealed class RuntimeInfo
                     }
                     */
 
-                    DumpRecord(server, indent, record, records);
+                    DumpRecord(record, depth + 1);
                 }
 
             }
+
+            string GetIndent(int depth) => new string(' ', (depth - 1) * 2);
         }
 
         return ExitSuccess;
