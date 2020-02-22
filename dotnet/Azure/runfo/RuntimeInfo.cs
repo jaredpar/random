@@ -1089,7 +1089,7 @@ internal sealed class RuntimeInfo
                 throw CreateBadOptionException();
             }
 
-            collection = await ListBuildTestInfosAsync("public", definitionId, optionSet.Count, optionSet.IncludePullRequests);
+            collection = await ListBuildTestInfosAsync("public", definitionId, optionSet.BuildCount, optionSet.IncludePullRequests);
         }
         else
         {
