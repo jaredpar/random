@@ -38,10 +38,12 @@ public class Program
                     return await runtimeInfo.PrintFailedTests(commandArgs);
                 case "helix":
                     return await runtimeInfo.PrintHelix(commandArgs);
-                case "search-timeline":
-                    return await runtimeInfo.PrintSearchTimeline(commandArgs);
                 case "timeline":
                     return await runtimeInfo.PrintTimeline(commandArgs);
+                case "search-timeline":
+                    return await runtimeInfo.PrintSearchTimeline(commandArgs);
+                case "search-helix":
+                    return await runtimeInfo.PrintSearchHelix(commandArgs);
                 default:
                     Console.WriteLine($"Error: {command} is not recognized as a valid command");
                     ShowHelp();
@@ -64,6 +66,7 @@ public class Program
             Console.WriteLine("\ttests\t\tPrint build test failures");
             Console.WriteLine("\thelix\t\tPrint helix logs for build");
             Console.WriteLine("\tsearch-timeline\t\tSerach timeline info");
+            Console.WriteLine("\tsearch-helix\t\tSerach helix logs");
             Console.WriteLine("\ttimeline\t\tdump the timeline");
         }
 

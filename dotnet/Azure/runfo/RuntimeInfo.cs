@@ -64,6 +64,78 @@ internal sealed class RuntimeInfo
         }
     }
 
+    internal async Task<int> PrintSearchHelix(IEnumerable<string> args)
+    {
+        int count = 5;
+        bool includePullRequests = false;
+        string definition = null;
+        string text = null;
+        var optionSet = new OptionSet()
+        {
+            // TODO: common options should have static readonly values that we re-use
+            { "d|definition=", "build definition name / id", d => definition = d },
+            { "c|count=", "count of builds to show for a definition", (int c) => count = c},
+            { "v|value=", "text to search for", t => text = t },
+            { "pr", "include pull requests", p => includePullRequests = p is object },
+        };
+
+        ParseAll(optionSet, args);
+
+        if (definition is null || !TryGetDefinitionId(definition, out int definitionId))
+        {
+            OptionFailureDefinition(definition, optionSet);
+            return ExitFailure;
+        }
+
+        if (text is null)
+        {
+            Console.WriteLine("Must provide a text argument to search for");
+            optionSet.WriteOptionDescriptions(Console.Out);
+            return ExitFailure;
+        }
+
+        var textRegex = new Regex(text, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        var builds = await GetBuildResultsAsync("public", definitionId, count, includePullRequests);
+        Console.WriteLine("|Build|Kind|Timeline Record|");
+        Console.WriteLine("|---|---|---|");
+        foreach (var build in builds)
+        {
+            var list = await GetHelixLogsAsync(build.Id, includeConsoleText: true);
+            foreach (var (helixLogInfo, _) in list.Where(x => IsMatch(x.ConsoleText, textRegex)))
+            {
+                var kind = "Rolling";
+                if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
+                {
+                    kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
+                }
+                Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|[console.log]({helixLogInfo.ConsoleUri})|");
+            }
+        }
+
+        return ExitSuccess;
+
+        static bool IsMatch(string consoleText, Regex textRegex)
+        {
+            using var reader = new StringReader(consoleText);
+            do
+            {
+                var line = reader.ReadLine();
+                if (line is null)
+                {
+                    break;
+                }
+
+                if (textRegex.IsMatch(line))
+                {
+                    return true;
+                }
+
+            } while(true);
+
+            return false;
+        }
+    }
+
     internal async Task<int> PrintSearchTimeline(IEnumerable<string> args)
     {
         int count = 5;
@@ -300,23 +372,7 @@ internal sealed class RuntimeInfo
             return ExitFailure;
         }
 
-        var buildResultInfo = await GetBuildTestInfoAsync(buildId.Value);
-        var logs = buildResultInfo
-            .GetHelixWorkItems()
-            .AsParallel()
-            .Select(async t => await GetHelixLogInfoAsync(t))
-            .Select(async (Task<HelixLogInfo> task) => {
-                var helixLogInfo = await task;
-                string consoleText = null;
-                if (verbose && helixLogInfo.ConsoleUri is object)
-                {
-                    consoleText = await HelixUtil.GetHelixConsoleText(Server, helixLogInfo.ConsoleUri);
-                }
-                return (helixLogInfo, consoleText);
-            });
-
-        var list = await RuntimeInfoUtil.ToList(logs);
-
+        var list = await GetHelixLogsAsync(buildId.Value, includeConsoleText: verbose);
         Console.WriteLine("Console Logs");
         foreach (var (helixLogInfo, consoleText) in list.Where(x => x.Item1.ConsoleUri is object))
         {
@@ -329,7 +385,7 @@ internal sealed class RuntimeInfo
 
         Console.WriteLine();
         var wroteHeader = false;
-        foreach (var (helixLogInfo, _) in list.Where(x => x.helixLogInfo.TestResultsUri is object))
+        foreach (var (helixLogInfo, _) in list.Where(x => x.HelixLogInfo.TestResultsUri is object))
         {
             if (!wroteHeader)
             {
@@ -341,7 +397,7 @@ internal sealed class RuntimeInfo
 
         Console.WriteLine();
         wroteHeader = false;
-        foreach (var (helixLogInfo, _) in list.Where(x => x.helixLogInfo.CoreDumpUri is object))
+        foreach (var (helixLogInfo, _) in list.Where(x => x.HelixLogInfo.CoreDumpUri is object))
         {
             if (!wroteHeader)
             {
@@ -351,6 +407,26 @@ internal sealed class RuntimeInfo
             Console.WriteLine($"{helixLogInfo.CoreDumpUri}");
         }
         return ExitSuccess;
+    }
+
+    private async Task<List<(HelixLogInfo HelixLogInfo, string ConsoleText)>> GetHelixLogsAsync(int buildId, bool includeConsoleText)
+    {
+        var buildResultInfo = await GetBuildTestInfoAsync(buildId);
+        var logs = buildResultInfo
+            .GetHelixWorkItems()
+            .AsParallel()
+            .Select(async t => await GetHelixLogInfoAsync(t))
+            .Select(async (Task<HelixLogInfo> task) => {
+                var helixLogInfo = await task;
+                string consoleText = null;
+                if (includeConsoleText && helixLogInfo.ConsoleUri is object)
+                {
+                    consoleText = await HelixUtil.GetHelixConsoleText(Server, helixLogInfo.ConsoleUri);
+                }
+                return (helixLogInfo, consoleText);
+            });
+
+        return await RuntimeInfoUtil.ToList(logs);
     }
 
     internal void PrintBuildDefinitions()
