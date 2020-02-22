@@ -66,26 +66,15 @@ internal sealed class RuntimeInfo
 
     internal async Task<int> PrintSearchHelix(IEnumerable<string> args)
     {
-        int count = 5;
-        bool includePullRequests = false;
-        string definition = null;
         string text = null;
-        var optionSet = new OptionSet()
+        bool group = false;
+        var optionSet = new BuildSearchOptionSet()
         {
-            // TODO: common options should have static readonly values that we re-use
-            { "d|definition=", "build definition name / id", d => definition = d },
-            { "c|count=", "count of builds to show for a definition", (int c) => count = c},
             { "v|value=", "text to search for", t => text = t },
-            { "pr", "include pull requests", p => includePullRequests = p is object },
+            { "g|group", "group to builds",  g => group = g is object},
         };
 
         ParseAll(optionSet, args);
-
-        if (definition is null || !TryGetDefinitionId(definition, out int definitionId))
-        {
-            OptionFailureDefinition(definition, optionSet);
-            return ExitFailure;
-        }
 
         if (text is null)
         {
@@ -95,14 +84,33 @@ internal sealed class RuntimeInfo
         }
 
         var textRegex = new Regex(text, RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        var builds = await GetBuildResultsAsync("public", definitionId, count, includePullRequests);
-        Console.WriteLine("|Build|Kind|Timeline Record|");
-        Console.WriteLine("|---|---|---|");
-        foreach (var build in builds)
+        var collection = await GetBuildsAsync(optionSet);
+
+        if (group)
         {
-            var list = await GetHelixLogsAsync(build.Id, includeConsoleText: true);
-            foreach (var (helixLogInfo, _) in list.Where(x => IsMatch(x.ConsoleText, textRegex)))
+            Console.WriteLine("|Build|Kind|Log Count|");
+            Console.WriteLine("|---|---|---|");
+            var all = (await Search())
+                .GroupBy(x => x.Item1.Build.Id);
+            foreach (var g in all)
             {
+                var build = g.First().Item1.Build;
+                var count = g.Count();
+                var kind = "Rolling";
+                if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
+                {
+                    kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
+                }
+                Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|{count}|");
+            }
+        }
+        else
+        {
+            Console.WriteLine("|Build|Kind|Timeline Record|");
+            Console.WriteLine("|---|---|---|");
+            foreach (var (buildTestInfo, helixLogInfo) in await Search())
+            {
+                var build = buildTestInfo.Build;
                 var kind = "Rolling";
                 if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
                 {
@@ -114,8 +122,29 @@ internal sealed class RuntimeInfo
 
         return ExitSuccess;
 
+        async Task<List<(BuildTestInfo, HelixLogInfo)>> Search()
+        {
+            var list = new List<(BuildTestInfo, HelixLogInfo)>();
+            foreach (var buildTestInfo in collection)
+            {
+                var build = buildTestInfo.Build;
+                var logs = await GetHelixLogsAsync(buildTestInfo, includeConsoleText: true);
+                foreach (var (helixLogInfo, _) in logs.Where(x => IsMatch(x.ConsoleText, textRegex)))
+                {
+                    list.Add((buildTestInfo, helixLogInfo));
+                }
+            }
+
+            return list;
+        }
+
         static bool IsMatch(string consoleText, Regex textRegex)
         {
+            if (consoleText is null)
+            {
+                return false;
+            }
+
             using var reader = new StringReader(consoleText);
             do
             {
@@ -372,7 +401,8 @@ internal sealed class RuntimeInfo
             return ExitFailure;
         }
 
-        var list = await GetHelixLogsAsync(buildId.Value, includeConsoleText: verbose);
+        var buildTestInfo = await GetBuildTestInfoAsync(buildId.Value);
+        var list = await GetHelixLogsAsync(buildTestInfo, includeConsoleText: verbose);
         Console.WriteLine("Console Logs");
         foreach (var (helixLogInfo, consoleText) in list.Where(x => x.Item1.ConsoleUri is object))
         {
@@ -409,9 +439,8 @@ internal sealed class RuntimeInfo
         return ExitSuccess;
     }
 
-    private async Task<List<(HelixLogInfo HelixLogInfo, string ConsoleText)>> GetHelixLogsAsync(int buildId, bool includeConsoleText)
+    private async Task<List<(HelixLogInfo HelixLogInfo, string ConsoleText)>> GetHelixLogsAsync(BuildTestInfo buildResultInfo, bool includeConsoleText)
     {
-        var buildResultInfo = await GetBuildTestInfoAsync(buildId);
         var logs = buildResultInfo
             .GetHelixWorkItems()
             .AsParallel()
@@ -620,70 +649,21 @@ internal sealed class RuntimeInfo
 
     internal async Task<int> PrintFailedTests(IEnumerable<string> args)
     {
-        int? buildId = null;
-        int count = 5;
         bool verbose = false;
         bool markdown = false;
-        bool includePullRequests = false;
-        string definition = null;
         string name = null;
         string grouping = "builds";
-        DateTime? before = null;
-        DateTime? after = null;
-        var optionSet = new OptionSet()
+        var optionSet = new BuildSearchOptionSet()
         {
-            { "b|build=", "build id to print tests for", (int b) => buildId = b },
-            { "d|definition=", "build definition name / id", d => definition = d },
-            { "c|count=", "count of builds to show for a definition", (int c) => count = c},
             { "g|grouping=", "output grouping: builds*, tests, jobs", g => grouping = g },
-            { "pr", "include pull requests", p => includePullRequests = p is object },
             { "m|markdown", "output in markdown", m => markdown = m  is object },
             { "n|name=", "name regex to match in results", n => name = n },
             { "v|verbose", "verobes output", d => verbose = d is object },
-            { "before=", "filter to builds before this date", (DateTime d) => before = d},
-            { "after=", "filter to builds after this date", (DateTime d) => after = d},
         };
 
         ParseAll(optionSet, args);
 
-        BuildTestInfoCollection collection;
-        if (buildId is object)
-        {
-            if (definition is object)
-            {
-                OptionFailure("Cannot specified build and definition", optionSet);
-                return ExitFailure;
-            }
-
-            var buildTestInfo = await GetBuildTestInfoAsync(buildId.Value);
-            collection = new BuildTestInfoCollection(new[] { buildTestInfo });
-        }
-        else if (definition is object)
-        {
-            if (!TryGetDefinitionId(definition, out int definitionId))
-            {
-                OptionFailureDefinition(definition, optionSet);
-                return ExitFailure;
-            }
-
-            collection = await ListBuildTestInfosAsync("public", definitionId, count, includePullRequests);
-        }
-        else
-        {
-            OptionFailure("Need either a build or definition", optionSet);
-            return ExitFailure;
-        }
-
-        if (before.HasValue)
-        {
-            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d <= before.Value);
-        }
-
-        if (after.HasValue)
-        {
-            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d >= after.Value);
-        }
-
+        var collection = await GetBuildsAsync(optionSet);
         await PrintFailureInfo(collection, grouping, name, verbose, markdown);
         return ExitSuccess;
     }
@@ -1081,4 +1061,54 @@ internal sealed class RuntimeInfo
         await HelixUtil.GetHelixLogInfoAsync(Server, "public", testRunResult.TestRun.Id, testRunResult.HelixTestResult.WorkItem.Id);
 
     private static string GetIndent(int level) => level == 0 ? string.Empty : new string(' ', level * 2);
+
+    private async Task<BuildTestInfoCollection> GetBuildsAsync(BuildSearchOptionSet optionSet)
+    {
+        var buildId = optionSet.BuildId;
+        var definition = optionSet.Definition;
+        var before = optionSet.Before;
+        var after = optionSet.After;
+
+        BuildTestInfoCollection collection;
+        if (buildId is object)
+        {
+            if (definition is object)
+            {
+                OptionFailure("Cannot specified build and definition", optionSet);
+                throw CreateBadOptionException();
+            }
+
+            var buildTestInfo = await GetBuildTestInfoAsync(buildId.Value);
+            collection = new BuildTestInfoCollection(new[] { buildTestInfo });
+        }
+        else if (definition is object)
+        {
+            if (!TryGetDefinitionId(definition, out int definitionId))
+            {
+                OptionFailureDefinition(definition, optionSet);
+                throw CreateBadOptionException();
+            }
+
+            collection = await ListBuildTestInfosAsync("public", definitionId, optionSet.Count, optionSet.IncludePullRequests);
+        }
+        else
+        {
+            OptionFailure("Need either a build or definition", optionSet);
+            throw CreateBadOptionException();
+        }
+
+        if (before.HasValue)
+        {
+            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d <= before.Value);
+        }
+
+        if (after.HasValue)
+        {
+            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d >= after.Value);
+        }
+
+        return collection;
+
+        static Exception CreateBadOptionException() => new Exception("Bad option");
+    }
 }
