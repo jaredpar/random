@@ -61,7 +61,7 @@ public class Program
             Console.WriteLine("runfo");
             Console.WriteLine("\tstatus\t\tPrint build definition status");
             Console.WriteLine("\tdefinitions\tPrint build definition info");
-            Console.WriteLine("\tbuilds\t\tPrint builds for a given definition");
+            Console.WriteLine("\tbuilds\t\tPrint builds");
             Console.WriteLine("\tprBuilds\t\tPrint builds for a given pull request");
             Console.WriteLine("\ttests\t\tPrint build test failures");
             Console.WriteLine("\thelix\t\tPrint helix logs for build");
@@ -85,7 +85,6 @@ public class Program
             }
             return token;
         }
-
     }
 
     // TODO: need to make this usable by others

@@ -46,7 +46,7 @@ internal sealed class RuntimeInfo
         var data = BuildDefinitions
             .AsParallel()
             .AsOrdered()
-            .Select(async t => (t.BuildName, t.DefinitionId, await GetBuildResultsAsync("public", t.DefinitionId, count)));
+            .Select(async t => (t.BuildName, t.DefinitionId, await ListBuildsAsync("public", t.DefinitionId, count)));
 
         foreach (var task in data)
         {
@@ -84,7 +84,7 @@ internal sealed class RuntimeInfo
         }
 
         var textRegex = new Regex(text, RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        var collection = await GetBuildsAsync(optionSet);
+        var collection = await ListBuildTestInfosAsync(optionSet);
 
         if (group)
         {
@@ -167,20 +167,14 @@ internal sealed class RuntimeInfo
 
     internal async Task<int> PrintSearchTimeline(IEnumerable<string> args)
     {
-        int count = 5;
-        bool includePullRequests = false;
-        string definition = null;
         string name = null;
         string text = null;
         bool buildLog = false;
-        var optionSet = new OptionSet()
+        var optionSet = new BuildSearchOptionSet()
         {
-            { "d|definition=", "build definition name / id", d => definition = d },
-            { "c|count=", "count of builds to show for a definition", (int c) => count = c},
             { "n|name=", "name regex to match in results", n => name = n },
             { "v|value=", "text to search for", t => text = t },
             { "bl|buildlog", "search the build log files, not issues", (bool b) => buildLog = b},
-            { "pr", "include pull requests", p => includePullRequests = p is object },
         };
 
         ParseAll(optionSet, args);
@@ -192,13 +186,7 @@ internal sealed class RuntimeInfo
             return ExitFailure;
         }
 
-        if (definition is null || !TryGetDefinitionId(definition, out int definitionId))
-        {
-            OptionFailureDefinition(definition, optionSet);
-            return ExitFailure;
-        }
-
-        var builds = await GetBuildResultsAsync("public", definitionId, count, includePullRequests);
+        var builds = await ListBuildsAsync(optionSet);
         var textRegex = new Regex(text, RegexOptions.Compiled | RegexOptions.IgnoreCase);
         Regex nameRegex = null;
         if (name is object)
@@ -469,25 +457,10 @@ internal sealed class RuntimeInfo
 
     internal async Task<int> PrintBuilds(IEnumerable<string> args)
     {
-        string definition = null;
-        int count = 5;
-        var includePullRequests = false;
-        var optionSet = new OptionSet()
-        {
-            { "d|definition=", "definition to print tests for", d => definition = d },
-            { "c|count=", "count of builds to return", (int c) => count = c },
-            { "pr", "include pull requests", p => includePullRequests = p is object },
-        };
-
+        var optionSet = new BuildSearchOptionSet();
         ParseAll(optionSet, args);
 
-        if (!TryGetDefinitionId(definition, out int definitionId))
-        {
-            OptionFailureDefinition(definition, optionSet);
-            return ExitFailure;
-        }
-
-        foreach (var build in await GetBuildResultsAsync("public", definitionId, count, includePullRequests))
+        foreach (var build in await ListBuildsAsync(optionSet))
         {
             var uri = DevOpsUtil.GetBuildUri(build);
             var prId = DevOpsUtil.GetPullRequestNumber(build);
@@ -663,7 +636,7 @@ internal sealed class RuntimeInfo
 
         ParseAll(optionSet, args);
 
-        var collection = await GetBuildsAsync(optionSet);
+        var collection = await ListBuildTestInfosAsync(optionSet);
         await PrintFailureInfo(collection, grouping, name, verbose, markdown);
         return ExitSuccess;
     }
@@ -915,25 +888,6 @@ internal sealed class RuntimeInfo
         return list;
     }
 
-    private async Task<BuildTestInfoCollection> ListBuildTestInfosAsync(string project, int definitionId, int count, bool includePullRequests = false)
-    {
-        var list = new List<BuildTestInfo>();
-        foreach (var build in await GetBuildResultsAsync(project, definitionId, count, includePullRequests))
-        {
-            try
-            {
-                list.Add(await GetBuildTestInfoAsync(build));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Cannot get test info for {build.Id} {DevOpsUtil.GetBuildUri(build)}");
-                Console.WriteLine(ex.Message);
-            }
-        }
-
-        return new BuildTestInfoCollection(new ReadOnlyCollection<BuildTestInfo>(list));
-    }
-
     private async Task<BuildTestInfo> GetBuildTestInfoAsync(int buildId)
     {
         var build = await Server.GetBuildAsync("public", buildId);
@@ -1018,25 +972,6 @@ internal sealed class RuntimeInfo
         return false;
     }
 
-    private async Task<List<Build>> GetBuildResultsAsync(string project, int definitionId, int count, bool includePullRequests = false)
-    {
-        IEnumerable<Build> builds = await Server.ListBuildsAsync(
-            project,
-            new[] { definitionId },
-            statusFilter: BuildStatus.Completed,
-            queryOrder: BuildQueryOrder.FinishTimeDescending,
-            top: count * 20);
-
-        if (!includePullRequests)
-        {
-            builds = builds.Where(x => x.Reason != BuildReason.PullRequest);
-        }
-
-        return builds
-            .Take(count)
-            .ToList();
-    }
-
     private static void OptionFailure(string message, OptionSet optionSet)
     {
         Console.WriteLine(message);
@@ -1062,14 +997,13 @@ internal sealed class RuntimeInfo
 
     private static string GetIndent(int level) => level == 0 ? string.Empty : new string(' ', level * 2);
 
-    private async Task<BuildTestInfoCollection> GetBuildsAsync(BuildSearchOptionSet optionSet)
+    private async Task<List<Build>> ListBuildsAsync(BuildSearchOptionSet optionSet)
     {
         var buildId = optionSet.BuildId;
         var definition = optionSet.Definition;
         var before = optionSet.Before;
         var after = optionSet.After;
 
-        BuildTestInfoCollection collection;
         if (buildId is object)
         {
             if (definition is object)
@@ -1078,10 +1012,12 @@ internal sealed class RuntimeInfo
                 throw CreateBadOptionException();
             }
 
-            var buildTestInfo = await GetBuildTestInfoAsync(buildId.Value);
-            collection = new BuildTestInfoCollection(new[] { buildTestInfo });
+            var build = await Server.GetBuildAsync(optionSet.Project, buildId.Value);
+            return new List<Build>(new[] { build });
         }
-        else if (definition is object)
+
+        List<Build> list;
+        if (definition is object)
         {
             if (!TryGetDefinitionId(definition, out int definitionId))
             {
@@ -1089,7 +1025,7 @@ internal sealed class RuntimeInfo
                 throw CreateBadOptionException();
             }
 
-            collection = await ListBuildTestInfosAsync("public", definitionId, optionSet.BuildCount, optionSet.IncludePullRequests);
+            list = await ListBuildsAsync(optionSet.Project, definitionId, optionSet.BuildCount, optionSet.IncludePullRequests);
         }
         else
         {
@@ -1099,16 +1035,55 @@ internal sealed class RuntimeInfo
 
         if (before.HasValue)
         {
-            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d <= before.Value);
+            list = list.Where(b => b.GetStartTime() is DateTime d && d <= before.Value).ToList();
         }
 
         if (after.HasValue)
         {
-            collection = collection.Filter(b => b.Build.GetStartTime() is DateTime d && d >= after.Value);
+            list = list.Where(b => b.GetStartTime() is DateTime d && d >= after.Value).ToList();
         }
 
-        return collection;
+        return list;
 
         static Exception CreateBadOptionException() => new Exception("Bad option");
     }
+
+    private async Task<List<Build>> ListBuildsAsync(string project, int definitionId, int count, bool includePullRequests = false)
+    {
+        IEnumerable<Build> builds = await Server.ListBuildsAsync(
+            project,
+            new[] { definitionId },
+            statusFilter: BuildStatus.Completed,
+            queryOrder: BuildQueryOrder.FinishTimeDescending,
+            top: count * 20);
+
+        if (!includePullRequests)
+        {
+            builds = builds.Where(x => x.Reason != BuildReason.PullRequest);
+        }
+
+        return builds
+            .Take(count)
+            .ToList();
+    }
+
+    private async Task<BuildTestInfoCollection> ListBuildTestInfosAsync(BuildSearchOptionSet optionSet)
+    {
+        var list = new List<BuildTestInfo>();
+        foreach (var build in await ListBuildsAsync(optionSet))
+        {
+            try
+            {
+                list.Add(await GetBuildTestInfoAsync(build));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Cannot get test info for {build.Id} {DevOpsUtil.GetBuildUri(build)}");
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+        return new BuildTestInfoCollection(new ReadOnlyCollection<BuildTestInfo>(list));
+    }
+
 }

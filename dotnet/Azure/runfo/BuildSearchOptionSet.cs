@@ -5,7 +5,7 @@ internal sealed class BuildSearchOptionSet : OptionSet
 {
     public int? BuildId { get; set; }
 
-    public int BuildCount { get; set; }
+    public int BuildCount { get; set; } = 5;
 
     public string Definition { get; set; }
 
@@ -15,6 +15,8 @@ internal sealed class BuildSearchOptionSet : OptionSet
 
     public bool IncludePullRequests { get; set; }
 
+    public string Project { get; set; } = "public";
+
     public BuildSearchOptionSet()
     {
         Add("b|build=", "build id to print tests for", (int b) => BuildId = b);
@@ -23,5 +25,6 @@ internal sealed class BuildSearchOptionSet : OptionSet
         Add("pr", "include pull requests", p => IncludePullRequests = p is object);
         Add("before=", "filter to builds before this date", (DateTime d) => Before = d);
         Add("after=", "filter to builds after this date", (DateTime d) => After = d);
+        Add("p|project=", "project to search is (public)", p => Project = p);
     }
 }
