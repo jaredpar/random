@@ -469,9 +469,11 @@ internal sealed class RuntimeInfo
     internal async Task<int> PrintTimeline(IEnumerable<string> args)
     {
         int? depth = null;
+        bool issues = false;
         var optionSet = new BuildSearchOptionSet()
         {
             { "depth=", "depth to print to", (int d) => depth = d },
+            { "issues", "print issues", i => issues = i is object },
         };
 
         ParseAll(optionSet, args);
@@ -485,10 +487,10 @@ internal sealed class RuntimeInfo
                 return ExitFailure;
             }
 
-            DumpTimeline(Server, timeline, depth);
+            DumpTimeline(Server, timeline, depth, issues);
         }
 
-        static void DumpTimeline(DevOpsServer server, Timeline timeline, int? depthLimit)
+        static void DumpTimeline(DevOpsServer server, Timeline timeline, int? depthLimit, bool issues)
         {
             var records = timeline.Records;
             var map = new Dictionary<string, List<TimelineRecord>>();
@@ -513,8 +515,7 @@ internal sealed class RuntimeInfo
 
             foreach (var root in roots.OrderBy(x => x.Order))
             {
-                var duration = RuntimeInfoUtil.TryGetDuration(root.StartTime, root.FinishTime);
-                Console.WriteLine($"Root {root.Name} ({duration})");
+                PrintRecord("Root", depth: 0, root);
                 foreach (var topRecord in timeline.Records.Where(x => x.ParentId == root.Id).OrderBy(x => x.Name))
                 {
                     DumpRecord(topRecord, 1);
@@ -528,22 +529,17 @@ internal sealed class RuntimeInfo
                     return;
                 }
 
-                var indent = GetIndent(depth);
-                var duration = RuntimeInfoUtil.TryGetDuration(current.StartTime, current.FinishTime);
-                Console.WriteLine($"{indent}Record {current.Name} ({duration})");
-
-                indent += "  ";
+                PrintRecord("Record", depth, current);
                 foreach (var record in records.Where(x => x.ParentId == current.Id))
                 {
-                    /*
-                    if (record.Issues != null)
+                    if (issues && record.Issues is object)
                     {
+                        var indent = GetIndent(depth + 1);
                         foreach (var issue in record.Issues)
                         {
                             Console.WriteLine($"{indent}{issue.Type} {issue.Category} {issue.Message}");
                         }
                     }
-                    */
 
                     /*
                     if (record.Details is object)
@@ -558,6 +554,14 @@ internal sealed class RuntimeInfo
 
                     DumpRecord(record, depth + 1);
                 }
+
+            }
+
+            void PrintRecord(string kind, int depth, TimelineRecord record)
+            {
+                var indent = GetIndent(depth);
+                var duration = RuntimeInfoUtil.TryGetDuration(record.StartTime, record.FinishTime);
+                Console.WriteLine($"{indent}{kind} {record.Name} ({duration}) {record.Result}");
 
             }
 
