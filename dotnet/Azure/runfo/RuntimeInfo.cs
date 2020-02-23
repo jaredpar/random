@@ -13,17 +13,17 @@ using static RuntimeInfoUtil;
 
 internal sealed class RuntimeInfo
 {
-    internal static readonly (string BuildName, int DefinitionId)[] BuildDefinitions = new[] 
+    internal static readonly (string BuildName, string Project, int DefinitionId)[] BuildDefinitions = new[] 
         {
-            ("runtime", 686),
-            ("coreclr", 655),
-            ("libraries", 675),
-            ("libraries windows", 676),
-            ("libraries linux", 677),
-            ("libraries osx", 678),
-            ("crossgen2", 701),
-            ("roslyn", 15),
-            ("roslyn-integration", 245),
+            ("runtime", "public", 686),
+            ("coreclr", "public", 655),
+            ("libraries", "public", 675),
+            ("libraries windows", "public", 676),
+            ("libraries linux", "public", 677),
+            ("libraries osx", "public", 678),
+            ("crossgen2", "public", 701),
+            ("roslyn", "public", 15),
+            ("roslyn-integration", "public", 245),
         };
 
     internal DevOpsServer Server;
@@ -46,7 +46,7 @@ internal sealed class RuntimeInfo
         var data = BuildDefinitions
             .AsParallel()
             .AsOrdered()
-            .Select(async t => (t.BuildName, t.DefinitionId, await ListBuildsAsync("public", t.DefinitionId, count)));
+            .Select(async t => (t.BuildName, t.DefinitionId, await ListBuildsAsync(t.Project, t.DefinitionId, count)));
 
         foreach (var task in data)
         {
@@ -373,63 +373,58 @@ internal sealed class RuntimeInfo
 
     internal async Task<int> PrintHelix(IEnumerable<string> args)
     {
-        int? buildId = null;;
         var verbose = false;
-        var optionSet = new OptionSet()
+        var optionSet = new BuildSearchOptionSet()
         {
-            { "b|build=", "build to print out", (int b) => buildId = b },
             { "v|verbose", "verbose output", v => verbose = v is object },
         };
 
         ParseAll(optionSet, args); 
-        if (buildId is null)
-        {
-            Console.WriteLine("Build id (-b) is required");
-            optionSet.WriteOptionDescriptions(Console.Out);
-            return ExitFailure;
-        }
 
-        var buildTestInfo = await GetBuildTestInfoAsync(buildId.Value);
-        var list = await GetHelixLogsAsync(buildTestInfo, includeConsoleText: verbose);
-        Console.WriteLine("Console Logs");
-        foreach (var (helixLogInfo, consoleText) in list.Where(x => x.Item1.ConsoleUri is object))
+        foreach (var buildTestInfo in await ListBuildTestInfosAsync(optionSet))
         {
-            Console.WriteLine($"{helixLogInfo.ConsoleUri}");
-            if (verbose)
+            var list = await GetHelixLogsAsync(buildTestInfo, includeConsoleText: verbose);
+            Console.WriteLine("Console Logs");
+            foreach (var (helixLogInfo, consoleText) in list.Where(x => x.Item1.ConsoleUri is object))
             {
-                Console.WriteLine(consoleText);
+                Console.WriteLine($"{helixLogInfo.ConsoleUri}");
+                if (verbose)
+                {
+                    Console.WriteLine(consoleText);
+                }
+            }
+
+            Console.WriteLine();
+            var wroteHeader = false;
+            foreach (var (helixLogInfo, _) in list.Where(x => x.HelixLogInfo.TestResultsUri is object))
+            {
+                if (!wroteHeader)
+                {
+                    Console.WriteLine("Test Results");
+                    wroteHeader = true;
+                }
+                Console.WriteLine($"{helixLogInfo.TestResultsUri}");
+            }
+
+            Console.WriteLine();
+            wroteHeader = false;
+            foreach (var (helixLogInfo, _) in list.Where(x => x.HelixLogInfo.CoreDumpUri is object))
+            {
+                if (!wroteHeader)
+                {
+                    Console.WriteLine("Core Logs");
+                    wroteHeader = true;
+                }
+                Console.WriteLine($"{helixLogInfo.CoreDumpUri}");
             }
         }
 
-        Console.WriteLine();
-        var wroteHeader = false;
-        foreach (var (helixLogInfo, _) in list.Where(x => x.HelixLogInfo.TestResultsUri is object))
-        {
-            if (!wroteHeader)
-            {
-                Console.WriteLine("Test Results");
-                wroteHeader = true;
-            }
-            Console.WriteLine($"{helixLogInfo.TestResultsUri}");
-        }
-
-        Console.WriteLine();
-        wroteHeader = false;
-        foreach (var (helixLogInfo, _) in list.Where(x => x.HelixLogInfo.CoreDumpUri is object))
-        {
-            if (!wroteHeader)
-            {
-                Console.WriteLine("Core Logs");
-                wroteHeader = true;
-            }
-            Console.WriteLine($"{helixLogInfo.CoreDumpUri}");
-        }
         return ExitSuccess;
     }
 
-    private async Task<List<(HelixLogInfo HelixLogInfo, string ConsoleText)>> GetHelixLogsAsync(BuildTestInfo buildResultInfo, bool includeConsoleText)
+    private async Task<List<(HelixLogInfo HelixLogInfo, string ConsoleText)>> GetHelixLogsAsync(BuildTestInfo buildTestInfo, bool includeConsoleText)
     {
-        var logs = buildResultInfo
+        var logs = buildTestInfo
             .GetHelixWorkItems()
             .AsParallel()
             .Select(async t => await GetHelixLogInfoAsync(t))
@@ -448,9 +443,9 @@ internal sealed class RuntimeInfo
 
     internal void PrintBuildDefinitions()
     {
-        foreach (var (name, definitionId) in BuildDefinitions)
+        foreach (var (name, project, definitionId) in BuildDefinitions)
         {
-            var uri = DevOpsUtil.GetBuildDefinitionUri(Server.Organization, "public", definitionId);
+            var uri = DevOpsUtil.GetBuildDefinitionUri(Server.Organization, project, definitionId);
             Console.WriteLine($"{name,-20}{uri}");
         }
     }
@@ -473,42 +468,38 @@ internal sealed class RuntimeInfo
 
     internal async Task<int> PrintTimeline(IEnumerable<string> args)
     {
-        int? buildId = null;
         int? depth = null;
-        var optionSet = new OptionSet()
+        var optionSet = new BuildSearchOptionSet()
         {
-            { "b|build=", "build id", (int b) => buildId = b },
-            { "d|depth=", "depth to print to", (int d) => depth = d },
+            { "depth=", "depth to print to", (int d) => depth = d },
         };
 
         ParseAll(optionSet, args);
 
-        if (buildId is null)
+        foreach (var build in await ListBuildsAsync(optionSet))
         {
-            optionSet.WriteOptionDescriptions(Console.Out);
-            return ExitFailure;
-        }
+            var timeline = await Server.GetTimelineAsync(build.Project.Name, build.Id);
+            if (timeline is null)
+            {
+                Console.WriteLine("No timeline info");
+                return ExitFailure;
+            }
 
-        var timeline = await Server.GetTimelineAsync("public", buildId.Value);
-        if (timeline is null)
-        {
-            Console.WriteLine("No timeline info");
-            return ExitFailure;
+            DumpTimeline(Server, timeline, depth);
         }
-
-        DumpTimeline(Server, timeline, depth);
 
         static void DumpTimeline(DevOpsServer server, Timeline timeline, int? depthLimit)
         {
             var records = timeline.Records;
             var map = new Dictionary<string, List<TimelineRecord>>();
-            TimelineRecord root = null;
+
+            // Each stage will have a different root
+            var roots = new List<TimelineRecord>();
             foreach (var record in records)
             {
                 if (string.IsNullOrEmpty(record.ParentId))
                 {
-                    Debug.Assert(root is null);
-                    root = record;
+                    roots.Add(record);
                     continue;
                 }
 
@@ -520,9 +511,14 @@ internal sealed class RuntimeInfo
                 list.Add(record);
             }
 
-            foreach (var topRecord in timeline.Records.Where(x => x.ParentId == root.Id).OrderBy(x => x.Name))
+            foreach (var root in roots.OrderBy(x => x.Order))
             {
-                DumpRecord(topRecord, 1);
+                var duration = RuntimeInfoUtil.TryGetDuration(root.StartTime, root.FinishTime);
+                Console.WriteLine($"Root {root.Name} ({duration})");
+                foreach (var topRecord in timeline.Records.Where(x => x.ParentId == root.Id).OrderBy(x => x.Name))
+                {
+                    DumpRecord(topRecord, 1);
+                }
             }
 
             void DumpRecord(TimelineRecord current, int depth)
@@ -565,7 +561,7 @@ internal sealed class RuntimeInfo
 
             }
 
-            string GetIndent(int depth) => new string(' ', (depth - 1) * 2);
+            string GetIndent(int depth) => new string(' ', depth * 2);
         }
 
         return ExitSuccess;
@@ -888,9 +884,9 @@ internal sealed class RuntimeInfo
         return list;
     }
 
-    private async Task<BuildTestInfo> GetBuildTestInfoAsync(int buildId)
+    private async Task<BuildTestInfo> GetBuildTestInfoAsync(string project, int buildId)
     {
-        var build = await Server.GetBuildAsync("public", buildId);
+        var build = await Server.GetBuildAsync(project, buildId);
         return await GetBuildTestInfoAsync(build);
     }
 
@@ -900,7 +896,7 @@ internal sealed class RuntimeInfo
         var testRuns = await Server.ListTestRunsAsync("public", build.Id);
         foreach (var testRun in testRuns)
         {
-            var task = GetTestRunResultsAsync(testRun);
+            var task = GetTestRunResultsAsync(build.Project.Name, testRun);
             taskList.Add(task);
         }
 
@@ -935,9 +931,9 @@ internal sealed class RuntimeInfo
 
         return new BuildTestInfo(build, list);
 
-        async Task<(TestRun, List<TestCaseResult>)?> GetTestRunResultsAsync(TestRun testRun)
+        async Task<(TestRun, List<TestCaseResult>)?> GetTestRunResultsAsync(string project, TestRun testRun)
         {
-            var all = await Server.ListTestResultsAsync("public", testRun.Id, outcomes: new[] { TestOutcome.Failed });
+            var all = await Server.ListTestResultsAsync(project, testRun.Id, outcomes: new[] { TestOutcome.Failed });
             if (all.Length == 0)
             {
                 return null;
@@ -960,7 +956,7 @@ internal sealed class RuntimeInfo
             return true;
         }
 
-        foreach (var (name, id) in BuildDefinitions)
+        foreach (var (name, _, id) in BuildDefinitions)
         {
             if (name == definition)
             {
@@ -982,7 +978,7 @@ internal sealed class RuntimeInfo
     {
         Console.WriteLine($"{definition} is not a valid definition name or id");
         Console.WriteLine("Supported definition names");
-        foreach (var (name, id) in BuildDefinitions)
+        foreach (var (name, _, id) in BuildDefinitions)
         {
             Console.WriteLine($"{id}\t{name}");
         }
@@ -993,7 +989,7 @@ internal sealed class RuntimeInfo
     // The logs for the failure always exist on the associated work item, not on the 
     // individual test result
     private async Task<HelixLogInfo> GetHelixLogInfoAsync(HelixTestRunResult testRunResult) => 
-        await HelixUtil.GetHelixLogInfoAsync(Server, "public", testRunResult.TestRun.Id, testRunResult.HelixTestResult.WorkItem.Id);
+        await HelixUtil.GetHelixLogInfoAsync(Server, testRunResult.Build.Project.Name, testRunResult.TestRun.Id, testRunResult.HelixTestResult.WorkItem.Id);
 
     private static string GetIndent(int level) => level == 0 ? string.Empty : new string(' ', level * 2);
 
