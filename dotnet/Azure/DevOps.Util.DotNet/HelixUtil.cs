@@ -21,43 +21,43 @@ namespace DevOps.Util.DotNet
     {
 
         public static bool IsHelixWorkItem(TestCaseResult testCaseResult) =>
-            TryGetHelixInfo(testCaseResult, out var _, out var workItemName) &&
-            testCaseResult.TestCaseTitle == $"{workItemName} Work Item";
+            TryGetHelixInfo(testCaseResult) is HelixInfo info &&
+            testCaseResult.TestCaseTitle == $"{info.WorkItemName} Work Item";
 
         public static bool IsHelixTestCaseResult(TestCaseResult testCaseResult) =>
-            TryGetHelixInfo(testCaseResult, out var _, out var workItemName) &&
-            testCaseResult.TestCaseTitle != $"{workItemName} Work Item";
+            TryGetHelixInfo(testCaseResult) is HelixInfo info &&
+            testCaseResult.TestCaseTitle != $"{info.WorkItemName} Work Item";
 
         public static bool IsHelixWorkItemAndTestCaseResult(TestCaseResult workItem, TestCaseResult test) =>
             IsHelixWorkItem(workItem) &&
             !IsHelixWorkItem(test) &&
-            TryGetHelixInfo(workItem, out var workItemJobId, out var name1) &&
-            TryGetHelixInfo(test, out var testJobId, out var name2) &&
-            workItemJobId == testJobId &&
-            name1 == name2;
+            TryGetHelixInfo(workItem) is HelixInfo left &&
+            TryGetHelixInfo(test) is HelixInfo right &&
+            left == right;
 
-        public static bool TryGetHelixInfo(TestCaseResult testCaseResult, out string jobId, out string workItemName)
+        public static HelixInfo? TryGetHelixInfo(TestCaseResult testCaseResult)
         {
-            jobId = null;
-            workItemName = null;
             try
             {
                 if (testCaseResult.Comment is null)
                 {
-                    return false;
+                    return null;
                 }
 
                 dynamic obj = JObject.Parse(testCaseResult.Comment);
-                jobId = (string)obj.HelixJobId;
-                workItemName = (string)obj.HelixWorkItemName;
-                return
-                    !string.IsNullOrEmpty(jobId) &&
-                    !string.IsNullOrEmpty(workItemName);
+                var jobId = (string)obj.HelixJobId;
+                var workItemName = (string)obj.HelixWorkItemName;
+                if (!string.IsNullOrEmpty(jobId) && !string.IsNullOrEmpty(workItemName))
+                {
+                    return new HelixInfo(jobId: jobId, workItemName: workItemName);
+                }
             }
             catch
             {
-                return false;
+
             }
+
+            return null;
         }
 
         public static async Task<MemoryStream> GetHelixAttachmentContentAsync(

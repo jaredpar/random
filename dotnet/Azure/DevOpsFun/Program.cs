@@ -74,6 +74,24 @@ namespace QueryFun
         private static async Task Scratch()
         {
             var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
+            await foreach (var build in server.EnumerateBuildsAsync("public", queryOrder: BuildQueryOrder.FinishTimeDescending, statusFilter: BuildStatus.Completed))
+            {
+                try
+                {
+
+
+                }
+                catch (System.Exception)
+                {
+                    
+                    throw;
+                }
+            }
+        }
+
+        private static async Task Scratch2()
+        {
+            var server = new DevOpsServer("dnceng", await GetToken("dnceng"));
             var builds = await server.ListBuildsAsync("public", definitions: new[] { 686 }, top: 3000);
             var buildTimes = new List<(int BuildNumber, DateTime StartTime, DateTime EndTime)>();
             GetBuildTimes();

@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DevOps.Util;
+using DevOps.Util.DotNet;
 
 // TODO: these aren't necessarily helix tests. Should use a more generic
 // name here.
@@ -21,18 +22,22 @@ internal sealed class HelixTestResult
     // be there
     internal TestCaseResult WorkItem { get; }
 
+    internal HelixInfo HelixInfo { get; }
+
     internal bool IsWorkItemResult => Test.Id == WorkItem.Id;
 
     internal string TestCaseTitle => Test.TestCaseTitle;
 
-    internal HelixTestResult(TestCaseResult test, TestCaseResult workItem)
+    internal HelixTestResult(HelixInfo helixInfo, TestCaseResult test, TestCaseResult workItem)
     {
+        HelixInfo = helixInfo;
         Test = test;
         WorkItem = workItem;
     }
 
-    internal HelixTestResult(TestCaseResult workItem)
+    internal HelixTestResult(HelixInfo helixInfo, TestCaseResult workItem)
     {
+        HelixInfo = helixInfo;
         Test = workItem;
         WorkItem = workItem;
     }
@@ -44,6 +49,8 @@ internal sealed class HelixTestRunResult
     internal TestRun TestRun { get; }
 
     internal HelixTestResult HelixTestResult { get; }
+
+    internal HelixInfo HelixInfo => HelixTestResult.HelixInfo;
 
     internal string TestCaseTitle => HelixTestResult.TestCaseTitle;
 
@@ -101,7 +108,7 @@ internal sealed class BuildTestInfo
         .GroupBy(x => x.HelixTestResult.WorkItem.Id)
         .Select(x => {
             var first = x.First();
-            var result = new HelixTestResult(first.HelixTestResult.WorkItem);
+            var result = new HelixTestResult(first.HelixInfo, first.HelixTestResult.WorkItem);
             return new HelixTestRunResult(first.Build, first.TestRun, result);
         })
         .OrderBy(x => x.TestRun.Id);

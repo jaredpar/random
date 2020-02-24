@@ -13,7 +13,7 @@ using static RuntimeInfoUtil;
 
 internal sealed class RuntimeInfo
 {
-    internal static readonly (string BuildName, string Project, int DefinitionId)[] BuildDefinitions = new[] 
+    internal static readonly (string BuildName, string Project, int DefinitionId)[] BuildDefinitions = new[]
         {
             ("runtime", "public", 686),
             ("coreclr", "public", 655),
@@ -42,7 +42,7 @@ internal sealed class RuntimeInfo
             { "c|count=", "count of builds to return", (int c) => count = c }
         };
 
-        ParseAll(optionSet, args); 
+        ParseAll(optionSet, args);
 
         var data = BuildDefinitions
             .AsParallel()
@@ -127,7 +127,7 @@ internal sealed class RuntimeInfo
                 }
                 catch
                 {
-                    Console.WriteLine($"Unable to download helix logs for {build.Id}");
+                    Console.WriteLine($"Unable to download helix logs for {build.Id} {workItem.HelixInfo.JobId}");
                 }
             }
 
@@ -150,7 +150,7 @@ internal sealed class RuntimeInfo
                     return true;
                 }
 
-            } while(true);
+            } while (true);
 
             return false;
         }
@@ -296,7 +296,8 @@ internal sealed class RuntimeInfo
 
             var all = records
                 .AsParallel()
-                .Select(async r => {
+                .Select(async r =>
+                {
                     var tuple = await SearchTimelineRecord(server, r, textRegex);
                     return (tuple.IsMatch, TimelineRecord: r, tuple.Line);
                 });
@@ -371,7 +372,7 @@ internal sealed class RuntimeInfo
             { "v|verbose", "verbose output", v => verbose = v is object },
         };
 
-        ParseAll(optionSet, args); 
+        ParseAll(optionSet, args);
 
         foreach (var buildTestInfo in await ListBuildTestInfosAsync(optionSet))
         {
@@ -420,7 +421,8 @@ internal sealed class RuntimeInfo
             .GetHelixWorkItems()
             .AsParallel()
             .Select(async t => await GetHelixLogInfoAsync(t))
-            .Select(async (Task<HelixLogInfo> task) => {
+            .Select(async (Task<HelixLogInfo> task) =>
+            {
                 var helixLogInfo = await task;
                 string consoleText = null;
                 if (includeConsoleText && helixLogInfo.ConsoleUri is object)
@@ -763,7 +765,7 @@ internal sealed class RuntimeInfo
                         Console.Write("|");
                         return;
                     }
-                    
+
                     try
                     {
                         if (Uri.TryCreate(uri, UriKind.Absolute, out var realUri))
@@ -872,7 +874,8 @@ internal sealed class RuntimeInfo
             .ToList()
             .AsParallel()
             .AsOrdered()
-            .Select(async testRunResult => {
+            .Select(async testRunResult =>
+            {
                 var helixLogInfo = await GetHelixLogInfoAsync(testRunResult);
                 return (testRunResult.Build, helixLogInfo);
             });
@@ -910,15 +913,21 @@ internal sealed class RuntimeInfo
             var testCaseResults = tuple.Value.Item2;
             foreach (var testCaseResult in testCaseResults)
             {
+                var helixInfo = HelixUtil.TryGetHelixInfo(testCaseResult);
+                if (helixInfo is null)
+                {
+                    continue;
+                }
+
                 HelixTestResult helixTestResult;
                 if (HelixUtil.IsHelixWorkItem(testCaseResult))
                 {
-                    helixTestResult = new HelixTestResult(testCaseResult);
+                    helixTestResult = new HelixTestResult(helixInfo.Value, testCaseResult);
                 }
                 else
                 {
                     var workItem = testCaseResults.FirstOrDefault(x => HelixUtil.IsHelixWorkItemAndTestCaseResult(workItem: x, test: testCaseResult));
-                    helixTestResult = new HelixTestResult(test: testCaseResult, workItem: workItem);
+                    helixTestResult = new HelixTestResult(helixInfo.Value, test: testCaseResult, workItem: workItem);
                 }
 
                 list.Add(new HelixTestRunResult(build, tuple.Value.Item1, helixTestResult));
@@ -984,7 +993,7 @@ internal sealed class RuntimeInfo
 
     // The logs for the failure always exist on the associated work item, not on the 
     // individual test result
-    private async Task<HelixLogInfo> GetHelixLogInfoAsync(HelixTestRunResult testRunResult) => 
+    private async Task<HelixLogInfo> GetHelixLogInfoAsync(HelixTestRunResult testRunResult) =>
         await HelixUtil.GetHelixLogInfoAsync(Server, testRunResult.Build.Project.Name, testRunResult.TestRun.Id, testRunResult.HelixTestResult.WorkItem.Id);
 
     private static string GetIndent(int level) => level == 0 ? string.Empty : new string(' ', level * 2);
