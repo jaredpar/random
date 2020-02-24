@@ -67,11 +67,9 @@ internal sealed class RuntimeInfo
     internal async Task<int> PrintSearchHelix(IEnumerable<string> args)
     {
         string text = null;
-        bool group = false;
         var optionSet = new BuildSearchOptionSet()
         {
             { "v|value=", "text to search for", t => text = t },
-            { "g|group", "group to builds",  g => group = g is object},
         };
 
         ParseAll(optionSet, args);
@@ -85,67 +83,59 @@ internal sealed class RuntimeInfo
 
         var textRegex = new Regex(text, RegexOptions.Compiled | RegexOptions.IgnoreCase);
         var collection = await ListBuildTestInfosAsync(optionSet);
+        var found = collection
+            .AsParallel()
+            .Select(async b => (b.Build, await SearchBuild(b)));
 
-        if (group)
+        Console.WriteLine("|Build|Kind|Console Log|");
+        Console.WriteLine("|---|---|---|");
+        foreach (var task in found)
         {
-            Console.WriteLine("|Build|Kind|Log Count|");
-            Console.WriteLine("|---|---|---|");
-            var all = (await Search())
-                .GroupBy(x => x.Item1.Build.Id);
-            foreach (var g in all)
+            var (build, helixLogInfo) = await task;
+            if (helixLogInfo is null)
             {
-                var build = g.First().Item1.Build;
-                var count = g.Count();
-                var kind = "Rolling";
-                if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
-                {
-                    kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
-                }
-                Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|{count}|");
+                continue;
             }
-        }
-        else
-        {
-            Console.WriteLine("|Build|Kind|Timeline Record|");
-            Console.WriteLine("|---|---|---|");
-            foreach (var (buildTestInfo, helixLogInfo) in await Search())
+
+            var kind = "Rolling";
+            if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
             {
-                var build = buildTestInfo.Build;
-                var kind = "Rolling";
-                if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
-                {
-                    kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
-                }
-                Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|[console.log]({helixLogInfo.ConsoleUri})|");
+                kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
             }
+            Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|[console.log]({helixLogInfo.ConsoleUri})|");
         }
 
         return ExitSuccess;
 
-        async Task<List<(BuildTestInfo, HelixLogInfo)>> Search()
+        async Task<HelixLogInfo> SearchBuild(BuildTestInfo buildTestInfo)
         {
-            var list = new List<(BuildTestInfo, HelixLogInfo)>();
-            foreach (var buildTestInfo in collection)
+            var build = buildTestInfo.Build;
+            foreach (var workItem in buildTestInfo.GetHelixWorkItems())
             {
-                var build = buildTestInfo.Build;
-                var logs = await GetHelixLogsAsync(buildTestInfo, includeConsoleText: true);
-                foreach (var (helixLogInfo, _) in logs.Where(x => IsMatch(x.ConsoleText, textRegex)))
+                try
                 {
-                    list.Add((buildTestInfo, helixLogInfo));
+                    var logInfo = await GetHelixLogInfoAsync(workItem);
+                    if (logInfo.ConsoleUri is object)
+                    {
+                        using var stream = await Server.DownloadFileAsync(logInfo.ConsoleUri);
+                        if (IsMatch(stream, textRegex))
+                        {
+                            return logInfo;
+                        }
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine($"Unable to download helix logs for {build.Id}");
                 }
             }
 
-            return list;
+            return null;
         }
 
-        static bool IsMatch(string consoleText, Regex textRegex)
+        static bool IsMatch(Stream stream, Regex textRegex)
         {
-            if (consoleText is null)
-            {
-                return false;
-            }
-
-            using var reader = new StringReader(consoleText);
+            using var reader = new StreamReader(stream);
             do
             {
                 var line = reader.ReadLine();
@@ -194,6 +184,7 @@ internal sealed class RuntimeInfo
             nameRegex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
         }
 
+        Console.WriteLine($"Evaluating {builds.Count} bulids");
         Console.WriteLine("|Build|Kind|Timeline Record|");
         Console.WriteLine("|---|---|---|");
         foreach (var tuple in await SearchTimelines(Server, builds, nameRegex, textRegex, buildLog))
@@ -204,7 +195,7 @@ internal sealed class RuntimeInfo
             {
                 kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
             }
-            Console.WriteLine($"|{DevOpsUtil.GetBuildUri(build)}|{kind}|{tuple.TimelineRecord.Name}|");
+            Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|{tuple.TimelineRecord.Name}|");
         }
 
         return ExitSuccess;
