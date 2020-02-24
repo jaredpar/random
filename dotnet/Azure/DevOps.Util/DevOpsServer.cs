@@ -74,6 +74,51 @@ namespace DevOps.Util
             return await ListItemsCore<Build>(builder, limit: top).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// List the builds that meet the provided query parameters
+        /// </summary>
+        public IAsyncEnumerable<Build> EnumerateBuildsAsync(
+            string project,
+            IEnumerable<int> definitions = null,
+            IEnumerable<int> queues = null,
+            string buildNumber = null,
+            DateTimeOffset? minTime = null,
+            DateTimeOffset? maxTime = null,
+            string requestedFor = null,
+            BuildReason? reasonFilter = null,
+            BuildStatus? statusFilter = null,
+            BuildResult? resultFilter = null,
+            int? top = null,
+            int? maxBuildsPerDefinition = null,
+            QueryDeletedOption? deletedFilter = null,
+            BuildQueryOrder? queryOrder = null,
+            string branchName = null,
+            IEnumerable<int> buildIds = null,
+            string repositoryId = null,
+            string repositoryType = null)
+        {
+            var builder = GetBuilder(project, "build/builds");
+
+            builder.AppendList("definitions", definitions);
+            builder.AppendList("queues", queues);
+            builder.AppendString("buildNumber", buildNumber);
+            builder.AppendDateTime("minTime", minTime);
+            builder.AppendDateTime("maxTime", maxTime);
+            builder.AppendString("requestedFor", requestedFor);
+            builder.AppendEnum("reasonFilter", reasonFilter);
+            builder.AppendEnum("statusFilter", statusFilter);
+            builder.AppendEnum("resultFilter", resultFilter);
+            builder.AppendInt("$top", top);
+            builder.AppendInt("maxBuildsPerDefinition", maxBuildsPerDefinition);
+            builder.AppendEnum("deletedFilter", deletedFilter);
+            builder.AppendEnum("queryOrder", queryOrder);
+            builder.AppendString("branchName", branchName);
+            builder.AppendList("buildIds", buildIds);
+            builder.AppendString("repositoryId", repositoryId);
+            builder.AppendString("repositoryType", repositoryType);
+            return EnumerateItemsAsync<Build>(builder, limit: top);
+        }
+
         public Task<Build> GetBuildAsync(string project, int buildId)
         {
             var builder = GetBuilder(project, $"build/builds/{buildId}");
@@ -395,20 +440,18 @@ namespace DevOps.Util
             int? limit = null)
         {
             var list = new List<T>();
-            await ListItemsCore<T>(
-                items =>
-                {
-                    list.AddRange(items);
-                    return default;
-                }, builder, limit).ConfigureAwait(false);
+            await foreach (var item in EnumerateItemsAsync<T>(builder).ConfigureAwait(false))
+            {
+                list.Add(item);
+            }
+
             return list;
         }
 
         /// <summary>
         /// https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-5.0
         /// </summary>
-        private async Task ListItemsCore<T>(
-            Func<T[], ValueTask> processItems,
+        private async IAsyncEnumerable<T> EnumerateItemsAsync<T>(
             RequestBuilder builder, 
             int? limit = null)
         {
@@ -420,7 +463,10 @@ namespace DevOps.Util
                 var root = JObject.Parse(json);
                 var array = (JArray)root["value"];
                 var items = array.ToObject<T[]>();
-                await processItems(items).ConfigureAwait(false);
+                foreach (var item in items)
+                {
+                    yield return item;
+                }
 
                 count += items.Length;
                 if (token is null)

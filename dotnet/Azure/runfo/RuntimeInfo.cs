@@ -1050,21 +1050,28 @@ internal sealed class RuntimeInfo
 
     private async Task<List<Build>> ListBuildsAsync(string project, int definitionId, int count, bool includePullRequests = false)
     {
-        IEnumerable<Build> builds = await Server.ListBuildsAsync(
+        var list = new List<Build>();
+        var builds = Server.EnumerateBuildsAsync(
             project,
             new[] { definitionId },
             statusFilter: BuildStatus.Completed,
-            queryOrder: BuildQueryOrder.FinishTimeDescending,
-            top: count * 20);
-
-        if (!includePullRequests)
+            queryOrder: BuildQueryOrder.FinishTimeDescending);
+        await foreach (var build in builds)
         {
-            builds = builds.Where(x => x.Reason != BuildReason.PullRequest);
+            if (build.Reason == BuildReason.PullRequest && !includePullRequests)
+            {
+                continue;
+            }
+
+            list.Add(build);
+
+            if (list.Count >= count)
+            {
+                break;
+            }
         }
 
-        return builds
-            .Take(count)
-            .ToList();
+        return list;
     }
 
     private async Task<BuildTestInfoCollection> ListBuildTestInfosAsync(BuildSearchOptionSet optionSet)
