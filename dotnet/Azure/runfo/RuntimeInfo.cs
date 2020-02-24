@@ -24,6 +24,7 @@ internal sealed class RuntimeInfo
             ("crossgen2", "public", 701),
             ("roslyn", "public", 15),
             ("roslyn-integration", "public", 245),
+            ("aspnet", "public", 278),
         };
 
     internal DevOpsServer Server;
