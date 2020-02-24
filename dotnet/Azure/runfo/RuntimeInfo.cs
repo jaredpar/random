@@ -464,16 +464,19 @@ internal sealed class RuntimeInfo
     {
         int? depth = null;
         bool issues = false;
+        bool failed = false;
         var optionSet = new BuildSearchOptionSet()
         {
             { "depth=", "depth to print to", (int d) => depth = d },
             { "issues", "print issues", i => issues = i is object },
+            { "failed", "print records that failed", f => failed = f is object },
         };
 
         ParseAll(optionSet, args);
 
         foreach (var build in await ListBuildsAsync(optionSet))
         {
+            Console.WriteLine(DevOpsUtil.GetBuildUri(build));
             var timeline = await Server.GetTimelineAsync(build.Project.Name, build.Id);
             if (timeline is null)
             {
@@ -481,10 +484,10 @@ internal sealed class RuntimeInfo
                 return ExitFailure;
             }
 
-            DumpTimeline(Server, timeline, depth, issues);
+            DumpTimeline(Server, timeline, depth, issues, failed);
         }
 
-        static void DumpTimeline(DevOpsServer server, Timeline timeline, int? depthLimit, bool issues)
+        static void DumpTimeline(DevOpsServer server, Timeline timeline, int? depthLimit, bool issues, bool failed)
         {
             var records = timeline.Records;
             var map = new Dictionary<string, List<TimelineRecord>>();
@@ -553,10 +556,17 @@ internal sealed class RuntimeInfo
 
             void PrintRecord(string kind, int depth, TimelineRecord record)
             {
+                if (failed && !(
+                        record.Result == TaskResult.Failed ||
+                        record.Result == TaskResult.Canceled ||
+                        record.Result == TaskResult.Abandoned))
+                {
+                    return;
+                }
+
                 var indent = GetIndent(depth);
                 var duration = RuntimeInfoUtil.TryGetDuration(record.StartTime, record.FinishTime);
                 Console.WriteLine($"{indent}{kind} {record.Name} ({duration}) {record.Result}");
-
             }
 
             string GetIndent(int depth) => new string(' ', depth * 2);
