@@ -25,6 +25,7 @@ internal sealed class RuntimeInfo
             ("roslyn", "public", 15),
             ("roslyn-integration", "public", 245),
             ("aspnet", "public", 278),
+            ("sdk", "public", 136),
         };
 
     internal DevOpsServer Server;
@@ -902,7 +903,7 @@ internal sealed class RuntimeInfo
     private async Task<BuildTestInfo> GetBuildTestInfoAsync(Build build)
     {
         var taskList = new List<Task<(TestRun, List<TestCaseResult>)?>>();
-        var testRuns = await Server.ListTestRunsAsync("public", build.Id);
+        var testRuns = await Server.ListTestRunsAsync(build.Project.Name, build.Id);
         foreach (var testRun in testRuns)
         {
             var task = GetTestRunResultsAsync(build.Project.Name, testRun);
