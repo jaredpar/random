@@ -703,7 +703,7 @@ internal sealed class RuntimeInfo
         {
             var all = collection
                 .GetTestCaseTitles()
-                .Select(t => (TestCaseTitle: t, Results: collection.GetHelixTestRunResultsForTestCaseTitle(t)))
+                .Select(t => (TestCaseTitle: t, Results: collection.GetDotNetTestCaseResultForTestCaseTitle(t)))
                 .OrderByDescending(t => t.Results.Count);
 
             foreach (var (testCaseTitle, testRunList) in all)
@@ -745,7 +745,7 @@ internal sealed class RuntimeInfo
                     var build = buildTestInfo.Build;
                     var uri = DevOpsUtil.GetBuildUri(build);
                     var pr = GetPullRequestColumn(build);
-                    var testFailureCount = buildTestInfo.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle).Count();
+                    var testFailureCount = buildTestInfo.GetDotNetTestCaseResultForTestCaseTitle(testCaseTitle).Count();
                     Console.WriteLine($"|[#{build.Id}]({uri})|{pr}|{testFailureCount}|");
                 }
 
@@ -835,14 +835,14 @@ internal sealed class RuntimeInfo
 
                     Console.WriteLine($"{GetIndent(1)}Test Cases");
                     var testCaseTitles = list
-                        .SelectMany(x => x.GetHelixTestRunResultsForTestRunName(testRunName))
-                        .Select(x => x.HelixTestResult.TestCaseTitle)
+                        .SelectMany(x => x.GetDotNetTestCaseResultForTestRunName(testRunName))
+                        .Select(x => x.TestCaseTitle)
                         .Distinct()
                         .OrderBy(x => x);
                     foreach (var testCaseTitle in testCaseTitles)
                     {
                         var count = list
-                            .SelectMany(x => x.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle))
+                            .SelectMany(x => x.GetDotNetTestCaseResultForTestCaseTitle(testCaseTitle))
                             .Count(x => x.TestRun.Name == testRunName);
                         Console.WriteLine($"{GetIndent(2)}{testCaseTitle} ({count})");
                     }
@@ -850,7 +850,7 @@ internal sealed class RuntimeInfo
                 else
                 {
                     var buildCount = list.Count();
-                    var testCaseCount = list.Sum(x => x.GetHelixTestRunResultsForTestRunName(testRunName).Count());
+                    var testCaseCount = list.Sum(x => x.GetDotNetTestCaseResultForTestRunName(testRunName).Count());
                     Console.WriteLine($"{testRunName} Builds {buildCount} Tests {testCaseCount}");
                 }
             }
@@ -864,10 +864,10 @@ internal sealed class RuntimeInfo
         foreach (var testRunName in buildTestInfo.GetTestRunNames())
         {
             Console.WriteLine($"{GetIndent(1)}{testRunName}");
-            foreach (var testResult in buildTestInfo.GetHelixTestRunResultsForTestRunName(testRunName))
+            foreach (var testResult in buildTestInfo.GetDotNetTestCaseResultForTestRunName(testRunName))
             {
                 var suffix = "";
-                var testCaseResult = testResult.HelixTestResult.Test;
+                var testCaseResult = testResult.TestCaseResult;
                 if (testCaseResult.FailingSince.Build.Id != build.Id)
                 {
                     suffix = $"(since {testCaseResult.FailingSince.Build.Id})";
@@ -880,15 +880,16 @@ internal sealed class RuntimeInfo
     private async Task<List<(Build, HelixLogInfo)>> GetHelixLogs(BuildTestInfoCollection collection, string testCaseTitle)
     {
         var query = collection
-            .GetHelixTestRunResultsForTestCaseTitle(testCaseTitle)
+            .GetDotNetTestCaseResultForTestCaseTitle(testCaseTitle)
+            .Where(x => x.HelixWorkItem.HasValue)
             .OrderBy(x => x.Build.Id)
             .ToList()
             .AsParallel()
             .AsOrdered()
-            .Select(async testRunResult =>
+            .Select(async result =>
             {
-                var helixLogInfo = await GetHelixLogInfoAsync(testRunResult);
-                return (testRunResult.Build, helixLogInfo);
+                var helixLogInfo = await GetHelixLogInfoAsync(result.HelixWorkItem.Value);
+                return (result.Build, helixLogInfo);
             });
         var list = await RuntimeInfoUtil.ToList(query);
         return list;
@@ -902,61 +903,8 @@ internal sealed class RuntimeInfo
 
     private async Task<BuildTestInfo> GetBuildTestInfoAsync(Build build)
     {
-        var taskList = new List<Task<(TestRun, List<TestCaseResult>)?>>();
-        var testRuns = await Server.ListTestRunsAsync(build.Project.Name, build.Id);
-        foreach (var testRun in testRuns)
-        {
-            var task = GetTestRunResultsAsync(build.Project.Name, testRun);
-            taskList.Add(task);
-        }
-
-        await Task.WhenAll(taskList);
-
-        var list = new List<HelixTestRunResult>();
-        foreach (var task in taskList)
-        {
-            var tuple = task.Result;
-            if (!tuple.HasValue)
-            {
-                continue;
-            }
-
-            var testCaseResults = tuple.Value.Item2;
-            foreach (var testCaseResult in testCaseResults)
-            {
-                var helixInfo = HelixUtil.TryGetHelixInfo(testCaseResult);
-                if (helixInfo is null)
-                {
-                    continue;
-                }
-
-                HelixTestResult helixTestResult;
-                if (HelixUtil.IsHelixWorkItem(testCaseResult))
-                {
-                    helixTestResult = new HelixTestResult(helixInfo.Value, testCaseResult);
-                }
-                else
-                {
-                    var workItem = testCaseResults.FirstOrDefault(x => HelixUtil.IsHelixWorkItemAndTestCaseResult(workItem: x, test: testCaseResult));
-                    helixTestResult = new HelixTestResult(helixInfo.Value, test: testCaseResult, workItem: workItem);
-                }
-
-                list.Add(new HelixTestRunResult(build, tuple.Value.Item1, helixTestResult));
-            }
-        }
-
-        return new BuildTestInfo(build, list);
-
-        async Task<(TestRun, List<TestCaseResult>)?> GetTestRunResultsAsync(string project, TestRun testRun)
-        {
-            var all = await Server.ListTestResultsAsync(project, testRun.Id, outcomes: new[] { TestOutcome.Failed });
-            if (all.Length == 0)
-            {
-                return null;
-            }
-
-            return (testRun, all.ToList());
-        }
+        var collection = await DotNetUtil.ListDotNetTestRunsAsync(Server, build, TestOutcome.Failed);
+        return new BuildTestInfo(build, collection.SelectMany(x => x.TestCaseResults).ToList());
     }
 
     private bool TryGetDefinitionId(string definition, out int definitionId)
@@ -1004,8 +952,7 @@ internal sealed class RuntimeInfo
 
     // The logs for the failure always exist on the associated work item, not on the 
     // individual test result
-    private async Task<HelixLogInfo> GetHelixLogInfoAsync(HelixTestRunResult testRunResult) =>
-        await HelixUtil.GetHelixLogInfoAsync(Server, testRunResult.Build.Project.Name, testRunResult.TestRun.Id, testRunResult.HelixTestResult.WorkItem.Id);
+    private async Task<HelixLogInfo> GetHelixLogInfoAsync(HelixWorkItem workItem) => await HelixUtil.GetHelixLogInfoAsync(Server, workItem);
 
     private static string GetIndent(int level) => level == 0 ? string.Empty : new string(' ', level * 2);
 

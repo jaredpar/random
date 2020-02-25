@@ -25,7 +25,7 @@ namespace DevOps.Util.DotNet
 
         public CloneTimeUtil(string sqlConnectionString, ILogger logger = null)
         {
-            Logger = logger ?? Util.CreateConsoleLogger();
+            Logger = logger ?? DotNetUtil.CreateConsoleLogger();
             DevOpsServer = new DevOpsServer("dnceng");
             SqlConnection = new SqlConnection(sqlConnectionString);
         }
@@ -107,7 +107,7 @@ namespace DevOps.Util.DotNet
                 }
 
                 var buildStartTime = DateTimeOffset.Parse(build.StartTime);
-                await Util.DoWithTransactionAsync(SqlConnection, $"Upload Clone {build.Id}", async transaction =>
+                await DotNetUtil.DoWithTransactionAsync(SqlConnection, $"Upload Clone {build.Id}", async transaction =>
                 {
                     foreach (var job in jobs)
                     {

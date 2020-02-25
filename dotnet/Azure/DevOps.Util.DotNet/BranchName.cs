@@ -1,4 +1,4 @@
-﻿using DevOps.Util;
+using DevOps.Util;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using System;
@@ -10,58 +10,6 @@ using System.Threading.Tasks;
 
 namespace DevOps.Util.DotNet
 {
-    public static class Util
-    {
-        /// <summary>
-        /// Normalize the branch name so that has the short human readable form of the branch
-        /// name
-        /// </summary>
-        public static string NormalizeBranchName(string fullName) => BranchName.Parse(fullName).ShortName;
-
-        public static async Task DoWithTransactionAsync(SqlConnection connection, string transactionName, Func<SqlTransaction, Task> process)
-        {
-            await connection.EnsureOpenAsync();
-            var transaction = connection.BeginTransaction(transactionName);
-
-            try
-            {
-                await process(transaction);
-                transaction.Commit();
-            }
-            catch (Exception)
-            {
-                // Attempt to roll back the transaction. 
-                try
-                {
-                    transaction.Rollback();
-                }
-                catch (Exception)
-                {
-                    // Expected that this will fail if the transaction fails on the server
-                }
-
-                throw;
-            }
-        }
-
-        public static async Task DoWithTransactionAsync(SqlConnection connection, string transactionName, Func<SqlTransaction, SqlCommand, Task> process)
-        {
-            await DoWithTransactionAsync(connection, transactionName, async transaction =>
-            {
-                using var command = connection.CreateCommand();
-                command.Connection = connection;
-                command.Transaction = transaction;
-                await process(transaction, command);
-            });
-        }
-
-        public static ILogger CreateConsoleLogger()
-        {
-            var provider = new ConsoleLoggerProvider((message, level) => true, includeScopes: true);
-            return provider.CreateLogger("Console logger");
-        }
-    }
-
     public readonly struct BranchName
     {
         public string FullName { get; }

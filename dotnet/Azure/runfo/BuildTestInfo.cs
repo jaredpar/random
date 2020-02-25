@@ -8,110 +8,51 @@ using System.Text.RegularExpressions;
 using DevOps.Util;
 using DevOps.Util.DotNet;
 
-// TODO: these aren't necessarily helix tests. Should use a more generic
-// name here.
-internal sealed class HelixTestResult
-{
-    // The TestCaseResult representing the actual test failure
-    internal TestCaseResult Test { get; }
-
-    // The TestCaseResult representing the helix work item. This is where logs will be 
-    // stored
-    //
-    // Can be null if we can't find the associated work item even though it should always
-    // be there
-    internal TestCaseResult WorkItem { get; }
-
-    internal HelixInfo HelixInfo { get; }
-
-    internal bool IsWorkItemResult => Test.Id == WorkItem.Id;
-
-    internal string TestCaseTitle => Test.TestCaseTitle;
-
-    internal HelixTestResult(HelixInfo helixInfo, TestCaseResult test, TestCaseResult workItem)
-    {
-        HelixInfo = helixInfo;
-        Test = test;
-        WorkItem = workItem;
-    }
-
-    internal HelixTestResult(HelixInfo helixInfo, TestCaseResult workItem)
-    {
-        HelixInfo = helixInfo;
-        Test = workItem;
-        WorkItem = workItem;
-    }
-}
-
-internal sealed class HelixTestRunResult
-{
-    internal Build Build { get; }
-    internal TestRun TestRun { get; }
-
-    internal HelixTestResult HelixTestResult { get; }
-
-    internal HelixInfo HelixInfo => HelixTestResult.HelixInfo;
-
-    internal string TestCaseTitle => HelixTestResult.TestCaseTitle;
-
-    internal HelixTestRunResult(Build build, TestRun testRun, HelixTestResult helixTestResult)
-    {
-        Build = build;
-        TestRun = testRun;
-        HelixTestResult = helixTestResult;
-    }
-}
-
 // TODO: make this type use actual dictionaries and hashes instead of crappy lists.
 // just wrote this for functionality at the moment. Perf fix ups later.
 internal sealed class BuildTestInfo
 {
-    public List<HelixTestRunResult> DataList;
+    public List<DotNetTestCaseResult> DataList;
 
     public Build Build { get; }
 
-    internal BuildTestInfo(Build build, List<HelixTestRunResult> dataList)
+    internal BuildTestInfo(Build build, List<DotNetTestCaseResult> dataList)
     {
         Build = build;
         DataList = dataList;
     }
 
     internal IEnumerable<string> GetTestCaseTitles() => DataList
-        .Select(x => x.HelixTestResult.TestCaseTitle)
+        .Select(x => x.TestCaseTitle)
         .Distinct()
         .OrderBy(x => x);
 
     internal IEnumerable<TestRun> GetTestRuns() => DataList.Select(x => x.TestRun);
 
-    internal IEnumerable<string> GetTestRunNames() => GetTestRuns().Select(x => x.Name).OrderBy(x => x);
-
-    internal IEnumerable<TestRun> GetTestRunsForTestCaseTitle(string testCaseTitle) => DataList
-        .Where(x => x.HelixTestResult.TestCaseTitle == testCaseTitle)
-        .Select(x => x.TestRun);
-
-    internal IEnumerable<string> GetTestRunNamesForTestCaseTitle(string testCaseTitle) => this
-        .GetTestRunsForTestCaseTitle(testCaseTitle)
+    internal IEnumerable<string> GetTestRunNames() => GetTestRuns()
         .Select(x => x.Name)
         .Distinct()
         .OrderBy(x => x);
 
-    internal IEnumerable<HelixTestRunResult> GetHelixTestRunResultsForTestCaseTitle(string testCaseTitle) => DataList
-        .Where(x => x.HelixTestResult.TestCaseTitle == testCaseTitle)
-        .ToList();
+    internal IEnumerable<string> GetTestRunNamesForTestCaseTitle(string testCaseTitle) => DataList
+        .Where(x => x.TestCaseTitle == testCaseTitle)
+        .Select(x => x.TestRun.Name)
+        .Distinct()
+        .OrderBy(x => x);
 
-    internal IEnumerable<HelixTestRunResult> GetHelixTestRunResultsForTestRunName(string testRunName) => DataList
-        .Where(x => x.TestRun.Name == testRunName)
-        .ToList();
+    internal IEnumerable<DotNetTestCaseResult> GetDotNetTestCaseResultForTestCaseTitle(string testCaseTitle) =>
+        DataList.Where(x => x.TestCaseTitle == testCaseTitle);
 
-    internal IEnumerable<HelixTestRunResult> GetHelixWorkItems() => DataList
-        .Where(x => x.HelixTestResult.WorkItem is object)
-        .GroupBy(x => x.HelixTestResult.WorkItem.Id)
-        .Select(x => {
-            var first = x.First();
-            var result = new HelixTestResult(first.HelixInfo, first.HelixTestResult.WorkItem);
-            return new HelixTestRunResult(first.Build, first.TestRun, result);
-        })
-        .OrderBy(x => x.TestRun.Id);
+    internal IEnumerable<DotNetTestCaseResult> GetDotNetTestCaseResultForTestRunName(string testRunName) =>
+        DataList.Where(x => x.TestRun.Name == testRunName);
+
+    internal IEnumerable<HelixWorkItem> GetHelixWorkItems() => DataList
+        .Select(x => x.HelixWorkItem)
+        .Where(x => x is object)
+        .Select(x => x.Value)
+        .GroupBy(x => x.HelixInfo.WorkItemName)
+        .Select(x => x.First())
+        .OrderBy(x => x.JobId);
 
     internal bool ContainsTestCaseTitle(string testCaseTitle) => GetTestCaseTitles().Contains(testCaseTitle);
 
@@ -156,10 +97,15 @@ internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
         .Distinct()
         .ToList();
 
-    internal List<HelixTestRunResult> GetHelixTestRunResultsForTestCaseTitle(string testCaseTitle) => BuildTestInfos
-        .SelectMany(x => x.GetHelixTestRunResultsForTestCaseTitle(testCaseTitle))
-        .OrderBy(x => x.TestRun.Name)
-        .ToList();
+    internal List<DotNetTestCaseResult> GetDotNetTestCaseResultForTestCaseTitle(string testCaseTitle) =>
+        BuildTestInfos
+            .SelectMany(x => x.GetDotNetTestCaseResultForTestCaseTitle(testCaseTitle))
+            .ToList();
+
+    internal List<DotNetTestCaseResult> GetDotNetTestCaseResultForTestRunName(string testRunName) =>
+        BuildTestInfos
+            .SelectMany(x => x.GetDotNetTestCaseResultForTestRunName(testRunName))
+            .ToList();
 
     internal List<Build> GetBuildsForTestCaseTitle(string testCaseTitle) => this
         .GetBuildTestInfosForTestCaseTitle(testCaseTitle)
@@ -169,11 +115,6 @@ internal sealed class BuildTestInfoCollection : IEnumerable<BuildTestInfo>
     internal List<BuildTestInfo> GetBuildTestInfosForTestCaseTitle(string testCaseTitle) => BuildTestInfos
         .Where(x => x.ContainsTestCaseTitle(testCaseTitle))
         .OrderBy(x => x.Build.Id)
-        .ToList();
-
-    internal List<TestRun> GetTestRunsForTestCaseTitle(string testCaseTitle) => BuildTestInfos
-        .SelectMany(x => x.GetTestRunsForTestCaseTitle(testCaseTitle))
-        .OrderBy(x => x.Id)
         .ToList();
 
     internal List<string> GetTestRunNamesForTestCaseTitle(string testCaseTitle) => BuildTestInfos

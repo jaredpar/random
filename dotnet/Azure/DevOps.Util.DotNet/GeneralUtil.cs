@@ -21,7 +21,7 @@ namespace DevOps.Util.DotNet
 
         public GeneralUtil(string sqlConnectionString, ILogger logger = null)
         {
-            Logger = logger ?? Util.CreateConsoleLogger();
+            Logger = logger ?? DotNetUtil.CreateConsoleLogger();
             SqlConnection = new SqlConnection(sqlConnectionString);
         }
 

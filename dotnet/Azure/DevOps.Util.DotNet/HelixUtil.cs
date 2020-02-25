@@ -19,7 +19,6 @@ namespace DevOps.Util.DotNet
 {
     public static class HelixUtil
     {
-
         public static bool IsHelixWorkItem(TestCaseResult testCaseResult) =>
             TryGetHelixInfo(testCaseResult) is HelixInfo info &&
             testCaseResult.TestCaseTitle == $"{info.WorkItemName} Work Item";
@@ -113,11 +112,9 @@ namespace DevOps.Util.DotNet
 
         public static async Task<HelixLogInfo> GetHelixLogInfoAsync(
             DevOpsServer server,
-            string project,
-            int runId,
-            int testCaseResultId)
+            HelixWorkItem workItem)
         {
-            using var stream = await GetHelixAttachmentContentAsync(server, project, runId, testCaseResultId);
+            using var stream = await GetHelixAttachmentContentAsync(server, workItem.ProjectName, workItem.TestRun.Id, workItem.TestCaseResult.Id);
             if (stream is null)
             {
                 return HelixLogInfo.Empty;

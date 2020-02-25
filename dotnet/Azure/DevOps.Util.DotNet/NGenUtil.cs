@@ -25,7 +25,7 @@ namespace DevOps.Util.DotNet
 
         public NGenUtil(string personalAccessToken, string connectionString, ILogger logger = null)
         {
-            Logger = logger ?? Util.CreateConsoleLogger();
+            Logger = logger ?? DotNetUtil.CreateConsoleLogger();
             DevOpsServer = new DevOpsServer("devdiv", personalAccessToken);
             SqlConnection = new SqlConnection(connectionString);
         }
@@ -74,9 +74,9 @@ namespace DevOps.Util.DotNet
                 return;
             }
 
-            var branchName = Util.NormalizeBranchName(build.SourceBranch);
+            var branchName = DotNetUtil.NormalizeBranchName(build.SourceBranch);
             var list = await GetNGenAssemblyDataAsync(build);
-            await Util.DoWithTransactionAsync(SqlConnection, $"Uploading {build.Id}", async transaction =>
+            await DotNetUtil.DoWithTransactionAsync(SqlConnection, $"Uploading {build.Id}", async transaction =>
             {
                 foreach (var ngenAssemblyData in list)
                 {
