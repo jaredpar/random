@@ -101,18 +101,26 @@ namespace DevOps.Util.DotNet
                         continue;
                     }
 
-                    HelixWorkItem helixWorkItem;
                     if (HelixUtil.IsHelixWorkItem(testCaseResult))
                     {
-                        helixWorkItem = new HelixWorkItem(testRunInfo, helixInfo.Value, testCaseResult);
+                        var helixWorkItem = new HelixWorkItem(testRunInfo, helixInfo.Value, testCaseResult);
+                        list.Add(new DotNetTestCaseResult(testRunInfo, helixWorkItem, testCaseResult));
                     }
                     else
                     {
                         var workItemTestCaseResult = testCaseResults.FirstOrDefault(x => HelixUtil.IsHelixWorkItemAndTestCaseResult(workItem: x, test: testCaseResult));
-                        helixWorkItem = new HelixWorkItem(testRunInfo, helixInfo.Value, workItemTestCaseResult);
+                        if (workItemTestCaseResult is null)
+                        {
+                            // This can happen when helix errors and doesn't fully upload a result. Treat it like
+                            // a normal test case
+                            list.Add(new DotNetTestCaseResult(testRunInfo, testCaseResult));
+                        }
+                        else
+                        {
+                            var helixWorkItem = new HelixWorkItem(testRunInfo, helixInfo.Value, workItemTestCaseResult);
+                            list.Add(new DotNetTestCaseResult(testRunInfo, helixWorkItem, testCaseResult));
+                        }
                     }
-
-                    list.Add(new DotNetTestCaseResult(testRunInfo, helixWorkItem, testCaseResult));
                 }
 
                 return list;

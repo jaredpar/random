@@ -35,7 +35,6 @@ namespace DevOps.Util.DotNet
 
         public DotNetTestCaseResult(TestRunInfo testRunInfo, TestCaseResult testCaseResult)
         {
-            Debug.Assert(HelixUtil.TryGetHelixInfo(testCaseResult) is null);
             TestRunInfo = testRunInfo;
             TestCaseResult = testCaseResult;
         }

@@ -24,7 +24,7 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/Binaries/Debug/runfo/netcoreapp3.1/runfo.dll",
-            "args": ["tests", "-b", "534914" ],
+            "args": ["tests", "-d", "runtime", "-g", "tests", "-n" "System.Security.Cryptography.X509Certificates.Tests.ChainTests.VerifyExpiration_LocalTime", "-c", "100", "-pr", "-m"],
             "cwd": "${workspaceFolder}/runfo",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
