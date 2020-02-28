@@ -9,6 +9,8 @@ internal sealed class BuildSearchOptionSet : OptionSet
 
     public string Definition { get; set; }
 
+    public string Repository { get; set; }
+
     public DateTime? Before { get; set; }
 
     public DateTime? After { get; set; }
@@ -26,5 +28,6 @@ internal sealed class BuildSearchOptionSet : OptionSet
         Add("before=", "filter to builds before this date", (DateTime d) => Before = d);
         Add("after=", "filter to builds after this date", (DateTime d) => After = d);
         Add("p|project=", "project to search is (public)", p => Project = p);
+        Add("r|repository=", "repository to search against", r => Repository = r);
     }
 }

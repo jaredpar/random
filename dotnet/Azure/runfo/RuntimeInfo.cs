@@ -965,6 +965,7 @@ internal sealed class RuntimeInfo
     {
         var buildId = optionSet.BuildId;
         var definition = optionSet.Definition;
+        var repository = optionSet.Repository;
         var before = optionSet.Before;
         var after = optionSet.After;
 
@@ -972,7 +973,13 @@ internal sealed class RuntimeInfo
         {
             if (definition is object)
             {
-                OptionFailure("Cannot specified build and definition", optionSet);
+                OptionFailure("Cannot specify build and definition", optionSet);
+                throw CreateBadOptionException();
+            }
+
+            if (repository is object)
+            {
+                OptionFailure("Cannot specify build and repository", optionSet);
                 throw CreateBadOptionException();
             }
 
@@ -989,11 +996,21 @@ internal sealed class RuntimeInfo
                 throw CreateBadOptionException();
             }
 
-            list = await ListBuildsAsync(optionSet.Project, optionSet.BuildCount, new[] { definitionId}, optionSet.IncludePullRequests);
+            list = await ListBuildsAsync(
+                optionSet.Project,
+                optionSet.BuildCount,
+                definitions: new[] { definitionId },
+                repositoryId: repository,
+                includePullRequests: optionSet.IncludePullRequests);
         }
         else
         {
-            list = await ListBuildsAsync(optionSet.Project, optionSet.BuildCount, definitions: null, optionSet.IncludePullRequests);
+            list = await ListBuildsAsync(
+                optionSet.Project,
+                optionSet.BuildCount,
+                definitions: null,
+                repositoryId: repository,
+                includePullRequests: optionSet.IncludePullRequests);
         }
 
         if (before.HasValue)
@@ -1011,12 +1028,13 @@ internal sealed class RuntimeInfo
         static Exception CreateBadOptionException() => new Exception("Bad option");
     }
 
-    private async Task<List<Build>> ListBuildsAsync(string project, int count, int[] definitions = null, bool includePullRequests = false)
+    private async Task<List<Build>> ListBuildsAsync(string project, int count, int[] definitions = null, string repositoryId = null, bool includePullRequests = false)
     {
         var list = new List<Build>();
         var builds = Server.EnumerateBuildsAsync(
             project,
             definitions: definitions,
+            repositoryId: repositoryId,
             statusFilter: BuildStatus.Completed,
             queryOrder: BuildQueryOrder.FinishTimeDescending);
         await foreach (var build in builds)
