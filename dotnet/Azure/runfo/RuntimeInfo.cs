@@ -48,7 +48,7 @@ internal sealed class RuntimeInfo
         var data = BuildDefinitions
             .AsParallel()
             .AsOrdered()
-            .Select(async t => (t.BuildName, t.DefinitionId, await ListBuildsAsync(t.Project, t.DefinitionId, count)));
+            .Select(async t => (t.BuildName, t.DefinitionId, await ListBuildsAsync(t.Project, count, new[] { t.DefinitionId })));
 
         foreach (var task in data)
         {
@@ -195,7 +195,7 @@ internal sealed class RuntimeInfo
             var kind = "Rolling";
             if (DevOpsUtil.GetPullRequestNumber(build) is int pr)
             {
-                kind = $"PR https://github.com/dotnet/runtime/pull/{pr}";
+                kind = $"PR https://github.com/{build.Repository.Id}/pull/{pr}";
             }
             Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|{tuple.TimelineRecord.Name}|");
         }
@@ -989,12 +989,11 @@ internal sealed class RuntimeInfo
                 throw CreateBadOptionException();
             }
 
-            list = await ListBuildsAsync(optionSet.Project, definitionId, optionSet.BuildCount, optionSet.IncludePullRequests);
+            list = await ListBuildsAsync(optionSet.Project, optionSet.BuildCount, new[] { definitionId}, optionSet.IncludePullRequests);
         }
         else
         {
-            OptionFailure("Need either a build or definition", optionSet);
-            throw CreateBadOptionException();
+            list = await ListBuildsAsync(optionSet.Project, optionSet.BuildCount, definitions: null, optionSet.IncludePullRequests);
         }
 
         if (before.HasValue)
@@ -1012,12 +1011,12 @@ internal sealed class RuntimeInfo
         static Exception CreateBadOptionException() => new Exception("Bad option");
     }
 
-    private async Task<List<Build>> ListBuildsAsync(string project, int definitionId, int count, bool includePullRequests = false)
+    private async Task<List<Build>> ListBuildsAsync(string project, int count, int[] definitions = null, bool includePullRequests = false)
     {
         var list = new List<Build>();
         var builds = Server.EnumerateBuildsAsync(
             project,
-            new[] { definitionId },
+            definitions: definitions,
             statusFilter: BuildStatus.Completed,
             queryOrder: BuildQueryOrder.FinishTimeDescending);
         await foreach (var build in builds)

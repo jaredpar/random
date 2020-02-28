@@ -41,6 +41,19 @@ namespace DevOps.Util
             return new Uri(uri);
         }
 
+        public static string GetRepositoryName(Build build)
+        {
+            var both = build.Repository.Id.Split(new[] { '/' });
+            return both[1];
+        }
+
+
+        public static string GetRepositoryOrganization(Build build)
+        {
+            var both = build.Repository.Id.Split(new[] { '/' });
+            return both[0];
+        }
+
         public static int? GetPullRequestNumber(Build build)
         {
             if (build.Reason != BuildReason.PullRequest)
