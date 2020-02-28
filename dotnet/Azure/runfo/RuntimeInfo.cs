@@ -186,10 +186,10 @@ internal sealed class RuntimeInfo
             nameRegex = new Regex(name, RegexOptions.Compiled | RegexOptions.IgnoreCase);
         }
 
-        Console.WriteLine($"Evaluating {builds.Count} bulids");
         Console.WriteLine("|Build|Kind|Timeline Record|");
         Console.WriteLine("|---|---|---|");
-        foreach (var tuple in await SearchTimelines(Server, builds, nameRegex, textRegex, buildLog))
+        var found = await SearchTimelines(Server, builds, nameRegex, textRegex, buildLog);
+        foreach (var tuple in found)
         {
             var build = tuple.Build;
             var kind = "Rolling";
@@ -199,6 +199,11 @@ internal sealed class RuntimeInfo
             }
             Console.WriteLine($"|[{build.Id}]({DevOpsUtil.GetBuildUri(build)})|{kind}|{tuple.TimelineRecord.Name}|");
         }
+
+        var foundBuildCount = found.GroupBy(x => x.Build.Id).Count();
+        Console.WriteLine($"Evaluated {builds.Count} builds");
+        Console.WriteLine($"Impacted {foundBuildCount} bulids");
+        Console.WriteLine($"Impacted {found.Count} jobs");
 
         return ExitSuccess;
 
