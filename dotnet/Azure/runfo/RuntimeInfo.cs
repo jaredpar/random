@@ -596,15 +596,20 @@ internal sealed class RuntimeInfo
 
         ParseAll(optionSet, args);
 
+        var project = BuildSearchOptionSet.DefaultProject;
         IEnumerable<int> definitions = null;
         if (definition is object)
         {
-            if (!TryGetDefinitionId(definition, out int definitionId))
+            if (!TryGetDefinitionId(definition, out string definitionProject, out int definitionId))
             {
                 OptionFailureDefinition(definition, optionSet);
                 return ExitFailure;
             }
 
+            if (definitionProject is object)
+            {
+                project = definitionProject;
+            }
             definitions = new[] { definitionId };
         }
 
@@ -616,7 +621,7 @@ internal sealed class RuntimeInfo
         }
 
         IEnumerable<Build> builds = await Server.ListBuildsAsync(
-            "public",
+            project,
             definitions: definitions,
             repositoryId: repository,
             branchName: $"refs/pull/{number.Value}/merge",
@@ -913,9 +918,11 @@ internal sealed class RuntimeInfo
         return new BuildTestInfo(build, collection.SelectMany(x => x.TestCaseResults).ToList());
     }
 
-    private bool TryGetDefinitionId(string definition, out int definitionId)
+    private bool TryGetDefinitionId(string definition, out string project, out int definitionId)
     {
         definitionId = 0;
+        project = null;
+
         if (definition is null)
         {
             return false;
@@ -926,11 +933,12 @@ internal sealed class RuntimeInfo
             return true;
         }
 
-        foreach (var (name, _, id) in BuildDefinitions)
+        foreach (var (name, p, id) in BuildDefinitions)
         {
             if (name == definition)
             {
                 definitionId = id;
+                project = p;
                 return true;
             }
         }
@@ -964,67 +972,81 @@ internal sealed class RuntimeInfo
 
     private async Task<List<Build>> ListBuildsAsync(BuildSearchOptionSet optionSet)
     {
-        var buildId = optionSet.BuildId;
-        var definition = optionSet.Definition;
+        if (optionSet.BuildIds.Count > 0 && optionSet.Definitions.Count > 0)
+        {
+            OptionFailure("Cannot specify builds and definitions", optionSet);
+            throw CreateBadOptionException();
+        }
+
+        var project = optionSet.Project ?? BuildSearchOptionSet.DefaultProject;
+        var searchCount = optionSet.SearchCount ?? BuildSearchOptionSet.DefaultSearchCount;
         var repository = optionSet.Repository;
         var before = optionSet.Before;
         var after = optionSet.After;
 
-        if (buildId is object)
+        var builds = new List<Build>();
+        if (optionSet.BuildIds.Count > 0)
         {
-            if (definition is object)
+            if (optionSet.Repository is object)
             {
-                OptionFailure("Cannot specify build and definition", optionSet);
+                OptionFailure("Cannot specify builds and repository", optionSet);
                 throw CreateBadOptionException();
             }
 
-            if (repository is object)
+            if (optionSet.SearchCount is object)
             {
-                OptionFailure("Cannot specify build and repository", optionSet);
+                OptionFailure("Cannot specify builds and count", optionSet);
                 throw CreateBadOptionException();
             }
 
-            var build = await Server.GetBuildAsync(optionSet.Project, buildId.Value);
-            return new List<Build>(new[] { build });
+            foreach (var buildId in optionSet.BuildIds)
+            {
+                var build = await Server.GetBuildAsync(project, buildId);
+                builds.Add(build);
+            }
         }
-
-        List<Build> list;
-        if (definition is object)
+        else if (optionSet.Definitions.Count > 0)
         {
-            if (!TryGetDefinitionId(definition, out int definitionId))
+            foreach (var definition in optionSet.Definitions)
             {
-                OptionFailureDefinition(definition, optionSet);
-                throw CreateBadOptionException();
-            }
+                if (!TryGetDefinitionId(definition, out var definitionProject, out var definitionId))
+                {
+                    OptionFailureDefinition(definition, optionSet);
+                    throw CreateBadOptionException();
+                }
 
-            list = await ListBuildsAsync(
-                optionSet.Project,
-                optionSet.BuildCount,
-                definitions: new[] { definitionId },
-                repositoryId: repository,
-                includePullRequests: optionSet.IncludePullRequests);
+                definitionProject ??= project;
+                var collection = await ListBuildsAsync(
+                    definitionProject,
+                    searchCount,
+                    definitions: new[] { definitionId },
+                    repositoryId: repository,
+                    includePullRequests: optionSet.IncludePullRequests);
+                builds.AddRange(collection);
+            }
         }
         else
         {
-            list = await ListBuildsAsync(
-                optionSet.Project,
-                optionSet.BuildCount,
+            var collection = await ListBuildsAsync(
+                project,
+                searchCount,
                 definitions: null,
                 repositoryId: repository,
                 includePullRequests: optionSet.IncludePullRequests);
+            builds.AddRange(collection);
         }
 
         if (before.HasValue)
         {
-            list = list.Where(b => b.GetStartTime() is DateTime d && d <= before.Value).ToList();
+            builds = builds.Where(b => b.GetStartTime() is DateTime d && d <= before.Value).ToList();
         }
 
         if (after.HasValue)
         {
-            list = list.Where(b => b.GetStartTime() is DateTime d && d >= after.Value).ToList();
+            builds = builds.Where(b => b.GetStartTime() is DateTime d && d >= after.Value).ToList();
         }
 
-        return list;
+        return builds;
 
         static Exception CreateBadOptionException() => new Exception("Bad option");
     }
