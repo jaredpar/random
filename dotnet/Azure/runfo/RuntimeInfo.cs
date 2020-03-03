@@ -16,6 +16,7 @@ internal sealed class RuntimeInfo
     internal static readonly (string BuildName, string Project, int DefinitionId)[] BuildDefinitions = new[]
         {
             ("runtime", "public", 686),
+            ("runtime-official", "internal", 679),
             ("coreclr", "public", 655),
             ("libraries", "public", 675),
             ("libraries windows", "public", 676),
