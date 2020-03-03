@@ -8,7 +8,7 @@ internal sealed class BuildSearchOptionSet : OptionSet
 
     internal const int DefaultSearchCount = 5;
 
-    internal List<int> BuildIds { get; set; } = new List<int>();
+    internal List<string> BuildIds { get; set; } = new List<string>();
 
     internal List<string> Definitions { get; set; } = new List<string>();
 
@@ -26,7 +26,7 @@ internal sealed class BuildSearchOptionSet : OptionSet
 
     internal BuildSearchOptionSet()
     {
-        Add("b|build=", "build id to print tests for", (int b) => BuildIds.Add(b));
+        Add("b|build=", "build id to print tests for", b => BuildIds.Add(b));
         Add("d|definition=", "build definition (name|id)(:project)?", d => Definitions.Add(d));
         Add("c|count=", "count of builds to show for a definition", (int c) => SearchCount = c);
         Add("pr", "include pull requests", p => IncludePullRequests = p is object);

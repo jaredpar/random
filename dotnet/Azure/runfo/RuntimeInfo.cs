@@ -1007,9 +1007,16 @@ internal sealed class RuntimeInfo
                 throw CreateBadOptionException();
             }
 
-            foreach (var buildId in optionSet.BuildIds)
+            foreach (var buildInfo in optionSet.BuildIds)
             {
-                var build = await Server.GetBuildAsync(project, buildId);
+                if (!TryGetBuildId(buildInfo, out var buildProject, out var buildId))
+                {
+                    OptionFailure($"Cannot convert {buildInfo} to build id", optionSet);
+                    throw CreateBadOptionException();
+                }
+
+                buildProject ??= project;
+                var build = await Server.GetBuildAsync(buildProject, buildId);
                 builds.Add(build);
             }
         }
@@ -1057,6 +1064,21 @@ internal sealed class RuntimeInfo
         return builds;
 
         static Exception CreateBadOptionException() => new Exception("Bad option");
+
+        static bool TryGetBuildId(string build, out string project, out int buildId)
+        {
+            project = null;
+
+            var index = build.IndexOf(':');
+            if (index >= 0)
+            {
+                var both = build.Split(new[] { ':' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                build = both[0];
+                project = both[1];
+            }
+
+            return int.TryParse(build, out buildId);
+        }
     }
 
     private async Task<List<Build>> ListBuildsAsync(string project, int count, int[] definitions = null, string repositoryId = null, bool includePullRequests = false)
