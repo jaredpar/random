@@ -32,7 +32,7 @@ public class Program
                     return ExitSuccess;
                 case "builds":
                     return await runtimeInfo.PrintBuilds(commandArgs);
-                case "prbuilds":
+                case "pr-builds":
                     return await runtimeInfo.PrintPullRequestBuilds(commandArgs);
                 case "tests":
                     return await runtimeInfo.PrintFailedTests(commandArgs);
@@ -62,7 +62,7 @@ public class Program
             Console.WriteLine("\tstatus\t\tPrint build definition status");
             Console.WriteLine("\tdefinitions\tPrint build definition info");
             Console.WriteLine("\tbuilds\t\tPrint builds");
-            Console.WriteLine("\tprBuilds\t\tPrint builds for a given pull request");
+            Console.WriteLine("\tpr-builds\t\tPrint builds for a given pull request");
             Console.WriteLine("\ttests\t\tPrint build test failures");
             Console.WriteLine("\thelix\t\tPrint helix logs for build");
             Console.WriteLine("\tsearch-timeline\t\tSerach timeline info");
