@@ -627,10 +627,10 @@ internal sealed class RuntimeInfo
             branchName: $"refs/pull/{number.Value}/merge",
             repositoryType: "github");
 
-        Console.WriteLine($"Definition Build    Url");
+        Console.WriteLine($"Definition Build    Result       Url");
         foreach (var build in builds)
         {
-            Console.WriteLine($"{build.Definition.Id,-10} {build.Id,-8} {DevOpsUtil.GetBuildUri(build)}");
+            Console.WriteLine($"{build.Definition.Id,-10} {build.Id,-8} {build.Result,-12} {DevOpsUtil.GetBuildUri(build)}");
         }
 
         return ExitSuccess;
