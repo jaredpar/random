@@ -928,6 +928,14 @@ internal sealed class RuntimeInfo
             return false;
         }
 
+        var index = definition.IndexOf(':');
+        if (index >= 0)
+        {
+            var both = definition.Split(new[] { ':' }, 2, StringSplitOptions.RemoveEmptyEntries);
+            definition = both[0];
+            project = both[1];
+        }
+
         if (int.TryParse(definition, out definitionId))
         {
             return true;
