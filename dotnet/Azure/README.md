@@ -1,4 +1,1 @@
-Azure Experiments
-======
-
-This is a project for me to experiment with Azure.
+Development moved to https://github.com/jaredpar/devops-util
