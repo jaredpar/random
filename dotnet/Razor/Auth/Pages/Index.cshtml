@@ -4,7 +4,21 @@
     ViewData["Title"] = "Home page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+@if (User?.Identity?.IsAuthenticated ?? false)
+{
+    <h1>Welcome, @User.Identity.Name</h1>
+
+    <p>
+        @foreach (var claim in @Model.HttpContext.User.Claims)
+        {
+            <div><code>@claim.Type</code>: <strong>@claim.Value</strong></div>
+        }
+    </p>
+
+    <a class="btn btn-lg btn-danger" href="/signout">Sign out</a>
+}
+else
+{
+    <h1>Welcome, anonymous</h1>
+    <a class="btn btn-lg btn-success" href="/signin">Sign in</a>
+}

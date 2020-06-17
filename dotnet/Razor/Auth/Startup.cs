@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +26,22 @@ namespace Auth
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddRazorPages();
+            services.AddAuthentication(options =>
+            {
+                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            })
+
+            .AddCookie(options =>
+            {
+                options.LoginPath = "/signin";
+                options.LogoutPath = "/signout";
+            })
+
+            .AddGitHub(options =>
+            {
+                options.ClientId = "49e302895d8b09ea5656";
+                options.ClientSecret = "98f1bf028608901e9df91d64ee61536fe562064b";
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -45,6 +63,7 @@ namespace Auth
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
