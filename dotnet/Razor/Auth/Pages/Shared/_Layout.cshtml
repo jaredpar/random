@@ -27,6 +27,15 @@
                     </ul>
                 </div>
             </div>
+
+            @if (User?.Identity?.IsAuthenticated ?? false)
+            {
+                string url = "https://github.com/" + @User.Identity.Name + ".png?size=40";
+                <div>
+                    <img src=@url class="img-thumbnail"></img>
+                    <span>@User.Identity.Name</span>
+                </div>
+            }
         </nav>
     </header>
     <div class="container">
