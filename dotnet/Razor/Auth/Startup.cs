@@ -39,8 +39,8 @@ namespace Auth
 
             .AddGitHub(options =>
             {
-                options.ClientId = "49e302895d8b09ea5656";
-                options.ClientSecret = "98f1bf028608901e9df91d64ee61536fe562064b";
+                options.ClientId = "573a4db83414d3ad72c3";
+                options.ClientSecret = "5c705cf01d7728c78026f955b83f25c45fba95c4";
             });
         }
 
