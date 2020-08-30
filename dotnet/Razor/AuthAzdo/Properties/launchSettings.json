@@ -3,20 +3,20 @@
     "windowsAuthentication": false,
     "anonymousAuthentication": true,
     "iisExpress": {
-      "applicationUrl": "http://localhost:59085",
-      "sslPort": 44313
+      "applicationUrl": "http://localhost:10210",
+      "sslPort": 44351
     }
   },
   "profiles": {
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
-      "launchUrl": "/sign-in",
+      "launchUrl": "signin",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "Auth2": {
+    "AuthAzdo": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {
