@@ -26,10 +26,6 @@ namespace AuthAzdo
             TokenEndpoint = AzdoAuthenticationDefaults.TokenEndPoint;
             UserInformationEndpoint = AzdoAuthenticationDefaults.UserInformationEndPoint;
 
-            Scope.Add("vso.build");
-            Scope.Add("vso.identity");
-            Scope.Add("vso.work");
-
             ClaimActions.MapJsonKey(ClaimTypes.NameIdentifier, "id");
             ClaimActions.MapJsonKey(ClaimTypes.Email, "emailAddress");
             ClaimActions.MapJsonKey(ClaimTypes.Name, "displayName");

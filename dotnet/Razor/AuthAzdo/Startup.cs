@@ -43,6 +43,10 @@ namespace AuthAzdo
             {
                 options.ClientId = Configuration["AzureAppId"];
                 options.ClientSecret = Configuration["AzureClientSecret"];
+
+                options.Scope.Add("vso.build");
+                options.Scope.Add("vso.identity");
+                options.Scope.Add("vso.work");
             });
         }
 
