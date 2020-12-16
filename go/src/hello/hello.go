@@ -1,10 +1,8 @@
 package main
 
-import (
-    "fmt"
-    "stringutil" 
-)
+import "fmt"
+import "rsc.io/quote"
 
 func main() {
-    fmt.Println(stringutil.Reverse("Hello World"))
+    fmt.Println(quote.Go())
 }
