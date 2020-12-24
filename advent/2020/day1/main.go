@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 )
@@ -18,28 +17,24 @@ func ReadInts() []int {
 	file, err := os.Open("report.txt")
 	check(err)
 
-	// TODO: dynamically grow the buffer
-	buffer := make([]int, 1000)
-	index := 0
+	var buffer []int
 	reader := bufio.NewReader(file)
+	scanner := bufio.NewScanner(reader)
 
 	for {
-		line, _, err := reader.ReadLine()
-		if err == io.EOF {
+		if !scanner.Scan() {
 			break
 		}
 
-		s := string(line)
-		n, err := strconv.Atoi(s)
+		line := scanner.Text()
+		n, err := strconv.Atoi(line)
 
 		check(err)
-
-		buffer[index] = n
-		index = index + 1
+		buffer = append(buffer, n)
 	}
 
 	file.Close()
-	return buffer[0:index]
+	return buffer
 }
 
 func part1() {
@@ -55,6 +50,7 @@ func part1() {
 
 func part2() {
 	buffer := ReadInts()
+	fmt.Printf("Read %v elements\n", len(buffer))
 	for i := 0; i < len(buffer); i++ {
 		for j := 0; j < len(buffer); j++ {
 			for k := 0; k < len(buffer); k++ {
