@@ -95,7 +95,11 @@ func checkSlope(g *grid, rowIncrement int, columnIncrement int) int {
 func main() {
 	grid := ReadGrid()
 
-	total := checkSlope(&grid, 1, 1) * checkSlope(&grid, 1, 3) * checkSlope(&grid, 1, 5) * checkSlope(&grid, 1, 7) * checkSlope(&grid, 2, 1)
+	total := checkSlope(&grid, 1, 1) *
+		checkSlope(&grid, 1, 3) *
+		checkSlope(&grid, 1, 5) *
+		checkSlope(&grid, 1, 7) *
+		checkSlope(&grid, 2, 1)
 
 	fmt.Printf("Hit %d trees\n", total)
 }
