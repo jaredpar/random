@@ -44,34 +44,7 @@ func check(e error) {
 	}
 }
 
-func ReadGrid() grid {
-	var trees [][]bool
-
-	file, err := os.Open("map.txt")
-	check(err)
-	reader := bufio.NewReader(file)
-	scanner := bufio.NewScanner(reader)
-
-	for {
-		if !scanner.Scan() {
-			break
-		}
-
-		line := scanner.Text()
-		lineData := make([]bool, 0, len(line))
-		for _, r := range line {
-			c := false
-			if r == '#' {
-				c = true
-			}
-			lineData = append(lineData, c)
-		}
-
-		trees = append(trees, lineData)
-	}
-
-	return grid{trees: trees}
-}
+3316272960
 
 func checkSlope(g *grid, rowIncrement int, columnIncrement int) int {
 	treeCount := 0
